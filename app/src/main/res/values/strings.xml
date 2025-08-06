@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">KERJA PRAKTIK</string>
+    <string name="prompt_pilih_pengukuran">Pilih Tanggal Pengukuran</string>
+
 </resources>

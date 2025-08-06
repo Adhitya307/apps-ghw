@@ -8,30 +8,38 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:padding="16dp">
-
-        <!-- SECTION: t_data_pengukuran -->
+        <!-- SECTION: Pilih Data Pengukuran (Untuk HP 2) -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Data Pengukuran"
+            android:text="Pilih Data Pengukuran"
             android:textStyle="bold"
             android:textSize="16sp"
             android:layout_marginBottom="8dp" />
 
-        <EditText android:id="@+id/inputTahun" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Tahun" android:inputType="number"/>
-        <EditText android:id="@+id/inputBulan" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Bulan (cth: Januari)"/>
-        <EditText android:id="@+id/inputPeriode" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Periode (cth: Pagi, Siang)"/>
-        <EditText android:id="@+id/inputTanggal" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Tanggal (YYYY-MM-DD)" android:inputType="date"/>
-        <EditText android:id="@+id/inputTmaWaduk" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="TMA Waduk" android:inputType="numberDecimal"/>
-        <EditText android:id="@+id/inputCurahHujan" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Curah Hujan" android:inputType="numberDecimal"/>
-
-        <Button
-            android:id="@+id/btnSubmitPengukuran"
-            android:text="Simpan Pengukuran"
+        <Spinner
+            android:id="@+id/spinnerPengukuran"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp" />
-        <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#CCCCCC" android:layout_marginVertical="8dp"/>
+            android:layout_marginBottom="12dp"
+            android:spinnerMode="dialog"
+            android:prompt="@string/prompt_pilih_pengukuran" />
+
+
+        <Button
+            android:id="@+id/btnPilihPengukuran"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Gunakan Pengukuran Ini"
+            android:layout_marginBottom="12dp"
+            android:backgroundTint="#1976D2"
+            android:textColor="#FFFFFF"/>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#CCCCCC"
+            android:layout_marginVertical="8dp"/>
 
         <!-- SECTION: t_thomson_weir -->
         <TextView

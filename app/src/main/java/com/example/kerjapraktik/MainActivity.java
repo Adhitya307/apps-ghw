@@ -1,6 +1,5 @@
 package com.example.kerjapraktik;
 
-import android.graphics.drawable.AnimationDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.TransitionDrawable;
 import android.os.Bundle;
@@ -26,6 +25,8 @@ public class MainActivity extends AppCompatActivity {
 
     private Drawable[] gradients;
     private int currentGradient = 0;
+
+    private boolean hasNavigated = false; // 🔒 Cegah berpindah lebih dari 1x
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -63,7 +64,8 @@ public class MainActivity extends AppCompatActivity {
                 splashLayout.setBackground(transition);
                 transition.startTransition(2000);
 
-                handler.postDelayed(this, 4000); // repeat every 4 sec
+                // repeat transition, but harmless even if activity moved
+                handler.postDelayed(this, 4000);
             }
         }, 0);
     }
@@ -92,24 +94,32 @@ public class MainActivity extends AppCompatActivity {
 
     private void startDotLoading() {
         dotLoader.animate().alpha(1f).setDuration(400).start();
-        animateDots();
+        animateDotsOnce(); // hanya sekali animasi
+        navigateToHomeAfterDelay(); // hanya sekali pindah
     }
 
-    private void animateDots() {
+    private void animateDotsOnce() {
         dot1.animate().scaleX(1.4f).scaleY(1.4f).setDuration(300).withEndAction(() -> {
             dot1.animate().scaleX(1f).scaleY(1f).setDuration(300).start();
             dot2.animate().scaleX(1.4f).scaleY(1.4f).setDuration(300).withEndAction(() -> {
                 dot2.animate().scaleX(1f).scaleY(1f).setDuration(300).start();
                 dot3.animate().scaleX(1.4f).scaleY(1.4f).setDuration(300).withEndAction(() -> {
-                    dot3.animate().scaleX(1f).scaleY(1f).setDuration(300).withEndAction(this::animateDots).start();
+                    dot3.animate().scaleX(1f).scaleY(1f).setDuration(300).start();
                 }).start();
             }).start();
         }).start();
+    }
 
+    private void navigateToHomeAfterDelay() {
         handler.postDelayed(() -> {
-            startActivity(new Intent(MainActivity.this, HomeActivity.class));
-            overridePendingTransition(android.R.anim.slide_in_left, android.R.anim.slide_out_right);
-            finish();
+            if (!hasNavigated) {
+                hasNavigated = true; // set sudah pindah
+                Intent intent = new Intent(MainActivity.this, HomeActivity.class);
+                intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(intent);
+                overridePendingTransition(android.R.anim.slide_in_left, android.R.anim.slide_out_right);
+                // finish() tidak dibutuhkan karena CLEAR_TASK sudah menghapus semua
+            }
         }, 5000);
     }
 }

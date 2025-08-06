@@ -69,12 +69,24 @@
                 android:gravity="center"
                 android:layout_marginBottom="24dp"/>
 
+            <!-- Tombol HP 1 -->
             <Button
                 android:id="@+id/btnInput"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Input di sini"
+                android:text="Input HP 1"
                 android:backgroundTint="#1976D2"
+                android:textColor="#FFFFFF"
+                android:padding="12dp"
+                android:layout_marginBottom="12dp"/>
+
+            <!-- Tombol HP 2 -->
+            <Button
+                android:id="@+id/btnInputHP2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Input HP 2"
+                android:backgroundTint="#388E3C"
                 android:textColor="#FFFFFF"
                 android:padding="12dp"/>
         </LinearLayout>
