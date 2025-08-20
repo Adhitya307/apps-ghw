@@ -22,16 +22,20 @@ public class InputData2Activity extends AppCompatActivity {
     private Button btnPilihPengukuran, btnSubmitThomson, btnSubmitSR, btnSubmitBocoran;
     private EditText inputA1R, inputA1L, inputB1, inputB3, inputB5;
     private EditText inputElv624T1, inputElv615T2, inputPipaP1;
+    private Spinner inputElv624T1Kode, inputElv615T2Kode, inputPipaP1Kode;
 
     private int pengukuranId = -1;
     private final int[] srKodeArray = {1, 40, 66, 68, 70, 79, 81, 83, 85, 92, 94, 96, 98, 100, 102, 104, 106};
-    private final Map<Integer, EditText> srKodeInputs = new HashMap<>();
+    private final Map<Integer, Spinner> srKodeInputs = new HashMap<>();
     private final Map<Integer, EditText> srNilaiInputs = new HashMap<>();
     private final Map<String, Integer> tanggalToIdMap = new HashMap<>();
 
-    private final String SERVER_URL = "http://192.168.1.6/kp_android/";
-    private boolean showSyncToast = false;
+    private final String SERVER_URL = "http://192.168.72.30/kp_android/";
 
+    // 🔥 variabel global sinkronisasi
+    private boolean showSyncToast = false;
+    private AtomicInteger globalCounter = new AtomicInteger(0);
+    private int globalTotalData = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,14 +52,22 @@ public class InputData2Activity extends AppCompatActivity {
         inputElv624T1 = findViewById(R.id.inputElv624T1);
         inputElv615T2 = findViewById(R.id.inputElv615T2);
         inputPipaP1 = findViewById(R.id.inputPipaP1);
+        inputElv624T1Kode = findViewById(R.id.inputElv624T1Kode);
+        inputElv615T2Kode = findViewById(R.id.inputElv615T2Kode);
+        inputPipaP1Kode = findViewById(R.id.inputPipaP1Kode);
+
         btnSubmitThomson = findViewById(R.id.btnSubmitThomson);
         btnSubmitSR = findViewById(R.id.btnSubmitSR);
         btnSubmitBocoran = findViewById(R.id.btnSubmitBocoran);
 
+        // Initialize SR Spinners and EditTexts
         for (int kode : srKodeArray) {
             srKodeInputs.put(kode, findViewById(getResources().getIdentifier("sr_" + kode + "_kode", "id", getPackageName())));
             srNilaiInputs.put(kode, findViewById(getResources().getIdentifier("sr_" + kode + "_nilai", "id", getPackageName())));
         }
+
+        // Setup spinners with S,M,L,E options
+        setupSpinners();
 
         btnPilihPengukuran.setOnClickListener(v -> {
             String selected = (String) spinnerPengukuran.getSelectedItem();
@@ -70,13 +82,47 @@ public class InputData2Activity extends AppCompatActivity {
         btnSubmitBocoran.setOnClickListener(v -> simpanAtauOffline("bocoran", buatDataBocoran()));
     }
 
+    private void setupSpinners() {
+        // Create array adapter for S,M,L,E options
+        ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(
+                this,
+                R.array.kode_options,
+                android.R.layout.simple_spinner_item
+        );
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+
+        // Set adapter for all SR Kode spinners
+        for (int kode : srKodeArray) {
+            srKodeInputs.get(kode).setAdapter(adapter);
+        }
+
+        // Set adapter for Bocoran Kode spinners
+        inputElv624T1Kode.setAdapter(adapter);
+        inputElv615T2Kode.setAdapter(adapter);
+        inputPipaP1Kode.setAdapter(adapter);
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
-        showSyncToast = false; // Nonaktifkan toast saat pertama buka activity
+        showSyncToast = false;
+        globalCounter.set(0);
+        globalTotalData = 0;
 
         if (isInternetAvailable()) {
             syncPengukuranMaster();
+
+            // hitung semua data offline
+            OfflineDataHelper db = new OfflineDataHelper(this);
+            globalTotalData += db.getUnsyncedData("thomson").size();
+            globalTotalData += db.getUnsyncedData("sr").size();
+            globalTotalData += db.getUnsyncedData("bocoran").size();
+
+            if (globalTotalData > 0) {
+                showSyncToast = true;
+            }
+
+            // mulai sinkronisasi
             syncOfflineData("thomson");
             syncOfflineData("sr");
             syncOfflineData("bocoran");
@@ -102,7 +148,7 @@ public class InputData2Activity extends AppCompatActivity {
         data.put("mode", "sr");
         data.put("pengukuran_id", String.valueOf(pengukuranId));
         for (int kode : srKodeArray) {
-            data.put("sr_" + kode + "_kode", srKodeInputs.get(kode).getText().toString());
+            data.put("sr_" + kode + "_kode", srKodeInputs.get(kode).getSelectedItem().toString());
             data.put("sr_" + kode + "_nilai", srNilaiInputs.get(kode).getText().toString());
         }
         return data;
@@ -113,8 +159,11 @@ public class InputData2Activity extends AppCompatActivity {
         data.put("mode", "bocoran");
         data.put("pengukuran_id", String.valueOf(pengukuranId));
         data.put("elv_624_t1", inputElv624T1.getText().toString());
+        data.put("elv_624_t1_kode", inputElv624T1Kode.getSelectedItem().toString());
         data.put("elv_615_t2", inputElv615T2.getText().toString());
+        data.put("elv_615_t2_kode", inputElv615T2Kode.getSelectedItem().toString());
         data.put("pipa_p1", inputPipaP1.getText().toString());
+        data.put("pipa_p1_kode", inputPipaP1Kode.getSelectedItem().toString());
         return data;
     }
 
@@ -169,15 +218,11 @@ public class InputData2Activity extends AppCompatActivity {
         }).start();
     }
 
-    // Ubah bagian syncOfflineData()
     private void syncOfflineData(String tableName) {
         OfflineDataHelper db = new OfflineDataHelper(this);
         List<Map<String, String>> dataList = db.getUnsyncedData(tableName);
 
         if (dataList == null || dataList.isEmpty()) return;
-
-        AtomicInteger counter = new AtomicInteger(0);
-        int totalData = dataList.size();
 
         for (Map<String, String> item : dataList) {
             String tempId = item.get("temp_id");
@@ -194,8 +239,13 @@ public class InputData2Activity extends AppCompatActivity {
 
                 kirimDataKeServer(dataMap, () -> {
                     db.deleteByTempId(tableName, tempId);
-                    if (counter.incrementAndGet() == totalData && showSyncToast) {
-                        runOnUiThread(() -> showToast("Sinkronisasi " + tableName + " sukses"));
+
+                    // ✅ hanya tampilkan sekali ketika semua data sudah sinkron
+                    if (showSyncToast && globalCounter.incrementAndGet() == globalTotalData) {
+                        runOnUiThread(() -> {
+                            showToast("Sinkronisasi sukses");
+                            showSyncToast = false;
+                        });
                     }
                 });
 

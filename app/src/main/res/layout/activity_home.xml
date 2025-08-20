@@ -104,7 +104,7 @@
             android:id="@+id/footerText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="© 2025 Sistem Monitoring KP"
+            android:text="© 2025 Sistem Monitoring GHW"
             android:textColor="#555555"
             android:textSize="12sp"/>
     </LinearLayout>

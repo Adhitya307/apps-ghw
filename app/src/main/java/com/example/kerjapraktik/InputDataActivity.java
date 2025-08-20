@@ -15,33 +15,39 @@ import java.io.*;
 import java.net.*;
 import java.util.*;
 
+import android.util.Log;
+
 public class InputDataActivity extends AppCompatActivity {
 
-    private EditText inputTahun, inputBulan, inputPeriode, inputTanggal, inputTmaWaduk, inputCurahHujan;
+    private EditText inputTahun, inputBulan, inputPeriode, inputTanggal, inputTmaWaduk;
     private EditText inputA1R, inputA1L, inputB1, inputB3, inputB5;
     private EditText inputElv624T1, inputElv615T2, inputPipaP1;
     private Button btnSubmitPengukuran, btnSubmitThomson, btnSubmitSR, btnSubmitBocoran;
 
     private String tempId = null;
     private int pengukuranId = -1;
-
     private final int[] srKodeArray = {1, 40, 66, 68, 70, 79, 81, 83, 85, 92, 94, 96, 98, 100, 102, 104, 106};
-
     private boolean isSyncInProgress = false;
-    private boolean showSyncToast = false;
+    private Map<Integer, Spinner> srKodeSpinners = new HashMap<>();
+    private Spinner elv624T1Kode, elv615T2Kode, pipaP1Kode;
 
+    private OfflineDataHelper offlineDb;
+    private SharedPreferences syncPrefs;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_input_data);
 
+        offlineDb = new OfflineDataHelper(this);
+        syncPrefs = getSharedPreferences("sync_prefs", MODE_PRIVATE);
+
+        // Initialize input fields
         inputTahun = findViewById(R.id.inputTahun);
         inputBulan = findViewById(R.id.inputBulan);
         inputPeriode = findViewById(R.id.inputPeriode);
         inputTanggal = findViewById(R.id.inputTanggal);
         inputTmaWaduk = findViewById(R.id.inputTmaWaduk);
-        inputCurahHujan = findViewById(R.id.inputCurahHujan);
         inputA1R = findViewById(R.id.inputA1R);
         inputA1L = findViewById(R.id.inputA1L);
         inputB1 = findViewById(R.id.inputB1);
@@ -51,15 +57,31 @@ public class InputDataActivity extends AppCompatActivity {
         inputElv615T2 = findViewById(R.id.inputElv615T2);
         inputPipaP1 = findViewById(R.id.inputPipaP1);
 
+        // Initialize buttons
         btnSubmitPengukuran = findViewById(R.id.btnSubmitPengukuran);
         btnSubmitThomson = findViewById(R.id.btnSubmitThomson);
         btnSubmitSR = findViewById(R.id.btnSubmitSR);
         btnSubmitBocoran = findViewById(R.id.btnSubmitBocoran);
 
+        // Set click listeners
         btnSubmitPengukuran.setOnClickListener(v -> handlePengukuran());
         btnSubmitThomson.setOnClickListener(v -> handleThomson());
         btnSubmitSR.setOnClickListener(v -> handleSR());
         btnSubmitBocoran.setOnClickListener(v -> handleBocoran());
+
+        // Initialize Spinners for bocoran kode
+        elv624T1Kode = findViewById(R.id.elv_624_t1_kode);
+        elv615T2Kode = findViewById(R.id.elv_615_t2_kode);
+        pipaP1Kode = findViewById(R.id.pipa_p1_kode);
+
+        // Initialize Spinners for SR kode
+        for (int kode : srKodeArray) {
+            int resId = getResources().getIdentifier("sr_" + kode + "_kode", "id", getPackageName());
+            Spinner spinner = findViewById(resId);
+            if (spinner != null) {
+                srKodeSpinners.put(kode, spinner);
+            }
+        }
 
         SharedPreferences prefs = getSharedPreferences("pengukuran", MODE_PRIVATE);
         pengukuranId = prefs.getInt("pengukuran_id", -1);
@@ -68,19 +90,33 @@ public class InputDataActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        showSyncToast = false; // supaya tidak muncul toast saat buka awal
+        Log.d("SYNC", "onResume dipanggil");
+
         if (isInternetAvailable() && !isSyncInProgress) {
-            isSyncInProgress = true;
-            syncAllOfflineData(() -> {
-                isSyncInProgress = false;
-                if (showSyncToast) {
-                    runOnUiThread(() -> showToast("Sinkronisasi selesai"));
-                }
-            });
+            List<Map<String, String>> pengukuran = offlineDb.getAllData("pengukuran");
+            List<Map<String, String>> thomson = offlineDb.getAllData("thomson");
+            List<Map<String, String>> sr = offlineDb.getAllData("sr");
+            List<Map<String, String>> bocoran = offlineDb.getAllData("bocoran");
+
+            boolean adaDataOffline = !pengukuran.isEmpty() || !thomson.isEmpty() || !sr.isEmpty() || !bocoran.isEmpty();
+            Log.d("SYNC", "Ada data offline? " + adaDataOffline);
+
+            if (adaDataOffline) {
+                isSyncInProgress = true;
+                syncAllOfflineData(() -> {
+                    isSyncInProgress = false;
+
+                    boolean sudahTampil = syncPrefs.getBoolean("toast_shown", false);
+                    if (!sudahTampil) {
+                        runOnUiThread(() -> Toast.makeText(this, "Sinkronisasi berhasil", Toast.LENGTH_LONG).show());
+                        syncPrefs.edit().putBoolean("toast_shown", true).apply();
+                    }
+                });
+            } else {
+                Log.d("SYNC", "Tidak ada data offline, skip sync");
+            }
         }
     }
-
-
 
     private void handlePengukuran() {
         Map<String, String> data = new HashMap<>();
@@ -90,11 +126,9 @@ public class InputDataActivity extends AppCompatActivity {
         data.put("periode", inputPeriode.getText().toString());
         data.put("tanggal", inputTanggal.getText().toString());
         data.put("tma_waduk", inputTmaWaduk.getText().toString());
-        data.put("curah_hujan", inputCurahHujan.getText().toString());
 
-        if (isInternetAvailable()) {
-            sendToServer(data, "pengukuran", true);
-        } else {
+        if (isInternetAvailable()) sendToServer(data, "pengukuran", true);
+        else {
             tempId = "local_" + System.currentTimeMillis();
             data.put("temp_id", tempId);
             saveOffline("pengukuran", tempId, data);
@@ -124,9 +158,13 @@ public class InputDataActivity extends AppCompatActivity {
     private void handleSR() {
         Map<String, String> data = new HashMap<>();
         data.put("mode", "sr");
+
         for (int kode : srKodeArray) {
-            data.put("sr_" + kode + "_kode", getTextFromId("sr_" + kode + "_kode"));
-            data.put("sr_" + kode + "_nilai", getTextFromId("sr_" + kode + "_nilai"));
+            Spinner spinner = srKodeSpinners.get(kode);
+            if (spinner != null) {
+                data.put("sr_" + kode + "_kode", spinner.getSelectedItem().toString());
+                data.put("sr_" + kode + "_nilai", getTextFromId("sr_" + kode + "_nilai"));
+            }
         }
 
         if (pengukuranId != -1) data.put("pengukuran_id", String.valueOf(pengukuranId));
@@ -144,8 +182,11 @@ public class InputDataActivity extends AppCompatActivity {
         Map<String, String> data = new HashMap<>();
         data.put("mode", "bocoran");
         data.put("elv_624_t1", inputElv624T1.getText().toString());
+        data.put("elv_624_t1_kode", elv624T1Kode.getSelectedItem().toString());
         data.put("elv_615_t2", inputElv615T2.getText().toString());
+        data.put("elv_615_t2_kode", elv615T2Kode.getSelectedItem().toString());
         data.put("pipa_p1", inputPipaP1.getText().toString());
+        data.put("pipa_p1_kode", pipaP1Kode.getSelectedItem().toString());
 
         if (pengukuranId != -1) data.put("pengukuran_id", String.valueOf(pengukuranId));
         else if (tempId != null) data.put("temp_id", tempId);
@@ -159,6 +200,16 @@ public class InputDataActivity extends AppCompatActivity {
     }
 
     private void syncAllOfflineData(Runnable onComplete) {
+        boolean adaData = !offlineDb.getAllData("pengukuran").isEmpty()
+                || !offlineDb.getAllData("thomson").isEmpty()
+                || !offlineDb.getAllData("sr").isEmpty()
+                || !offlineDb.getAllData("bocoran").isEmpty();
+
+        if (!adaData) {
+            if (onComplete != null) onComplete.run();
+            return;
+        }
+
         syncDataSerial("pengukuran", () ->
                 syncDataSerial("thomson", () ->
                         syncDataSerial("sr", () ->
@@ -168,25 +219,16 @@ public class InputDataActivity extends AppCompatActivity {
         );
     }
 
-
     private void syncDataSerial(String tableName, Runnable next) {
-        OfflineDataHelper db = new OfflineDataHelper(this);
-        List<Map<String, String>> dataList = db.getAllData(tableName);
-
+        List<Map<String, String>> dataList = offlineDb.getAllData(tableName);
         if (dataList.isEmpty()) {
             if (next != null) next.run();
             return;
         }
-
-        syncDataItem(tableName, dataList, 0, db, () -> {
-            if (showSyncToast) {
-                runOnUiThread(() -> showToast("Sinkron " + tableName + " selesai"));
-            }
-            if (next != null) next.run();
-        });
+        syncDataItem(tableName, dataList, 0, next);
     }
 
-    private void syncDataItem(String tableName, List<Map<String, String>> dataList, int index, OfflineDataHelper db, Runnable onFinish) {
+    private void syncDataItem(String tableName, List<Map<String, String>> dataList, int index, Runnable onFinish) {
         if (index >= dataList.size()) {
             onFinish.run();
             return;
@@ -204,13 +246,11 @@ public class InputDataActivity extends AppCompatActivity {
                 String key = keys.next();
                 dataMap.put(key, json.getString(key));
             }
-            if (!dataMap.containsKey("pengukuran_id")) {
-                dataMap.put("temp_id", tempId);
-            }
+            if (!dataMap.containsKey("pengukuran_id")) dataMap.put("temp_id", tempId);
 
             new Thread(() -> {
                 try {
-                    URL url = new URL("http://192.168.1.6/kp_android/insert_data.php");
+                    URL url = new URL("http://192.168.72.30/kp_android/insert_data.php");
                     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                     conn.setRequestMethod("POST");
                     conn.setDoOutput(true);
@@ -229,28 +269,33 @@ public class InputDataActivity extends AppCompatActivity {
                     os.flush(); os.close();
 
                     int code = conn.getResponseCode();
-                    if (code == 200) {
-                        db.deleteByTempId(tableName, tempId);
+                    InputStream is = (code == 200) ? conn.getInputStream() : conn.getErrorStream();
+                    BufferedReader br = new BufferedReader(new InputStreamReader(is));
+                    StringBuilder response = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null) response.append(line);
+                    br.close();
+
+                    if (code == 200 && response.toString().toLowerCase().contains("success")) {
+                        offlineDb.deleteByTempId(tableName, tempId);
                     }
 
                 } catch (Exception e) {
-                    // log or handle
+                    Log.e("SYNC", "Error sync " + tableName + " tempId=" + tempId, e);
                 }
 
-                // lanjut ke item berikutnya
-                runOnUiThread(() -> syncDataItem(tableName, dataList, index + 1, db, onFinish));
+                runOnUiThread(() -> syncDataItem(tableName, dataList, index + 1, onFinish));
             }).start();
 
         } catch (Exception e) {
-            runOnUiThread(() -> syncDataItem(tableName, dataList, index + 1, db, onFinish));
+            runOnUiThread(() -> syncDataItem(tableName, dataList, index + 1, onFinish));
         }
     }
-
 
     private void sendToServer(Map<String, String> dataMap, String table, boolean isPengukuran) {
         new Thread(() -> {
             try {
-                URL url = new URL("http://192.168.1.6/kp_android/insert_data.php");
+                URL url = new URL("http://192.168.72.30/kp_android/insert_data.php");
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setDoOutput(true);
@@ -290,9 +335,9 @@ public class InputDataActivity extends AppCompatActivity {
     private void saveOffline(String table, String tempId, Map<String, String> data) {
         try {
             JSONObject json = new JSONObject(data);
-            OfflineDataHelper db = new OfflineDataHelper(this);
-            db.insertData(table, tempId, json.toString());
+            offlineDb.insertData(table, tempId, json.toString());
             showToast("Tidak ada internet. Data disimpan offline.");
+            syncPrefs.edit().putBoolean("toast_shown", false).apply();
         } catch (Exception e) {
             showToast("Gagal simpan offline: " + e.getMessage());
         }

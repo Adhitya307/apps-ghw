@@ -14,7 +14,7 @@ import java.util.Map;
 public class OfflineDataHelper extends SQLiteOpenHelper {
 
     private static final String DB_NAME = "offline_sync.db";
-    private static final int DB_VERSION = 2; // UBAH VERSI DB AGAR onUpgrade() TERPANGGIL
+    private static final int DB_VERSION = 2;
 
     public OfflineDataHelper(Context context) {
         super(context, DB_NAME, null, DB_VERSION);
@@ -48,18 +48,10 @@ public class OfflineDataHelper extends SQLiteOpenHelper {
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        try {
-            db.execSQL("ALTER TABLE pengukuran ADD COLUMN is_synced INTEGER DEFAULT 0");
-        } catch (Exception ignored) {}
-        try {
-            db.execSQL("ALTER TABLE thomson ADD COLUMN is_synced INTEGER DEFAULT 0");
-        } catch (Exception ignored) {}
-        try {
-            db.execSQL("ALTER TABLE sr ADD COLUMN is_synced INTEGER DEFAULT 0");
-        } catch (Exception ignored) {}
-        try {
-            db.execSQL("ALTER TABLE bocoran ADD COLUMN is_synced INTEGER DEFAULT 0");
-        } catch (Exception ignored) {}
+        try { db.execSQL("ALTER TABLE pengukuran ADD COLUMN is_synced INTEGER DEFAULT 0"); } catch (Exception ignored) {}
+        try { db.execSQL("ALTER TABLE thomson ADD COLUMN is_synced INTEGER DEFAULT 0"); } catch (Exception ignored) {}
+        try { db.execSQL("ALTER TABLE sr ADD COLUMN is_synced INTEGER DEFAULT 0"); } catch (Exception ignored) {}
+        try { db.execSQL("ALTER TABLE bocoran ADD COLUMN is_synced INTEGER DEFAULT 0"); } catch (Exception ignored) {}
         try {
             db.execSQL("CREATE TABLE IF NOT EXISTS pengukuran_master (" +
                     "id INTEGER PRIMARY KEY, tanggal TEXT)");
@@ -81,10 +73,21 @@ public class OfflineDataHelper extends SQLiteOpenHelper {
 
     // ============= QUERY DATA =============
 
+    // Semua data (debugging)
     public List<Map<String, String>> getAllData(String table) {
+        return queryData("SELECT * FROM " + table);
+    }
+
+    // Hanya data yang belum tersinkron
+    public List<Map<String, String>> getUnsyncedData(String table) {
+        return queryData("SELECT * FROM " + table + " WHERE is_synced = 0");
+    }
+
+    // Helper umum untuk query
+    private List<Map<String, String>> queryData(String sql) {
         List<Map<String, String>> list = new ArrayList<>();
         SQLiteDatabase db = getReadableDatabase();
-        Cursor cursor = db.rawQuery("SELECT * FROM " + table, null);
+        Cursor cursor = db.rawQuery(sql, null);
         while (cursor.moveToNext()) {
             Map<String, String> item = new HashMap<>();
             item.put("temp_id", cursor.getString(cursor.getColumnIndexOrThrow("temp_id")));
@@ -96,20 +99,15 @@ public class OfflineDataHelper extends SQLiteOpenHelper {
         return list;
     }
 
-    public List<Map<String, String>> getUnsyncedData(String table) {
-        List<Map<String, String>> list = new ArrayList<>();
-        SQLiteDatabase db = getReadableDatabase();
-        Cursor cursor = db.rawQuery("SELECT * FROM " + table + " WHERE is_synced = 0", null);
-        while (cursor.moveToNext()) {
-            Map<String, String> item = new HashMap<>();
-            item.put("temp_id", cursor.getString(cursor.getColumnIndexOrThrow("temp_id")));
-            item.put("json", cursor.getString(cursor.getColumnIndexOrThrow("json")));
-            list.add(item);
-        }
-        cursor.close();
-        return list;
+    // Cek apakah ada data offline yang belum tersinkron
+    public boolean hasUnsyncedData() {
+        return !getUnsyncedData("pengukuran").isEmpty() ||
+                !getUnsyncedData("thomson").isEmpty() ||
+                !getUnsyncedData("sr").isEmpty() ||
+                !getUnsyncedData("bocoran").isEmpty();
     }
 
+    // Tandai data sudah tersinkron
     public void markAsSynced(String table, String tempId) {
         SQLiteDatabase db = getWritableDatabase();
         ContentValues values = new ContentValues();

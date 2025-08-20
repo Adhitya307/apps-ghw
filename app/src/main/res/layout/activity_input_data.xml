@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="#F5F9FF">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -9,497 +11,1201 @@
         android:orientation="vertical"
         android:padding="16dp">
 
-        <!-- SECTION: t_data_pengukuran -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Data Pengukuran"
-            android:textStyle="bold"
-            android:textSize="16sp"
-            android:layout_marginBottom="8dp" />
-
-        <EditText android:id="@+id/inputTahun" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Tahun" android:inputType="number"/>
-        <EditText android:id="@+id/inputBulan" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Bulan (cth: Januari)"/>
-        <EditText android:id="@+id/inputPeriode" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Periode (cth: Pagi, Siang)"/>
-        <EditText android:id="@+id/inputTanggal" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Tanggal (YYYY-MM-DD)" android:inputType="date"/>
-        <EditText android:id="@+id/inputTmaWaduk" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="TMA Waduk" android:inputType="numberDecimal"/>
-        <EditText android:id="@+id/inputCurahHujan" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Curah Hujan" android:inputType="numberDecimal"/>
-
-        <Button
-            android:id="@+id/btnSubmitPengukuran"
-            android:text="Simpan Pengukuran"
+        <!-- Header with PLN Logo -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp" />
-        <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#CCCCCC" android:layout_marginVertical="8dp"/>
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="16dp">
+
+            <ImageView
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/logo_pln"
+                android:layout_marginEnd="8dp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="PT.PLN INDONESIA POWER UNIT BISNIS PEMBANGKITAN (UBP) SAGULING"
+                android:textColor="#0054A6"
+                android:textSize="20sp"
+                android:textStyle="bold"/>
+        </LinearLayout>
+
+        <!-- SECTION: t_data_pengukuran -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="4dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Data Pengukuran"
+                    android:textColor="#0054A6"
+                    android:textStyle="bold"
+                    android:textSize="16sp"
+                    android:layout_marginBottom="12dp" />
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/inputTahun"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="Tahun"
+                        android:inputType="number"/>
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/inputBulan"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="Bulan (cth: Januari)"/>
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/inputPeriode"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="Periode "/>
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/inputTanggal"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="Tanggal (YYYY-MM-DD)"
+                        android:inputType="date"/>
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/inputTmaWaduk"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="TMA Waduk (mdpl)"
+                        android:inputType="numberDecimal"/>
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <Button
+                    android:id="@+id/btnSubmitPengukuran"
+                    android:text="Simpan Pengukuran"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="12dp"
+                    android:backgroundTint="#0054A6"
+                    android:textColor="#FFFFFF"
+                    android:textAllCaps="false"
+                    style="@style/Widget.MaterialComponents.Button"/>
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
 
         <!-- SECTION: t_thomson_weir -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Thomson Weir"
-            android:textStyle="bold"
-            android:textSize="16sp"
-            android:layout_marginBottom="8dp" />
-
-        <EditText android:id="@+id/inputA1R" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="A1 R" android:inputType="numberDecimal"/>
-        <EditText android:id="@+id/inputA1L" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="A1 L" android:inputType="numberDecimal"/>
-        <EditText android:id="@+id/inputB1" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="B1" android:inputType="numberDecimal"/>
-        <EditText android:id="@+id/inputB3" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="B3" android:inputType="numberDecimal"/>
-        <EditText android:id="@+id/inputB5" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="B5" android:inputType="numberDecimal"/>
-
-        <Button
-            android:id="@+id/btnSubmitThomson"
-            android:text="Simpan Thomson Weir"
+        <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp" />
-        <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#CCCCCC" android:layout_marginVertical="8dp"/>
+            android:layout_marginBottom="16dp"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="4dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Thomson Weir (mm)"
+                    android:textColor="#0054A6"
+                    android:textStyle="bold"
+                    android:textSize="16sp"
+                    android:layout_marginBottom="12dp" />
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/inputA1R"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="A1 R"
+                        android:inputType="numberDecimal"/>
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/inputA1L"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="A1 L"
+                        android:inputType="numberDecimal"/>
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/inputB1"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="B1"
+                        android:inputType="numberDecimal"/>
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/inputB3"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="B3"
+                        android:inputType="numberDecimal"/>
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/inputB5"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="B5"
+                        android:inputType="numberDecimal"/>
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <Button
+                    android:id="@+id/btnSubmitThomson"
+                    android:text="Simpan Thomson Weir"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="12dp"
+                    android:backgroundTint="#0054A6"
+                    android:textColor="#FFFFFF"
+                    android:textAllCaps="false"
+                    style="@style/Widget.MaterialComponents.Button"/>
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
 
         <!-- SECTION: t_sr -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Data SR (Kode dan Nilai)"
-            android:textStyle="bold"
-            android:textSize="16sp"
-            android:layout_marginBottom="8dp" />
-
-        <!-- SR 1 -->
-        <LinearLayout
+        <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp">
+            android:layout_marginBottom="16dp"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="4dp">
 
-            <EditText
-                android:id="@+id/sr_1_kode"
-                android:layout_width="0dp"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:hint="SR 1 Kode"
-                android:maxLength="1" />
+                android:orientation="vertical"
+                android:padding="16dp">
 
-            <EditText
-                android:id="@+id/sr_1_nilai"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="2"
-                android:hint="SR 1 Nilai"
-                android:inputType="numberDecimal" />
-        </LinearLayout>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Data SR (detik)"
+                    android:textColor="#0054A6"
+                    android:textStyle="bold"
+                    android:textSize="16sp"
+                    android:layout_marginBottom="12dp" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="UKURAN"
+                    android:textColor="#0054A6"
+                    android:textStyle="bold"
+                    android:textSize="14sp"
+                    android:layout_marginBottom="8dp" />
 
-        <!-- SR 40 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp">
+                <!-- SR 1 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="8dp">
 
-            <EditText
-                android:id="@+id/sr_40_kode"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:hint="SR 40 Kode"
-                android:maxLength="1" />
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
 
-            <EditText
-                android:id="@+id/sr_40_nilai"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="2"
-                android:hint="SR 40 Nilai"
-                android:inputType="numberDecimal" />
-        </LinearLayout>
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="SR 1 Kode"
+                            android:textSize="12sp"
+                            android:layout_marginBottom="4dp"/>
 
-        <!-- SR 66 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp">
+                        <Spinner
+                            android:id="@+id/sr_1_kode"
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:entries="@array/kode_options"
+                            android:background="@drawable/spinner_background"
+                            android:popupBackground="@drawable/spinner_dropdown_background"/>
+                    </com.google.android.material.textfield.TextInputLayout>
 
-            <EditText
-                android:id="@+id/sr_66_kode"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:hint="SR 66 Kode"
-                android:maxLength="1" />
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="2"
+                        android:layout_marginStart="8dp"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
 
-            <EditText
-                android:id="@+id/sr_66_nilai"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="2"
-                android:hint="SR 66 Nilai"
-                android:inputType="numberDecimal" />
-        </LinearLayout>
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/sr_1_nilai"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="SR 1 Nilai"
+                            android:inputType="numberDecimal" />
+                    </com.google.android.material.textfield.TextInputLayout>
+                </LinearLayout>
 
-        <!-- SR 68 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp">
+                <!-- SR 40 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="8dp">
 
-            <EditText
-                android:id="@+id/sr_68_kode"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:hint="SR 68 Kode"
-                android:maxLength="1" />
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
 
-            <EditText
-                android:id="@+id/sr_68_nilai"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="2"
-                android:hint="SR 68 Nilai"
-                android:inputType="numberDecimal" />
-        </LinearLayout>
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="SR 40 Kode"
+                            android:textSize="12sp"
+                            android:layout_marginBottom="4dp"/>
 
-        <!-- SR 70 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp">
+                        <Spinner
+                            android:id="@+id/sr_40_kode"
+                            android:layout_width="match_parent"
+                            android:entries="@array/kode_options"
+                            android:layout_height="48dp"
+                            android:background="@drawable/spinner_background"
+                            android:popupBackground="@drawable/spinner_dropdown_background"/>
+                    </com.google.android.material.textfield.TextInputLayout>
 
-            <EditText
-                android:id="@+id/sr_70_kode"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:hint="SR 70 Kode"
-                android:maxLength="1" />
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="2"
+                        android:layout_marginStart="8dp"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
 
-            <EditText
-                android:id="@+id/sr_70_nilai"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="2"
-                android:hint="SR 70 Nilai"
-                android:inputType="numberDecimal" />
-        </LinearLayout>
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/sr_40_nilai"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="SR 40 Nilai"
+                            android:inputType="numberDecimal" />
+                    </com.google.android.material.textfield.TextInputLayout>
+                </LinearLayout>
 
-        <!-- SR 79 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp">
+                <!-- SR 66 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="8dp">
 
-            <EditText
-                android:id="@+id/sr_79_kode"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:hint="SR 79 Kode"
-                android:maxLength="1" />
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
 
-            <EditText
-                android:id="@+id/sr_79_nilai"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="2"
-                android:hint="SR 79 Nilai"
-                android:inputType="numberDecimal" />
-        </LinearLayout>
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="SR 66 Kode"
+                            android:textSize="12sp"
+                            android:layout_marginBottom="4dp"/>
 
-        <!-- SR 81 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp">
+                        <Spinner
+                            android:id="@+id/sr_66_kode"
+                            android:layout_width="match_parent"
+                            android:entries="@array/kode_options"
+                            android:layout_height="48dp"
+                            android:background="@drawable/spinner_background"
+                            android:popupBackground="@drawable/spinner_dropdown_background"/>
+                    </com.google.android.material.textfield.TextInputLayout>
 
-            <EditText
-                android:id="@+id/sr_81_kode"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:hint="SR 81 Kode"
-                android:maxLength="1" />
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="2"
+                        android:layout_marginStart="8dp"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
 
-            <EditText
-                android:id="@+id/sr_81_nilai"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="2"
-                android:hint="SR 81 Nilai"
-                android:inputType="numberDecimal" />
-        </LinearLayout>
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/sr_66_nilai"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="SR 66 Nilai"
+                            android:inputType="numberDecimal" />
+                    </com.google.android.material.textfield.TextInputLayout>
+                </LinearLayout>
 
-        <!-- SR 83 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp">
+                <!-- SR 68 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="8dp">
 
-            <EditText
-                android:id="@+id/sr_83_kode"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:hint="SR 83 Kode"
-                android:maxLength="1" />
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
 
-            <EditText
-                android:id="@+id/sr_83_nilai"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="2"
-                android:hint="SR 83 Nilai"
-                android:inputType="numberDecimal" />
-        </LinearLayout>
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="SR 68 Kode"
+                            android:textSize="12sp"
+                            android:layout_marginBottom="4dp"/>
 
-        <!-- SR 85 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp">
+                        <Spinner
+                            android:id="@+id/sr_68_kode"
+                            android:layout_width="match_parent"
+                            android:entries="@array/kode_options"
+                            android:layout_height="48dp"
+                            android:background="@drawable/spinner_background"
+                            android:popupBackground="@drawable/spinner_dropdown_background"/>
+                    </com.google.android.material.textfield.TextInputLayout>
 
-            <EditText
-                android:id="@+id/sr_85_kode"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:hint="SR 85 Kode"
-                android:maxLength="1" />
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="2"
+                        android:layout_marginStart="8dp"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
 
-            <EditText
-                android:id="@+id/sr_85_nilai"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="2"
-                android:hint="SR 85 Nilai"
-                android:inputType="numberDecimal" />
-        </LinearLayout>
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/sr_68_nilai"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="SR 68 Nilai"
+                            android:inputType="numberDecimal" />
+                    </com.google.android.material.textfield.TextInputLayout>
+                </LinearLayout>
 
-        <!-- SR 92 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp">
+                <!-- SR 70 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="8dp">
 
-            <EditText
-                android:id="@+id/sr_92_kode"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:hint="SR 92 Kode"
-                android:maxLength="1" />
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="SR 70 Kode"
+                            android:textSize="12sp"
+                            android:layout_marginBottom="4dp"/>
 
-            <EditText
-                android:id="@+id/sr_92_nilai"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="2"
-                android:hint="SR 92 Nilai"
-                android:inputType="numberDecimal" />
-        </LinearLayout>
+                        <Spinner
+                            android:id="@+id/sr_70_kode"
+                            android:layout_width="match_parent"
+                            android:entries="@array/kode_options"
+                            android:layout_height="48dp"
+                            android:background="@drawable/spinner_background"
+                            android:popupBackground="@drawable/spinner_dropdown_background"/>
+                    </com.google.android.material.textfield.TextInputLayout>
 
-        <!-- SR 94 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp">
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="2"
+                        android:layout_marginStart="8dp"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
 
-            <EditText
-                android:id="@+id/sr_94_kode"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:hint="SR 94 Kode"
-                android:maxLength="1" />
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/sr_70_nilai"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="SR 70 Nilai"
+                            android:inputType="numberDecimal" />
+                    </com.google.android.material.textfield.TextInputLayout>
+                </LinearLayout>
 
-            <EditText
-                android:id="@+id/sr_94_nilai"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="2"
-                android:hint="SR 94 Nilai"
-                android:inputType="numberDecimal" />
-        </LinearLayout>
+                <!-- SR 79 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="8dp">
 
-        <!-- SR 96 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp">
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="SR 79 Kode"
+                            android:textSize="12sp"
+                            android:layout_marginBottom="4dp"/>
 
-            <EditText
-                android:id="@+id/sr_96_kode"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:hint="SR 96 Kode"
-                android:maxLength="1" />
+                        <Spinner
+                            android:id="@+id/sr_79_kode"
+                            android:layout_width="match_parent"
+                            android:entries="@array/kode_options"
+                            android:layout_height="48dp"
+                            android:background="@drawable/spinner_background"
+                            android:popupBackground="@drawable/spinner_dropdown_background"/>
+                    </com.google.android.material.textfield.TextInputLayout>
 
-            <EditText
-                android:id="@+id/sr_96_nilai"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="2"
-                android:hint="SR 96 Nilai"
-                android:inputType="numberDecimal" />
-        </LinearLayout>
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="2"
+                        android:layout_marginStart="8dp"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
 
-        <!-- SR 98 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp">
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/sr_79_nilai"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="SR 79 Nilai"
+                            android:inputType="numberDecimal" />
+                    </com.google.android.material.textfield.TextInputLayout>
+                </LinearLayout>
 
-            <EditText
-                android:id="@+id/sr_98_kode"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:hint="SR 98 Kode"
-                android:maxLength="1" />
+                <!-- SR 81 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="8dp">
 
-            <EditText
-                android:id="@+id/sr_98_nilai"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="2"
-                android:hint="SR 98 Nilai"
-                android:inputType="numberDecimal" />
-        </LinearLayout>
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="SR 81 Kode"
+                            android:textSize="12sp"
+                            android:layout_marginBottom="4dp"/>
 
-        <!-- SR 100 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp">
+                        <Spinner
+                            android:id="@+id/sr_81_kode"
+                            android:layout_width="match_parent"
+                            android:entries="@array/kode_options"
+                            android:layout_height="48dp"
+                            android:background="@drawable/spinner_background"
+                            android:popupBackground="@drawable/spinner_dropdown_background"/>
+                    </com.google.android.material.textfield.TextInputLayout>
 
-            <EditText
-                android:id="@+id/sr_100_kode"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:hint="SR 100 Kode"
-                android:maxLength="1" />
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="2"
+                        android:layout_marginStart="8dp"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
 
-            <EditText
-                android:id="@+id/sr_100_nilai"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="2"
-                android:hint="SR 100 Nilai"
-                android:inputType="numberDecimal" />
-        </LinearLayout>
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/sr_81_nilai"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="SR 81 Nilai"
+                            android:inputType="numberDecimal" />
+                    </com.google.android.material.textfield.TextInputLayout>
+                </LinearLayout>
 
-        <!-- SR 102 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp">
+                <!-- SR 83 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="8dp">
 
-            <EditText
-                android:id="@+id/sr_102_kode"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:hint="SR 102 Kode"
-                android:maxLength="1" />
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="SR 83 Kode"
+                            android:textSize="12sp"
+                            android:layout_marginBottom="4dp"/>
 
-            <EditText
-                android:id="@+id/sr_102_nilai"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="2"
-                android:hint="SR 102 Nilai"
-                android:inputType="numberDecimal" />
-        </LinearLayout>
+                        <Spinner
+                            android:id="@+id/sr_83_kode"
+                            android:layout_width="match_parent"
+                            android:entries="@array/kode_options"
+                            android:layout_height="48dp"
+                            android:background="@drawable/spinner_background"
+                            android:popupBackground="@drawable/spinner_dropdown_background"/>
+                    </com.google.android.material.textfield.TextInputLayout>
 
-        <!-- SR 104 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp">
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="2"
+                        android:layout_marginStart="8dp"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
 
-            <EditText
-                android:id="@+id/sr_104_kode"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:hint="SR 104 Kode"
-                android:maxLength="1" />
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/sr_83_nilai"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="SR 83 Nilai"
+                            android:inputType="numberDecimal" />
+                    </com.google.android.material.textfield.TextInputLayout>
+                </LinearLayout>
 
-            <EditText
-                android:id="@+id/sr_104_nilai"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="2"
-                android:hint="SR 104 Nilai"
-                android:inputType="numberDecimal" />
-        </LinearLayout>
+                <!-- SR 85 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="8dp">
 
-        <!-- SR 106 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp">
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="SR 85 Kode"
+                            android:textSize="12sp"
+                            android:layout_marginBottom="4dp"/>
 
-            <EditText
-                android:id="@+id/sr_106_kode"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:hint="SR 106 Kode"
-                android:maxLength="1" />
+                        <Spinner
+                            android:id="@+id/sr_85_kode"
+                            android:layout_width="match_parent"
+                            android:entries="@array/kode_options"
+                            android:layout_height="48dp"
+                            android:background="@drawable/spinner_background"
+                            android:popupBackground="@drawable/spinner_dropdown_background"/>
+                    </com.google.android.material.textfield.TextInputLayout>
 
-            <EditText
-                android:id="@+id/sr_106_nilai"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="2"
-                android:hint="SR 106 Nilai"
-                android:inputType="numberDecimal" />
-        </LinearLayout>
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="2"
+                        android:layout_marginStart="8dp"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
 
-        <Button
-            android:id="@+id/btnSubmitSR"
-            android:text="Simpan SR"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp" />
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/sr_85_nilai"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="SR 85 Nilai"
+                            android:inputType="numberDecimal" />
+                    </com.google.android.material.textfield.TextInputLayout>
+                </LinearLayout>
 
-        <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#CCCCCC" android:layout_marginVertical="8dp" />
+                <!-- SR 92 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="8dp">
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="SR 92 Kode"
+                            android:textSize="12sp"
+                            android:layout_marginBottom="4dp"/>
+
+                        <Spinner
+                            android:id="@+id/sr_92_kode"
+                            android:layout_width="match_parent"
+                            android:entries="@array/kode_options"
+                            android:layout_height="48dp"
+                            android:background="@drawable/spinner_background"
+                            android:popupBackground="@drawable/spinner_dropdown_background"/>
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="2"
+                        android:layout_marginStart="8dp"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/sr_92_nilai"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="SR 92 Nilai"
+                            android:inputType="numberDecimal" />
+                    </com.google.android.material.textfield.TextInputLayout>
+                </LinearLayout>
+
+                <!-- SR 94 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="8dp">
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="SR 94 Kode"
+                            android:textSize="12sp"
+                            android:layout_marginBottom="4dp"/>
+
+                        <Spinner
+                            android:id="@+id/sr_94_kode"
+                            android:layout_width="match_parent"
+                            android:entries="@array/kode_options"
+                            android:layout_height="48dp"
+                            android:background="@drawable/spinner_background"
+                            android:popupBackground="@drawable/spinner_dropdown_background"/>
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="2"
+                        android:layout_marginStart="8dp"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/sr_94_nilai"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="SR 94 Nilai"
+                            android:inputType="numberDecimal" />
+                    </com.google.android.material.textfield.TextInputLayout>
+                </LinearLayout>
+
+                <!-- SR 96 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="8dp">
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="SR 96 Kode"
+                            android:textSize="12sp"
+                            android:layout_marginBottom="4dp"/>
+
+                        <Spinner
+                            android:id="@+id/sr_96_kode"
+                            android:layout_width="match_parent"
+                            android:entries="@array/kode_options"
+                            android:layout_height="48dp"
+                            android:background="@drawable/spinner_background"
+                            android:popupBackground="@drawable/spinner_dropdown_background"/>
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="2"
+                        android:layout_marginStart="8dp"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/sr_96_nilai"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="SR 96 Nilai"
+                            android:inputType="numberDecimal" />
+                    </com.google.android.material.textfield.TextInputLayout>
+                </LinearLayout>
+
+                <!-- SR 98 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="8dp">
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="SR 98 Kode"
+                            android:textSize="12sp"
+                            android:layout_marginBottom="4dp"/>
+
+                        <Spinner
+                            android:id="@+id/sr_98_kode"
+                            android:layout_width="match_parent"
+                            android:entries="@array/kode_options"
+                            android:layout_height="48dp"
+                            android:background="@drawable/spinner_background"
+                            android:popupBackground="@drawable/spinner_dropdown_background"/>
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="2"
+                        android:layout_marginStart="8dp"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/sr_98_nilai"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="SR 98 Nilai"
+                            android:inputType="numberDecimal" />
+                    </com.google.android.material.textfield.TextInputLayout>
+                </LinearLayout>
+
+                <!-- SR 100 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="8dp">
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="SR 100 Kode"
+                            android:textSize="12sp"
+                            android:layout_marginBottom="4dp"/>
+
+                        <Spinner
+                            android:id="@+id/sr_100_kode"
+                            android:layout_width="match_parent"
+                            android:entries="@array/kode_options"
+                            android:layout_height="48dp"
+                            android:background="@drawable/spinner_background"
+                            android:popupBackground="@drawable/spinner_dropdown_background"/>
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="2"
+                        android:layout_marginStart="8dp"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/sr_100_nilai"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="SR 100 Nilai"
+                            android:inputType="numberDecimal" />
+                    </com.google.android.material.textfield.TextInputLayout>
+                </LinearLayout>
+
+                <!-- SR 102 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="8dp">
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="SR 102 Kode"
+                            android:textSize="12sp"
+                            android:layout_marginBottom="4dp"/>
+
+                        <Spinner
+                            android:id="@+id/sr_102_kode"
+                            android:layout_width="match_parent"
+                            android:entries="@array/kode_options"
+                            android:layout_height="48dp"
+                            android:background="@drawable/spinner_background"
+                            android:popupBackground="@drawable/spinner_dropdown_background"/>
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="2"
+                        android:layout_marginStart="8dp"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/sr_102_nilai"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="SR 102 Nilai"
+                            android:inputType="numberDecimal" />
+                    </com.google.android.material.textfield.TextInputLayout>
+                </LinearLayout>
+
+                <!-- SR 104 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="8dp">
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="SR 104 Kode"
+                            android:textSize="12sp"
+                            android:layout_marginBottom="4dp"/>
+
+                        <Spinner
+                            android:id="@+id/sr_104_kode"
+                            android:layout_width="match_parent"
+                            android:entries="@array/kode_options"
+                            android:layout_height="48dp"
+                            android:background="@drawable/spinner_background"
+                            android:popupBackground="@drawable/spinner_dropdown_background"/>
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="2"
+                        android:layout_marginStart="8dp"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/sr_104_nilai"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="SR 104 Nilai"
+                            android:inputType="numberDecimal" />
+                    </com.google.android.material.textfield.TextInputLayout>
+                </LinearLayout>
+
+                <!-- SR 106 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="16dp">
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="SR 106 Kode"
+                            android:textSize="12sp"
+                            android:layout_marginBottom="4dp"/>
+
+                        <Spinner
+                            android:id="@+id/sr_106_kode"
+                            android:layout_width="match_parent"
+                            android:entries="@array/kode_options"
+                            android:layout_height="48dp"
+                            android:background="@drawable/spinner_background"
+                            android:popupBackground="@drawable/spinner_dropdown_background"/>
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="2"
+                        android:layout_marginStart="8dp"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/sr_106_nilai"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="SR 106 Nilai"
+                            android:inputType="numberDecimal" />
+                    </com.google.android.material.textfield.TextInputLayout>
+                </LinearLayout>
+
+                <Button
+                    android:id="@+id/btnSubmitSR"
+                    android:text="Simpan SR"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="12dp"
+                    android:backgroundTint="#0054A6"
+                    android:textColor="#FFFFFF"
+                    android:textAllCaps="false"
+                    style="@style/Widget.MaterialComponents.Button"/>
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
 
         <!-- SECTION: t_bocoran_baru -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Bocoran Baru"
-            android:textStyle="bold"
-            android:textSize="16sp"
-            android:layout_marginBottom="8dp" />
-
-        <EditText android:id="@+id/inputElv624T1" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="ELV 624 T1" android:inputType="numberDecimal"/>
-        <EditText android:id="@+id/inputElv615T2" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="ELV 615 T2" android:inputType="numberDecimal"/>
-        <EditText android:id="@+id/inputPipaP1" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Pipa P1" android:inputType="numberDecimal"/>
-
-        <Button
-            android:id="@+id/btnSubmitBocoran"
-            android:text="Simpan Bocoran Baru"
+        <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp" />
+            app:cardCornerRadius="8dp"
+            app:cardElevation="4dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Bocoran Baru"
+                    android:textColor="#0054A6"
+                    android:textStyle="bold"
+                    android:textSize="16sp"
+                    android:layout_marginBottom="12dp" />
+
+                <!-- ELV 624 T1 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="8dp">
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Kode ELV 624 T1"
+                            android:textSize="12sp"
+                            android:layout_marginBottom="4dp"/>
+
+                        <Spinner
+                            android:id="@+id/elv_624_t1_kode"
+                            android:layout_width="match_parent"
+                            android:entries="@array/kode_options"
+                            android:layout_height="48dp"
+                            android:background="@drawable/spinner_background"
+                            android:popupBackground="@drawable/spinner_dropdown_background"/>
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="2"
+                        android:layout_marginStart="8dp"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/inputElv624T1"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="ELV 624 T1"
+                            android:inputType="numberDecimal" />
+                    </com.google.android.material.textfield.TextInputLayout>
+                </LinearLayout>
+
+                <!-- ELV 615 T2 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="8dp">
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Kode ELV 615 T2"
+                            android:textSize="12sp"
+                            android:layout_marginBottom="4dp"/>
+
+                        <Spinner
+                            android:id="@+id/elv_615_t2_kode"
+                            android:layout_width="match_parent"
+                            android:entries="@array/kode_options"
+                            android:layout_height="48dp"
+                            android:background="@drawable/spinner_background"
+                            android:popupBackground="@drawable/spinner_dropdown_background"/>
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="2"
+                        android:layout_marginStart="8dp"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/inputElv615T2"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="ELV 615 T2"
+                            android:inputType="numberDecimal" />
+                    </com.google.android.material.textfield.TextInputLayout>
+                </LinearLayout>
+
+                <!-- PIPA P1 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="8dp">
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Kode PIPA P1"
+                            android:textSize="12sp"
+                            android:layout_marginBottom="4dp"/>
+
+                        <Spinner
+                            android:id="@+id/pipa_p1_kode"
+                            android:layout_width="match_parent"
+                            android:entries="@array/kode_options"
+                            android:layout_height="48dp"
+                            android:background="@drawable/spinner_background"
+                            android:popupBackground="@drawable/spinner_dropdown_background"/>
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="2"
+                        android:layout_marginStart="8dp"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/inputPipaP1"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="PIPA P1"
+                            android:inputType="numberDecimal" />
+                    </com.google.android.material.textfield.TextInputLayout>
+                </LinearLayout>
+
+                <Button
+                    android:id="@+id/btnSubmitBocoran"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="12dp"
+                    android:text="Simpan Bocoran Baru"
+                    android:backgroundTint="#0054A6"
+                    android:textColor="#FFFFFF"
+                    android:textAllCaps="false"
+                    style="@style/Widget.MaterialComponents.Button"/>
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
     </LinearLayout>
 </ScrollView>

@@ -2,4 +2,11 @@
     <string name="app_name">KERJA PRAKTIK</string>
     <string name="prompt_pilih_pengukuran">Pilih Tanggal Pengukuran</string>
 
+    <string-array name="kode_options">
+        <item></item> <!-- Item kosong sebagai default -->
+        <item>S</item>
+        <item>M</item>
+        <item>L</item>
+        <item>E</item>
+    </string-array>
 </resources>
