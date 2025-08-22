@@ -30,7 +30,7 @@ public class InputData2Activity extends AppCompatActivity {
     private final Map<Integer, EditText> srNilaiInputs = new HashMap<>();
     private final Map<String, Integer> tanggalToIdMap = new HashMap<>();
 
-    private final String SERVER_URL = "http://192.168.72.36/KP_API/public/api/rembesan/";
+    private final String SERVER_URL = "http://192.168.72.30:8080/rembesan/input";
 
     // 🔥 variabel global sinkronisasi
     private boolean showSyncToast = false;
@@ -173,15 +173,74 @@ public class InputData2Activity extends AppCompatActivity {
             return;
         }
 
-        JSONObject json = new JSONObject(dataMap);
-        if (!isInternetAvailable()) {
-            String tempId = "local_" + System.currentTimeMillis();
-            OfflineDataHelper db = new OfflineDataHelper(this);
-            db.insertData(table, tempId, json.toString());
-            showToast("Tidak ada internet. Data disimpan offline.");
-        } else {
-            kirimDataKeServer(dataMap, () -> showToast("Data berhasil dikirim."));
-        }
+        // Cek dulu apakah data sudah ada sebelum menyimpan
+        cekDanSimpanData(table, dataMap);
+    }
+
+    private void cekDanSimpanData(String table, Map<String, String> dataMap) {
+        new Thread(() -> {
+            try {
+                // Cek status data terlebih dahulu
+                URL urlCek = new URL("http://192.168.72.30:8080/rembesan/cek-data?pengukuran_id=" + pengukuranId);
+                HttpURLConnection connCek = (HttpURLConnection) urlCek.openConnection();
+                connCek.setRequestMethod("GET");
+                connCek.setRequestProperty("Accept", "application/json");
+
+                BufferedReader readerCek = new BufferedReader(new InputStreamReader(connCek.getInputStream()));
+                StringBuilder sbCek = new StringBuilder();
+                String lineCek;
+                while ((lineCek = readerCek.readLine()) != null) {
+                    sbCek.append(lineCek);
+                }
+                readerCek.close();
+
+                JSONObject responseCek = new JSONObject(sbCek.toString());
+                JSONObject data = responseCek.has("data") ? responseCek.getJSONObject("data") : responseCek;
+
+                boolean dataSudahAda = false;
+                switch (table) {
+                    case "thomson":
+                        dataSudahAda = data.getBoolean("thomson_ada");
+                        break;
+                    case "sr":
+                        dataSudahAda = data.getBoolean("sr_ada");
+                        break;
+                    case "bocoran":
+                        dataSudahAda = data.getBoolean("bocoran_ada");
+                        break;
+                }
+
+                if (dataSudahAda) {
+                    runOnUiThread(() -> showToast("Data " + table + " sudah ada untuk pengukuran ini!"));
+                    return;
+                }
+
+                // Jika data belum ada, lanjutkan penyimpanan
+                JSONObject json = new JSONObject(dataMap);
+                if (!isInternetAvailable()) {
+                    String tempId = "local_" + System.currentTimeMillis();
+                    OfflineDataHelper db = new OfflineDataHelper(this);
+                    db.insertData(table, tempId, json.toString());
+                    runOnUiThread(() -> showToast("Tidak ada internet. Data disimpan offline."));
+                } else {
+                    kirimDataKeServer(dataMap, () -> runOnUiThread(() -> showToast("Data berhasil dikirim.")));
+                }
+
+            } catch (Exception e) {
+                runOnUiThread(() -> showToast("Gagal cek data: " + e.getMessage()));
+
+                // Fallback: simpan offline jika gagal cek
+                try {
+                    JSONObject json = new JSONObject(dataMap);
+                    String tempId = "local_" + System.currentTimeMillis();
+                    OfflineDataHelper db = new OfflineDataHelper(this);
+                    db.insertData(table, tempId, json.toString());
+                    runOnUiThread(() -> showToast("Data disimpan offline (gagal cek server)."));
+                } catch (Exception ex) {
+                    runOnUiThread(() -> showToast("Gagal simpan data."));
+                }
+            }
+        }).start();
     }
 
     private void kirimDataKeServer(Map<String, String> dataMap, Runnable onSuccess) {
@@ -189,27 +248,47 @@ public class InputData2Activity extends AppCompatActivity {
 
         new Thread(() -> {
             try {
-                URL url = new URL(SERVER_URL + "pengukuran/insert");
+                URL url = new URL(SERVER_URL);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setDoOutput(true);
-                conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setRequestProperty("Accept", "application/json");
 
-                StringBuilder postData = new StringBuilder();
+                // Konversi Map menjadi JSON
+                JSONObject jsonData = new JSONObject();
                 for (Map.Entry<String, String> entry : dataMap.entrySet()) {
-                    if (postData.length() != 0) postData.append('&');
-                    postData.append(URLEncoder.encode(entry.getKey(), "UTF-8"));
-                    postData.append('=');
-                    postData.append(URLEncoder.encode(entry.getValue(), "UTF-8"));
+                    jsonData.put(entry.getKey(), entry.getValue());
                 }
 
                 OutputStream os = conn.getOutputStream();
-                os.write(postData.toString().getBytes());
+                os.write(jsonData.toString().getBytes("UTF-8"));
                 os.flush();
                 os.close();
 
-                if (conn.getResponseCode() == 200) {
+                int responseCode = conn.getResponseCode();
+                BufferedReader reader;
+                if (responseCode == 200) {
+                    reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                } else {
+                    reader = new BufferedReader(new InputStreamReader(conn.getErrorStream()));
+                }
+
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    sb.append(line);
+                }
+                reader.close();
+
+                JSONObject response = new JSONObject(sb.toString());
+                String status = response.optString("status", "");
+                String message = response.optString("message", "");
+
+                if ("success".equals(status)) {
                     runOnUiThread(onSuccess);
+                } else {
+                    runOnUiThread(() -> showToast("Error: " + message));
                 }
 
             } catch (Exception e) {
@@ -258,9 +337,11 @@ public class InputData2Activity extends AppCompatActivity {
     private void syncPengukuranMaster() {
         new Thread(() -> {
             try {
-                URL url = new URL(SERVER_URL + "utils/get_pengukuran_ids");
+                // 🔥 Ganti dengan endpoint CI4 untuk mendapatkan data pengukuran
+                URL url = new URL("http://192.168.72.30:8080/rembesan/get_pengukuran");
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
+                conn.setRequestProperty("Accept", "application/json");
 
                 BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
                 StringBuilder sb = new StringBuilder();
@@ -268,27 +349,30 @@ public class InputData2Activity extends AppCompatActivity {
                 while ((line = reader.readLine()) != null) sb.append(line);
                 reader.close();
 
-                JSONArray array = new JSONArray(sb.toString());
-                OfflineDataHelper db = new OfflineDataHelper(this);
-                db.clearPengukuranMaster();
+                JSONObject response = new JSONObject(sb.toString());
+                if ("success".equals(response.optString("status"))) {
+                    JSONArray array = response.getJSONArray("data");
+                    OfflineDataHelper db = new OfflineDataHelper(this);
+                    db.clearPengukuranMaster();
 
-                List<String> tanggalList = new ArrayList<>();
-                tanggalToIdMap.clear();
+                    List<String> tanggalList = new ArrayList<>();
+                    tanggalToIdMap.clear();
 
-                for (int i = 0; i < array.length(); i++) {
-                    JSONObject obj = array.getJSONObject(i);
-                    int id = obj.getInt("id");
-                    String tanggal = obj.getString("tanggal");
-                    tanggalToIdMap.put(tanggal, id);
-                    tanggalList.add(tanggal);
-                    db.insertPengukuranMaster(id, tanggal);
+                    for (int i = 0; i < array.length(); i++) {
+                        JSONObject obj = array.getJSONObject(i);
+                        int id = obj.getInt("id");
+                        String tanggal = obj.getString("tanggal");
+                        tanggalToIdMap.put(tanggal, id);
+                        tanggalList.add(tanggal);
+                        db.insertPengukuranMaster(id, tanggal);
+                    }
+
+                    runOnUiThread(() -> {
+                        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, tanggalList);
+                        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                        spinnerPengukuran.setAdapter(adapter);
+                    });
                 }
-
-                runOnUiThread(() -> {
-                    ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, tanggalList);
-                    adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-                    spinnerPengukuran.setAdapter(adapter);
-                });
 
             } catch (Exception e) {
                 runOnUiThread(() -> showToast("Gagal sync tanggal: " + e.getMessage()));

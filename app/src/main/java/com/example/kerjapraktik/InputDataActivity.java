@@ -36,6 +36,11 @@ public class InputDataActivity extends AppCompatActivity {
     private OfflineDataHelper offlineDb;
     private SharedPreferences syncPrefs;
 
+    // URL yang sudah diperbaiki
+    private static final String BASE_URL = "http://192.168.72.30:8080/rembesan/";
+    private static final String INSERT_DATA_URL = BASE_URL + "input";
+    private static final String CEK_DATA_URL = BASE_URL + "cek-data";
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -161,7 +166,7 @@ public class InputDataActivity extends AppCompatActivity {
         data.put("tanggal", inputTanggal.getText().toString());
         data.put("tma_waduk", inputTmaWaduk.getText().toString());
 
-        if (isInternetAvailable()) sendToServer(data, "pengukuran", true);
+        if (isInternetAvailable()) cekDanSimpanData("pengukuran", data, true);
         else {
             tempId = "local_" + System.currentTimeMillis();
             data.put("temp_id", tempId);
@@ -185,7 +190,7 @@ public class InputDataActivity extends AppCompatActivity {
             return;
         }
 
-        if (isInternetAvailable() && pengukuranId != -1) sendToServer(data, "thomson", false);
+        if (isInternetAvailable() && pengukuranId != -1) cekDanSimpanData("thomson", data, false);
         else saveOffline("thomson", tempId, data);
     }
 
@@ -208,7 +213,7 @@ public class InputDataActivity extends AppCompatActivity {
             return;
         }
 
-        if (isInternetAvailable() && pengukuranId != -1) sendToServer(data, "sr", false);
+        if (isInternetAvailable() && pengukuranId != -1) cekDanSimpanData("sr", data, false);
         else saveOffline("sr", tempId, data);
     }
 
@@ -229,8 +234,64 @@ public class InputDataActivity extends AppCompatActivity {
             return;
         }
 
-        if (isInternetAvailable() && pengukuranId != -1) sendToServer(data, "bocoran", false);
+        if (isInternetAvailable() && pengukuranId != -1) cekDanSimpanData("bocoran", data, false);
         else saveOffline("bocoran", tempId, data);
+    }
+
+    private void cekDanSimpanData(String table, Map<String, String> dataMap, boolean isPengukuran) {
+        if (isPengukuran) {
+            // Untuk pengukuran, langsung simpan tanpa cek
+            sendToServer(dataMap, table, isPengukuran);
+            return;
+        }
+
+        new Thread(() -> {
+            try {
+                // Cek status data terlebih dahulu
+                URL urlCek = new URL(CEK_DATA_URL + "?pengukuran_id=" + pengukuranId);
+                HttpURLConnection connCek = (HttpURLConnection) urlCek.openConnection();
+                connCek.setRequestMethod("GET");
+                connCek.setRequestProperty("Accept", "application/json");
+
+                BufferedReader readerCek = new BufferedReader(new InputStreamReader(connCek.getInputStream()));
+                StringBuilder sbCek = new StringBuilder();
+                String lineCek;
+                while ((lineCek = readerCek.readLine()) != null) {
+                    sbCek.append(lineCek);
+                }
+                readerCek.close();
+
+                JSONObject responseCek = new JSONObject(sbCek.toString());
+                JSONObject data = responseCek.has("data") ? responseCek.getJSONObject("data") : responseCek;
+
+                boolean dataSudahAda = false;
+                switch (table) {
+                    case "thomson":
+                        dataSudahAda = data.getBoolean("thomson_ada");
+                        break;
+                    case "sr":
+                        dataSudahAda = data.getBoolean("sr_ada");
+                        break;
+                    case "bocoran":
+                        dataSudahAda = data.getBoolean("bocoran_ada");
+                        break;
+                }
+
+                if (dataSudahAda) {
+                    runOnUiThread(() -> showToast("Data " + table + " sudah ada untuk pengukuran ini!"));
+                    return;
+                }
+
+                // Jika data belum ada, lanjutkan penyimpanan
+                sendToServer(dataMap, table, isPengukuran);
+
+            } catch (Exception e) {
+                runOnUiThread(() -> showToast("Gagal cek data, mencoba simpan langsung..."));
+
+                // Fallback: simpan langsung jika gagal cek
+                sendToServer(dataMap, table, isPengukuran);
+            }
+        }).start();
     }
 
     private void syncAllOfflineData(Runnable onComplete) {
@@ -273,46 +334,40 @@ public class InputDataActivity extends AppCompatActivity {
         String jsonStr = item.get("json");
 
         try {
-            JSONObject json = new JSONObject(jsonStr);
-            Map<String, String> dataMap = new HashMap<>();
-            Iterator<String> keys = json.keys();
-            while (keys.hasNext()) {
-                String key = keys.next();
-                dataMap.put(key, json.getString(key));
-            }
-            if (!dataMap.containsKey("pengukuran_id")) dataMap.put("temp_id", tempId);
+            JSONObject jsonData = new JSONObject(jsonStr);
 
             new Thread(() -> {
                 try {
-                    URL url = new URL("http://192.168.72.36/KP_API/public/api/rembesan/insert-data");
+                    URL url = new URL(INSERT_DATA_URL);
                     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                     conn.setRequestMethod("POST");
                     conn.setDoOutput(true);
-                    conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-
-                    StringBuilder postData = new StringBuilder();
-                    for (Map.Entry<String, String> entry : dataMap.entrySet()) {
-                        if (postData.length() != 0) postData.append('&');
-                        postData.append(URLEncoder.encode(entry.getKey(), "UTF-8"));
-                        postData.append('=');
-                        postData.append(URLEncoder.encode(entry.getValue(), "UTF-8"));
-                    }
+                    conn.setRequestProperty("Content-Type", "application/json");
+                    conn.setRequestProperty("Accept", "application/json");
 
                     OutputStream os = conn.getOutputStream();
-                    os.write(postData.toString().getBytes());
+                    os.write(jsonData.toString().getBytes("UTF-8"));
                     os.flush();
                     os.close();
 
-                    int code = conn.getResponseCode();
-                    InputStream is = (code == 200) ? conn.getInputStream() : conn.getErrorStream();
-                    BufferedReader br = new BufferedReader(new InputStreamReader(is));
+                    int responseCode = conn.getResponseCode();
+                    BufferedReader reader;
+                    if (responseCode == 200) {
+                        reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                    } else {
+                        reader = new BufferedReader(new InputStreamReader(conn.getErrorStream()));
+                    }
+
                     StringBuilder response = new StringBuilder();
                     String line;
-                    while ((line = br.readLine()) != null) response.append(line);
-                    br.close();
+                    while ((line = reader.readLine()) != null) response.append(line);
+                    reader.close();
 
-                    if (code == 200 && response.toString().toLowerCase().contains("success")) {
-                        offlineDb.deleteByTempId(tableName, tempId);
+                    if (responseCode == 200) {
+                        JSONObject jsonResponse = new JSONObject(response.toString());
+                        if ("success".equals(jsonResponse.optString("status"))) {
+                            offlineDb.deleteByTempId(tableName, tempId);
+                        }
                     }
 
                 } catch (Exception e) {
@@ -330,39 +385,57 @@ public class InputDataActivity extends AppCompatActivity {
     private void sendToServer(Map<String, String> dataMap, String table, boolean isPengukuran) {
         new Thread(() -> {
             try {
-                URL url = new URL("http://192.168.72.36/KP_API/public/api/rembesan/insert-data");
+                URL url = new URL(INSERT_DATA_URL);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setDoOutput(true);
-                conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setRequestProperty("Accept", "application/json");
 
-                StringBuilder postData = new StringBuilder();
+                // Konversi Map menjadi JSON
+                JSONObject jsonData = new JSONObject();
                 for (Map.Entry<String, String> entry : dataMap.entrySet()) {
-                    if (postData.length() != 0) postData.append('&');
-                    postData.append(URLEncoder.encode(entry.getKey(), "UTF-8"));
-                    postData.append('=');
-                    postData.append(URLEncoder.encode(entry.getValue(), "UTF-8"));
+                    jsonData.put(entry.getKey(), entry.getValue());
                 }
 
                 OutputStream os = conn.getOutputStream();
-                os.write(postData.toString().getBytes());
+                os.write(jsonData.toString().getBytes("UTF-8"));
                 os.flush();
                 os.close();
 
-                BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                int responseCode = conn.getResponseCode();
+                BufferedReader reader;
+                if (responseCode == 200) {
+                    reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                } else {
+                    reader = new BufferedReader(new InputStreamReader(conn.getErrorStream()));
+                }
+
                 StringBuilder sb = new StringBuilder();
                 String line;
-                while ((line = reader.readLine()) != null) sb.append(line);
+                while ((line = reader.readLine()) != null) {
+                    sb.append(line);
+                }
                 reader.close();
 
                 JSONObject response = new JSONObject(sb.toString());
+                String status = response.optString("status", "");
+                String message = response.optString("message", "");
+
                 if (isPengukuran && response.has("pengukuran_id")) {
                     pengukuranId = response.getInt("pengukuran_id");
                     SharedPreferences prefs = getSharedPreferences("pengukuran", MODE_PRIVATE);
                     prefs.edit().putInt("pengukuran_id", pengukuranId).apply();
                 }
 
-                runOnUiThread(() -> showToast(response.optString("message", "Berhasil")));
+                runOnUiThread(() -> {
+                    if ("success".equals(status)) {
+                        showToast(message);
+                    } else {
+                        showToast("Error: " + message);
+                    }
+                });
+
             } catch (Exception e) {
                 runOnUiThread(() -> showToast("Gagal kirim: " + e.getMessage()));
             }
