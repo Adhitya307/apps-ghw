@@ -30,7 +30,7 @@ public class InputData2Activity extends AppCompatActivity {
     private final Map<Integer, EditText> srNilaiInputs = new HashMap<>();
     private final Map<String, Integer> tanggalToIdMap = new HashMap<>();
 
-    private final String SERVER_URL = "http://192.168.72.30/kp_android/";
+    private final String SERVER_URL = "http://192.168.72.36/KP_API/public/api/rembesan/";
 
     // 🔥 variabel global sinkronisasi
     private boolean showSyncToast = false;
@@ -189,7 +189,7 @@ public class InputData2Activity extends AppCompatActivity {
 
         new Thread(() -> {
             try {
-                URL url = new URL(SERVER_URL + "insert_data.php");
+                URL url = new URL(SERVER_URL + "pengukuran/insert");
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setDoOutput(true);
@@ -258,7 +258,7 @@ public class InputData2Activity extends AppCompatActivity {
     private void syncPengukuranMaster() {
         new Thread(() -> {
             try {
-                URL url = new URL(SERVER_URL + "get_pengukuran_ids.php");
+                URL url = new URL(SERVER_URL + "utils/get_pengukuran_ids");
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
 

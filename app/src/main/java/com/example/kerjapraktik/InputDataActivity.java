@@ -1,28 +1,30 @@
 package com.example.kerjapraktik;
 
+import android.app.DatePickerDialog;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.*;
-
 import androidx.appcompat.app.AppCompatActivity;
-
+import com.google.android.material.textfield.TextInputLayout;
 import org.json.JSONObject;
 
 import java.io.*;
 import java.net.*;
+import java.text.SimpleDateFormat;
 import java.util.*;
-
-import android.util.Log;
 
 public class InputDataActivity extends AppCompatActivity {
 
-    private EditText inputTahun, inputBulan, inputPeriode, inputTanggal, inputTmaWaduk;
+    private EditText inputTahun, inputBulan, inputTanggal, inputTmaWaduk;
     private EditText inputA1R, inputA1L, inputB1, inputB3, inputB5;
     private EditText inputElv624T1, inputElv615T2, inputPipaP1;
+    private AutoCompleteTextView inputPeriode;
     private Button btnSubmitPengukuran, btnSubmitThomson, btnSubmitSR, btnSubmitBocoran;
+    private Calendar calendar;
 
     private String tempId = null;
     private int pengukuranId = -1;
@@ -41,6 +43,7 @@ public class InputDataActivity extends AppCompatActivity {
 
         offlineDb = new OfflineDataHelper(this);
         syncPrefs = getSharedPreferences("sync_prefs", MODE_PRIVATE);
+        calendar = Calendar.getInstance();
 
         // Initialize input fields
         inputTahun = findViewById(R.id.inputTahun);
@@ -63,12 +66,6 @@ public class InputDataActivity extends AppCompatActivity {
         btnSubmitSR = findViewById(R.id.btnSubmitSR);
         btnSubmitBocoran = findViewById(R.id.btnSubmitBocoran);
 
-        // Set click listeners
-        btnSubmitPengukuran.setOnClickListener(v -> handlePengukuran());
-        btnSubmitThomson.setOnClickListener(v -> handleThomson());
-        btnSubmitSR.setOnClickListener(v -> handleSR());
-        btnSubmitBocoran.setOnClickListener(v -> handleBocoran());
-
         // Initialize Spinners for bocoran kode
         elv624T1Kode = findViewById(R.id.elv_624_t1_kode);
         elv615T2Kode = findViewById(R.id.elv_615_t2_kode);
@@ -83,15 +80,56 @@ public class InputDataActivity extends AppCompatActivity {
             }
         }
 
+        // Set click listeners
+        btnSubmitPengukuran.setOnClickListener(v -> handlePengukuran());
+        btnSubmitThomson.setOnClickListener(v -> handleThomson());
+        btnSubmitSR.setOnClickListener(v -> handleSR());
+        btnSubmitBocoran.setOnClickListener(v -> handleBocoran());
+
+        // Setup dropdown Periode
+        String[] periodeArray = getResources().getStringArray(R.array.periode_options);
+        ArrayAdapter<String> periodeAdapter = new ArrayAdapter<>(
+                this,
+                android.R.layout.simple_dropdown_item_1line,
+                periodeArray
+        );
+        inputPeriode.setAdapter(periodeAdapter);
+        inputPeriode.setOnClickListener(v -> inputPeriode.showDropDown());
+
+        // Setup calendar functionality
+        setupCalendar();
+
+        // Load pengukuran_id dari SharedPreferences
         SharedPreferences prefs = getSharedPreferences("pengukuran", MODE_PRIVATE);
         pengukuranId = prefs.getInt("pengukuran_id", -1);
+    }
+
+    private void setupCalendar() {
+        inputTanggal.setOnClickListener(v -> showDatePickerDialog());
+        TextInputLayout tanggalLayout = (TextInputLayout) inputTanggal.getParent().getParent();
+        tanggalLayout.setEndIconOnClickListener(v -> showDatePickerDialog());
+    }
+
+    private void showDatePickerDialog() {
+        DatePickerDialog datePickerDialog = new DatePickerDialog(
+                this,
+                (view, year, month, dayOfMonth) -> {
+                    calendar.set(Calendar.YEAR, year);
+                    calendar.set(Calendar.MONTH, month);
+                    calendar.set(Calendar.DAY_OF_MONTH, dayOfMonth);
+                    SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+                    inputTanggal.setText(dateFormat.format(calendar.getTime()));
+                },
+                calendar.get(Calendar.YEAR),
+                calendar.get(Calendar.MONTH),
+                calendar.get(Calendar.DAY_OF_MONTH)
+        );
+        datePickerDialog.show();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        Log.d("SYNC", "onResume dipanggil");
-
         if (isInternetAvailable() && !isSyncInProgress) {
             List<Map<String, String>> pengukuran = offlineDb.getAllData("pengukuran");
             List<Map<String, String>> thomson = offlineDb.getAllData("thomson");
@@ -99,21 +137,17 @@ public class InputDataActivity extends AppCompatActivity {
             List<Map<String, String>> bocoran = offlineDb.getAllData("bocoran");
 
             boolean adaDataOffline = !pengukuran.isEmpty() || !thomson.isEmpty() || !sr.isEmpty() || !bocoran.isEmpty();
-            Log.d("SYNC", "Ada data offline? " + adaDataOffline);
 
             if (adaDataOffline) {
                 isSyncInProgress = true;
                 syncAllOfflineData(() -> {
                     isSyncInProgress = false;
-
                     boolean sudahTampil = syncPrefs.getBoolean("toast_shown", false);
                     if (!sudahTampil) {
                         runOnUiThread(() -> Toast.makeText(this, "Sinkronisasi berhasil", Toast.LENGTH_LONG).show());
                         syncPrefs.edit().putBoolean("toast_shown", true).apply();
                     }
                 });
-            } else {
-                Log.d("SYNC", "Tidak ada data offline, skip sync");
             }
         }
     }
@@ -250,7 +284,7 @@ public class InputDataActivity extends AppCompatActivity {
 
             new Thread(() -> {
                 try {
-                    URL url = new URL("http://192.168.72.30/kp_android/insert_data.php");
+                    URL url = new URL("http://192.168.72.36/KP_API/public/api/rembesan/insert-data");
                     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                     conn.setRequestMethod("POST");
                     conn.setDoOutput(true);
@@ -266,7 +300,8 @@ public class InputDataActivity extends AppCompatActivity {
 
                     OutputStream os = conn.getOutputStream();
                     os.write(postData.toString().getBytes());
-                    os.flush(); os.close();
+                    os.flush();
+                    os.close();
 
                     int code = conn.getResponseCode();
                     InputStream is = (code == 200) ? conn.getInputStream() : conn.getErrorStream();
@@ -295,7 +330,7 @@ public class InputDataActivity extends AppCompatActivity {
     private void sendToServer(Map<String, String> dataMap, String table, boolean isPengukuran) {
         new Thread(() -> {
             try {
-                URL url = new URL("http://192.168.72.30/kp_android/insert_data.php");
+                URL url = new URL("http://192.168.72.36/KP_API/public/api/rembesan/insert-data");
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setDoOutput(true);
@@ -311,10 +346,12 @@ public class InputDataActivity extends AppCompatActivity {
 
                 OutputStream os = conn.getOutputStream();
                 os.write(postData.toString().getBytes());
-                os.flush(); os.close();
+                os.flush();
+                os.close();
 
                 BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                StringBuilder sb = new StringBuilder(); String line;
+                StringBuilder sb = new StringBuilder();
+                String line;
                 while ((line = reader.readLine()) != null) sb.append(line);
                 reader.close();
 

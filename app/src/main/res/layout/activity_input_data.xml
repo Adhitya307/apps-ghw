@@ -84,31 +84,55 @@
                         android:hint="Bulan (cth: Januari)"/>
                 </com.google.android.material.textfield.TextInputLayout>
 
+                <!-- Dropdown untuk Periode -->
                 <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/periodeContainer"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="8dp"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                    android:hint="Periode"
+                    app:endIconMode="dropdown_menu">
 
-                    <com.google.android.material.textfield.TextInputEditText
+                    <AutoCompleteTextView
                         android:id="@+id/inputPeriode"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:hint="Periode "/>
+                        android:inputType="none"
+                        android:completionThreshold="1"
+                        android:dropDownHeight="200dp"
+                        android:popupBackground="@drawable/dropdown_background"
+                        android:padding="12dp"
+                        android:textSize="16sp"
+                        android:ellipsize="end"
+                        android:scrollHorizontally="false"/>
                 </com.google.android.material.textfield.TextInputLayout>
 
+
                 <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/tanggalContainer"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="8dp"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                    app:startIconDrawable="@drawable/ic_calendar"
+                    app:endIconMode="custom"
+                    app:endIconContentDescription="Pilih tanggal hari ini"
+                    app:hintEnabled="true"
+                    app:hintAnimationEnabled="true">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/inputTanggal"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:hint="Tanggal (YYYY-MM-DD)"
-                        android:inputType="date"/>
+                        android:hint="Tanggal Pengukuran"
+                        android:textSize="16sp"
+                        android:inputType="none"
+                        android:focusable="false"
+                        android:clickable="true"
+                        android:cursorVisible="false"
+                        android:maxLines="1"
+                        android:ellipsize="end"/>
                 </com.google.android.material.textfield.TextInputLayout>
 
                 <com.google.android.material.textfield.TextInputLayout
