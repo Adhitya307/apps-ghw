@@ -30,7 +30,7 @@ public class InputData2Activity extends AppCompatActivity {
     private final Map<Integer, EditText> srNilaiInputs = new HashMap<>();
     private final Map<String, Integer> tanggalToIdMap = new HashMap<>();
 
-    private final String SERVER_URL = "http://192.168.72.30:8080/rembesan/input";
+    private final String SERVER_URL = "http://10.0.2.2/API_Android/public/rembesan/input";
 
     // 🔥 variabel global sinkronisasi
     private boolean showSyncToast = false;
@@ -181,7 +181,7 @@ public class InputData2Activity extends AppCompatActivity {
         new Thread(() -> {
             try {
                 // Cek status data terlebih dahulu
-                URL urlCek = new URL("http://192.168.72.30:8080/rembesan/cek-data?pengukuran_id=" + pengukuranId);
+                URL urlCek = new URL("http://10.0.2.2/API_Android/public/rembesan/cek-data?pengukuran_id=" + pengukuranId);
                 HttpURLConnection connCek = (HttpURLConnection) urlCek.openConnection();
                 connCek.setRequestMethod("GET");
                 connCek.setRequestProperty("Accept", "application/json");
@@ -338,7 +338,7 @@ public class InputData2Activity extends AppCompatActivity {
         new Thread(() -> {
             try {
                 // 🔥 Ganti dengan endpoint CI4 untuk mendapatkan data pengukuran
-                URL url = new URL("http://192.168.72.30:8080/rembesan/get_pengukuran");
+                URL url = new URL("http://10.0.2.2/API_Android/public/rembesan/get_pengukuran");
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
                 conn.setRequestProperty("Accept", "application/json");

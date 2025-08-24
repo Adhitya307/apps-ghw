@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">KERJA PRAKTIK</string>
+    <string name="app_name">Monitoring Rembesan</string>
     <string name="prompt_pilih_pengukuran">Pilih Tanggal Pengukuran</string>
 
     <string-array name="kode_options">
