@@ -16,4 +16,19 @@
         <item>TW-3</item>
         <item>TW-4</item>
     </string-array>
+
+    <string-array name="bulan_options">
+        <item>JAN</item>
+        <item>FEB</item>
+        <item>MAR</item>
+        <item>APR</item>
+        <item>MEI</item>
+        <item>JUN</item>
+        <item>JUL</item>
+        <item>AGS</item>
+        <item>SEP</item>
+        <item>OKT</item>
+        <item>NOV</item>
+        <item>DES</item>
+    </string-array>
 </resources>

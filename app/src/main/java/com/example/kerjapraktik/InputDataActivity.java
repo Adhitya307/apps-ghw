@@ -91,6 +91,16 @@ public class InputDataActivity extends AppCompatActivity {
         btnSubmitSR.setOnClickListener(v -> handleSR());
         btnSubmitBocoran.setOnClickListener(v -> handleBocoran());
 
+        String[] bulanArray = getResources().getStringArray(R.array.bulan_options);
+        ArrayAdapter<String> bulanAdapter = new ArrayAdapter<>(
+                this,
+                android.R.layout.simple_dropdown_item_1line,
+                bulanArray
+        );
+        ((AutoCompleteTextView) inputBulan).setAdapter(bulanAdapter);
+        inputBulan.setOnClickListener(v -> ((AutoCompleteTextView) inputBulan).showDropDown());
+
+
         // Setup dropdown Periode
         String[] periodeArray = getResources().getStringArray(R.array.periode_options);
         ArrayAdapter<String> periodeAdapter = new ArrayAdapter<>(
