@@ -19,10 +19,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class InputData2Activity extends AppCompatActivity {
 
     private Spinner spinnerPengukuran;
-    private Button btnPilihPengukuran, btnSubmitThomson, btnSubmitSR, btnSubmitBocoran;
+    private Button btnPilihPengukuran, btnSubmitThomson, btnSubmitSR, btnSubmitBocoran, btnSubmitTmaWaduk;
     private EditText inputA1R, inputA1L, inputB1, inputB3, inputB5;
     private EditText inputElv624T1, inputElv615T2, inputPipaP1;
     private Spinner inputElv624T1Kode, inputElv615T2Kode, inputPipaP1Kode;
+    private EditText inputTmaWaduk;
 
     private int pengukuranId = -1;
     private final int[] srKodeArray = {1, 40, 66, 68, 70, 79, 81, 83, 85, 92, 94, 96, 98, 100, 102, 104, 106};
@@ -30,9 +31,14 @@ public class InputData2Activity extends AppCompatActivity {
     private final Map<Integer, EditText> srNilaiInputs = new HashMap<>();
     private final Map<String, Integer> tanggalToIdMap = new HashMap<>();
 
+    // Endpoint utama untuk POST
     private final String SERVER_URL = "http://10.0.2.2/API_Android/public/rembesan/input";
 
-    // 🔥 variabel global sinkronisasi
+    // Untuk cek-data & get_pengukuran
+    private final String CEK_DATA_URL = "http://10.0.2.2/API_Android/public/rembesan/cek-data";
+    private final String GET_PENGUKURAN_URL = "http://10.0.2.2/API_Android/public/rembesan/get_pengukuran";
+
+    // variabel sinkronisasi
     private boolean showSyncToast = false;
     private AtomicInteger globalCounter = new AtomicInteger(0);
     private int globalTotalData = 0;
@@ -42,13 +48,20 @@ public class InputData2Activity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_input_data2);
 
+        // bind UI
         spinnerPengukuran = findViewById(R.id.spinnerPengukuran);
         btnPilihPengukuran = findViewById(R.id.btnPilihPengukuran);
+        btnSubmitThomson = findViewById(R.id.btnSubmitThomson);
+        btnSubmitSR = findViewById(R.id.btnSubmitSR);
+        btnSubmitBocoran = findViewById(R.id.btnSubmitBocoran);
+        btnSubmitTmaWaduk = findViewById(R.id.btnSubmitTmaWaduk);
+
         inputA1R = findViewById(R.id.inputA1R);
         inputA1L = findViewById(R.id.inputA1L);
         inputB1 = findViewById(R.id.inputB1);
         inputB3 = findViewById(R.id.inputB3);
         inputB5 = findViewById(R.id.inputB5);
+
         inputElv624T1 = findViewById(R.id.inputElv624T1);
         inputElv615T2 = findViewById(R.id.inputElv615T2);
         inputPipaP1 = findViewById(R.id.inputPipaP1);
@@ -56,34 +69,49 @@ public class InputData2Activity extends AppCompatActivity {
         inputElv615T2Kode = findViewById(R.id.inputElv615T2Kode);
         inputPipaP1Kode = findViewById(R.id.inputPipaP1Kode);
 
-        btnSubmitThomson = findViewById(R.id.btnSubmitThomson);
-        btnSubmitSR = findViewById(R.id.btnSubmitSR);
-        btnSubmitBocoran = findViewById(R.id.btnSubmitBocoran);
+        inputTmaWaduk = findViewById(R.id.inputTmaWaduk);
 
-        // Initialize SR Spinners and EditTexts
+        // find SR fields by convention sr_{kode}_kode and sr_{kode}_nilai
         for (int kode : srKodeArray) {
-            srKodeInputs.put(kode, findViewById(getResources().getIdentifier("sr_" + kode + "_kode", "id", getPackageName())));
-            srNilaiInputs.put(kode, findViewById(getResources().getIdentifier("sr_" + kode + "_nilai", "id", getPackageName())));
+            int kodeId = getResources().getIdentifier("sr_" + kode + "_kode", "id", getPackageName());
+            int nilaiId = getResources().getIdentifier("sr_" + kode + "_nilai", "id", getPackageName());
+            Spinner s = null;
+            EditText e = null;
+            try {
+                s = findViewById(kodeId);
+            } catch (Exception ignored) {}
+            try {
+                e = findViewById(nilaiId);
+            } catch (Exception ignored) {}
+            if (s != null) srKodeInputs.put(kode, s);
+            if (e != null) srNilaiInputs.put(kode, e);
         }
 
-        // Setup spinners with S,M,L,E options
         setupSpinners();
 
         btnPilihPengukuran.setOnClickListener(v -> {
-            String selected = (String) spinnerPengukuran.getSelectedItem();
-            if (selected != null && tanggalToIdMap.containsKey(selected)) {
+            Object sel = spinnerPengukuran.getSelectedItem();
+            if (sel == null) {
+                showToast("Pilih tanggal pengukuran dulu.");
+                return;
+            }
+            String selected = sel.toString();
+            if (tanggalToIdMap.containsKey(selected)) {
                 pengukuranId = tanggalToIdMap.get(selected);
                 showToast("ID terpilih: " + pengukuranId);
+            } else {
+                showToast("Tanggal tidak dikenali, coba sinkron ulang.");
             }
         });
 
         btnSubmitThomson.setOnClickListener(v -> simpanAtauOffline("thomson", buatDataThomson()));
         btnSubmitSR.setOnClickListener(v -> simpanAtauOffline("sr", buatDataSR()));
         btnSubmitBocoran.setOnClickListener(v -> simpanAtauOffline("bocoran", buatDataBocoran()));
+        // TMA harus dikirim sebagai mode = "pengukuran" sesuai backend
+        btnSubmitTmaWaduk.setOnClickListener(v -> simpanAtauOffline("pengukuran", buatDataTma()));
     }
 
     private void setupSpinners() {
-        // Create array adapter for S,M,L,E options
         ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(
                 this,
                 R.array.kode_options,
@@ -91,15 +119,12 @@ public class InputData2Activity extends AppCompatActivity {
         );
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
 
-        // Set adapter for all SR Kode spinners
-        for (int kode : srKodeArray) {
-            srKodeInputs.get(kode).setAdapter(adapter);
+        for (Spinner s : srKodeInputs.values()) {
+            s.setAdapter(adapter);
         }
-
-        // Set adapter for Bocoran Kode spinners
-        inputElv624T1Kode.setAdapter(adapter);
-        inputElv615T2Kode.setAdapter(adapter);
-        inputPipaP1Kode.setAdapter(adapter);
+        if (inputElv624T1Kode != null) inputElv624T1Kode.setAdapter(adapter);
+        if (inputElv615T2Kode != null) inputElv615T2Kode.setAdapter(adapter);
+        if (inputPipaP1Kode != null) inputPipaP1Kode.setAdapter(adapter);
     }
 
     @Override
@@ -112,34 +137,36 @@ public class InputData2Activity extends AppCompatActivity {
         if (isInternetAvailable()) {
             syncPengukuranMaster();
 
-            // hitung semua data offline
             OfflineDataHelper db = new OfflineDataHelper(this);
-            globalTotalData += db.getUnsyncedData("thomson").size();
-            globalTotalData += db.getUnsyncedData("sr").size();
-            globalTotalData += db.getUnsyncedData("bocoran").size();
+            try {
+                globalTotalData += db.getUnsyncedData("thomson").size();
+                globalTotalData += db.getUnsyncedData("sr").size();
+                globalTotalData += db.getUnsyncedData("bocoran").size();
+                globalTotalData += db.getUnsyncedData("pengukuran").size();
+            } catch (Exception ignored) {}
 
-            if (globalTotalData > 0) {
-                showSyncToast = true;
-            }
+            if (globalTotalData > 0) showSyncToast = true;
 
-            // mulai sinkronisasi
             syncOfflineData("thomson");
             syncOfflineData("sr");
             syncOfflineData("bocoran");
+            syncOfflineData("pengukuran");
         } else {
             loadTanggalOffline();
         }
     }
 
+    /* ---------- Builders for request data ---------- */
+
     private Map<String, String> buatDataThomson() {
         Map<String, String> data = new HashMap<>();
         data.put("mode", "thomson");
         data.put("pengukuran_id", String.valueOf(pengukuranId));
-        data.put("a1_r", inputA1R.getText().toString());
-        data.put("a1_l", inputA1L.getText().toString());
-        data.put("b1", inputB1.getText().toString());
-        data.put("b3", inputB3.getText().toString());
-        data.put("b5", inputB5.getText().toString());
+        data.put("a1_r", safeText(inputA1R));
+        data.put("a1_l", safeText(inputA1L));
+        data.put("b1", safeText(inputB1));
+        data.put("b3", safeText(inputB3));
+        data.put("b5", safeText(inputB5));
         return data;
     }
 
@@ -148,8 +175,10 @@ public class InputData2Activity extends AppCompatActivity {
         data.put("mode", "sr");
         data.put("pengukuran_id", String.valueOf(pengukuranId));
         for (int kode : srKodeArray) {
-            data.put("sr_" + kode + "_kode", srKodeInputs.get(kode).getSelectedItem().toString());
-            data.put("sr_" + kode + "_nilai", srNilaiInputs.get(kode).getText().toString());
+            Spinner s = srKodeInputs.get(kode);
+            EditText e = srNilaiInputs.get(kode);
+            data.put("sr_" + kode + "_kode", s != null && s.getSelectedItem() != null ? s.getSelectedItem().toString() : "");
+            data.put("sr_" + kode + "_nilai", e != null ? e.getText().toString().trim() : "");
         }
         return data;
     }
@@ -158,55 +187,81 @@ public class InputData2Activity extends AppCompatActivity {
         Map<String, String> data = new HashMap<>();
         data.put("mode", "bocoran");
         data.put("pengukuran_id", String.valueOf(pengukuranId));
-        data.put("elv_624_t1", inputElv624T1.getText().toString());
-        data.put("elv_624_t1_kode", inputElv624T1Kode.getSelectedItem().toString());
-        data.put("elv_615_t2", inputElv615T2.getText().toString());
-        data.put("elv_615_t2_kode", inputElv615T2Kode.getSelectedItem().toString());
-        data.put("pipa_p1", inputPipaP1.getText().toString());
-        data.put("pipa_p1_kode", inputPipaP1Kode.getSelectedItem().toString());
+        data.put("elv_624_t1", safeText(inputElv624T1));
+        data.put("elv_624_t1_kode", inputElv624T1Kode != null && inputElv624T1Kode.getSelectedItem() != null ? inputElv624T1Kode.getSelectedItem().toString() : "");
+        data.put("elv_615_t2", safeText(inputElv615T2));
+        data.put("elv_615_t2_kode", inputElv615T2Kode != null && inputElv615T2Kode.getSelectedItem() != null ? inputElv615T2Kode.getSelectedItem().toString() : "");
+        data.put("pipa_p1", safeText(inputPipaP1));
+        data.put("pipa_p1_kode", inputPipaP1Kode != null && inputPipaP1Kode.getSelectedItem() != null ? inputPipaP1Kode.getSelectedItem().toString() : "");
         return data;
     }
 
+    /** TMA builder: backend expects mode="pengukuran" for TMA update */
+    private Map<String, String> buatDataTma() {
+        Map<String, String> data = new HashMap<>();
+
+        // Validasi ringan
+        String tma = safeText(inputTmaWaduk);
+        if (tma.isEmpty()) {
+            showToast("Masukkan nilai TMA Waduk terlebih dahulu!");
+            return null;
+        }
+
+        data.put("mode", "pengukuran");
+        data.put("pengukuran_id", String.valueOf(pengukuranId));
+        data.put("tma_waduk", tma);
+        return data;
+    }
+
+    /* ---------- Save/send logic ---------- */
+
     private void simpanAtauOffline(String table, Map<String, String> dataMap) {
+        if (dataMap == null) return; // builder bisa mengembalikan null saat validasi gagal
+
         if (pengukuranId == -1) {
             showToast("Pilih pengukuran terlebih dahulu!");
             return;
         }
 
-        // Cek dulu apakah data sudah ada sebelum menyimpan
         cekDanSimpanData(table, dataMap);
     }
 
     private void cekDanSimpanData(String table, Map<String, String> dataMap) {
+        // Untuk pengukuran (TMA) langsung kirim atau simpan offline, tidak perlu cek duplikat lewat cek-data
+        if ("pengukuran".equals(table)) {
+            kirimLangsungAtauOffline(table, dataMap);
+            return;
+        }
+
+        // Untuk thomson, sr, bocoran -> cek lewat endpoint cek-data
         new Thread(() -> {
             try {
-                // Cek status data terlebih dahulu
-                URL urlCek = new URL("http://10.0.2.2/API_Android/public/rembesan/cek-data?pengukuran_id=" + pengukuranId);
-                HttpURLConnection connCek = (HttpURLConnection) urlCek.openConnection();
-                connCek.setRequestMethod("GET");
-                connCek.setRequestProperty("Accept", "application/json");
+                URL urlCek = new URL(CEK_DATA_URL + "?pengukuran_id=" + pengukuranId);
+                HttpURLConnection conn = (HttpURLConnection) urlCek.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setRequestProperty("Accept", "application/json");
+                conn.setConnectTimeout(10_000);
+                conn.setReadTimeout(10_000);
 
-                BufferedReader readerCek = new BufferedReader(new InputStreamReader(connCek.getInputStream()));
-                StringBuilder sbCek = new StringBuilder();
-                String lineCek;
-                while ((lineCek = readerCek.readLine()) != null) {
-                    sbCek.append(lineCek);
-                }
-                readerCek.close();
+                BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) sb.append(line);
+                reader.close();
 
-                JSONObject responseCek = new JSONObject(sbCek.toString());
-                JSONObject data = responseCek.has("data") ? responseCek.getJSONObject("data") : responseCek;
+                JSONObject resp = new JSONObject(sb.toString());
+                JSONObject data = resp.has("data") ? resp.getJSONObject("data") : resp;
 
                 boolean dataSudahAda = false;
                 switch (table) {
                     case "thomson":
-                        dataSudahAda = data.getBoolean("thomson_ada");
+                        dataSudahAda = data.optBoolean("thomson_ada", false);
                         break;
                     case "sr":
-                        dataSudahAda = data.getBoolean("sr_ada");
+                        dataSudahAda = data.optBoolean("sr_ada", false);
                         break;
                     case "bocoran":
-                        dataSudahAda = data.getBoolean("bocoran_ada");
+                        dataSudahAda = data.optBoolean("bocoran_ada", false);
                         break;
                 }
 
@@ -215,9 +270,23 @@ public class InputData2Activity extends AppCompatActivity {
                     return;
                 }
 
-                // Jika data belum ada, lanjutkan penyimpanan
-                JSONObject json = new JSONObject(dataMap);
+                // lanjut kirim/simpan offline
+                kirimLangsungAtauOffline(table, dataMap);
+
+            } catch (Exception e) {
+                // jika gagal cek, fallback: simpan offline atau kirim langsung
+                runOnUiThread(() -> showToast("Gagal cek data: " + e.getMessage() + " — menyimpan secara offline/try-send"));
+                kirimLangsungAtauOffline(table, dataMap);
+            }
+        }).start();
+    }
+
+    private void kirimLangsungAtauOffline(String table, Map<String, String> dataMap) {
+        new Thread(() -> {
+            try {
                 if (!isInternetAvailable()) {
+                    // simpan offline
+                    JSONObject json = new JSONObject(dataMap);
                     String tempId = "local_" + System.currentTimeMillis();
                     OfflineDataHelper db = new OfflineDataHelper(this);
                     db.insertData(table, tempId, json.toString());
@@ -225,20 +294,8 @@ public class InputData2Activity extends AppCompatActivity {
                 } else {
                     kirimDataKeServer(dataMap, () -> runOnUiThread(() -> showToast("Data berhasil dikirim.")));
                 }
-
             } catch (Exception e) {
-                runOnUiThread(() -> showToast("Gagal cek data: " + e.getMessage()));
-
-                // Fallback: simpan offline jika gagal cek
-                try {
-                    JSONObject json = new JSONObject(dataMap);
-                    String tempId = "local_" + System.currentTimeMillis();
-                    OfflineDataHelper db = new OfflineDataHelper(this);
-                    db.insertData(table, tempId, json.toString());
-                    runOnUiThread(() -> showToast("Data disimpan offline (gagal cek server)."));
-                } catch (Exception ex) {
-                    runOnUiThread(() -> showToast("Gagal simpan data."));
-                }
+                runOnUiThread(() -> showToast("Error saat menyimpan offline: " + e.getMessage()));
             }
         }).start();
     }
@@ -247,55 +304,73 @@ public class InputData2Activity extends AppCompatActivity {
         if (dataMap == null || dataMap.isEmpty()) return;
 
         new Thread(() -> {
+            HttpURLConnection conn = null;
             try {
                 URL url = new URL(SERVER_URL);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setDoOutput(true);
+                conn.setConnectTimeout(15_000);
+                conn.setReadTimeout(15_000);
                 conn.setRequestProperty("Content-Type", "application/json");
                 conn.setRequestProperty("Accept", "application/json");
 
-                // Konversi Map menjadi JSON
-                JSONObject jsonData = new JSONObject();
-                for (Map.Entry<String, String> entry : dataMap.entrySet()) {
-                    jsonData.put(entry.getKey(), entry.getValue());
+                JSONObject json = new JSONObject();
+                for (Map.Entry<String, String> e : dataMap.entrySet()) {
+                    json.put(e.getKey(), e.getValue());
                 }
 
                 OutputStream os = conn.getOutputStream();
-                os.write(jsonData.toString().getBytes("UTF-8"));
+                os.write(json.toString().getBytes("UTF-8"));
                 os.flush();
                 os.close();
 
-                int responseCode = conn.getResponseCode();
-                BufferedReader reader;
-                if (responseCode == 200) {
-                    reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                int code = conn.getResponseCode();
+                BufferedReader br;
+                if (code == HttpURLConnection.HTTP_OK) {
+                    br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
                 } else {
-                    reader = new BufferedReader(new InputStreamReader(conn.getErrorStream()));
+                    br = new BufferedReader(new InputStreamReader(conn.getErrorStream()));
                 }
-
                 StringBuilder sb = new StringBuilder();
                 String line;
-                while ((line = reader.readLine()) != null) {
-                    sb.append(line);
-                }
-                reader.close();
+                while ((line = br.readLine()) != null) sb.append(line);
+                br.close();
 
-                JSONObject response = new JSONObject(sb.toString());
-                String status = response.optString("status", "");
-                String message = response.optString("message", "");
+                JSONObject resp = new JSONObject(sb.toString());
+                String status = resp.optString("status", "");
+                String message = resp.optString("message", "");
 
                 if ("success".equals(status)) {
+                    // Jika server mengembalikan pengukuran_id (pada insert pengukuran), simpan ke local master
+                    if (resp.has("pengukuran_id")) {
+                        int newId = resp.optInt("pengukuran_id", -1);
+                        if (newId != -1) {
+                            // update local master DB & spinner (opsional)
+                            OfflineDataHelper db = new OfflineDataHelper(this);
+                            db.insertPengukuranMaster(newId, dataMap.getOrDefault("tanggal", ""));
+                            // refresh daftar pengukuran dari server
+                            syncPengukuranMaster();
+                        }
+                    }
+
                     runOnUiThread(onSuccess);
+
                 } else {
-                    runOnUiThread(() -> showToast("Error: " + message));
+                    final String msg = message.isEmpty() ? ("Kode: " + code) : message;
+                    runOnUiThread(() -> showToast("Server error: " + msg));
                 }
 
             } catch (Exception e) {
-                runOnUiThread(() -> showToast("Gagal kirim: " + e.getMessage()));
+                String err = e.getMessage() == null ? e.toString() : e.getMessage();
+                runOnUiThread(() -> showToast("Gagal kirim: " + err));
+            } finally {
+                if (conn != null) conn.disconnect();
             }
         }).start();
     }
+
+    /* ---------- Offline sync worker ---------- */
 
     private void syncOfflineData(String tableName) {
         OfflineDataHelper db = new OfflineDataHelper(this);
@@ -319,7 +394,6 @@ public class InputData2Activity extends AppCompatActivity {
                 kirimDataKeServer(dataMap, () -> {
                     db.deleteByTempId(tableName, tempId);
 
-                    // ✅ hanya tampilkan sekali ketika semua data sudah sinkron
                     if (showSyncToast && globalCounter.incrementAndGet() == globalTotalData) {
                         runOnUiThread(() -> {
                             showToast("Sinkronisasi sukses");
@@ -334,14 +408,18 @@ public class InputData2Activity extends AppCompatActivity {
         }
     }
 
+    /* ---------- Master pengukuran (spinner) ---------- */
+
     private void syncPengukuranMaster() {
         new Thread(() -> {
+            HttpURLConnection conn = null;
             try {
-                // 🔥 Ganti dengan endpoint CI4 untuk mendapatkan data pengukuran
-                URL url = new URL("http://10.0.2.2/API_Android/public/rembesan/get_pengukuran");
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                URL url = new URL(GET_PENGUKURAN_URL);
+                conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
                 conn.setRequestProperty("Accept", "application/json");
+                conn.setConnectTimeout(10_000);
+                conn.setReadTimeout(10_000);
 
                 BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
                 StringBuilder sb = new StringBuilder();
@@ -349,17 +427,17 @@ public class InputData2Activity extends AppCompatActivity {
                 while ((line = reader.readLine()) != null) sb.append(line);
                 reader.close();
 
-                JSONObject response = new JSONObject(sb.toString());
-                if ("success".equals(response.optString("status"))) {
-                    JSONArray array = response.getJSONArray("data");
+                JSONObject resp = new JSONObject(sb.toString());
+                if ("success".equals(resp.optString("status"))) {
+                    JSONArray arr = resp.getJSONArray("data");
                     OfflineDataHelper db = new OfflineDataHelper(this);
                     db.clearPengukuranMaster();
 
-                    List<String> tanggalList = new ArrayList<>();
+                    final List<String> tanggalList = new ArrayList<>();
                     tanggalToIdMap.clear();
 
-                    for (int i = 0; i < array.length(); i++) {
-                        JSONObject obj = array.getJSONObject(i);
+                    for (int i = 0; i < arr.length(); i++) {
+                        JSONObject obj = arr.getJSONObject(i);
                         int id = obj.getInt("id");
                         String tanggal = obj.getString("tanggal");
                         tanggalToIdMap.put(tanggal, id);
@@ -372,31 +450,41 @@ public class InputData2Activity extends AppCompatActivity {
                         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
                         spinnerPengukuran.setAdapter(adapter);
                     });
+                } else {
+                    runOnUiThread(() -> showToast("Gagal ambil daftar pengukuran dari server."));
                 }
-
             } catch (Exception e) {
                 runOnUiThread(() -> showToast("Gagal sync tanggal: " + e.getMessage()));
+            } finally {
+                if (conn != null) conn.disconnect();
             }
         }).start();
     }
 
     private void loadTanggalOffline() {
         OfflineDataHelper db = new OfflineDataHelper(this);
-        List<Map<String, String>> list = db.getPengukuranMaster();
+        List<Map<String, String>> rows = db.getPengukuranMaster();
         List<String> tanggalList = new ArrayList<>();
         tanggalToIdMap.clear();
 
-        for (Map<String, String> row : list) {
-            String tanggal = row.get("tanggal");
-            int id = Integer.parseInt(row.get("id"));
-            tanggalList.add(tanggal);
-            tanggalToIdMap.put(tanggal, id);
+        if (rows != null) {
+            for (Map<String, String> r : rows) {
+                String tanggal = r.get("tanggal");
+                String idStr = r.get("id");
+                if (tanggal == null || idStr == null) continue;
+                tanggalList.add(tanggal);
+                try {
+                    tanggalToIdMap.put(tanggal, Integer.parseInt(idStr));
+                } catch (NumberFormatException ignored) {}
+            }
         }
 
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, tanggalList);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerPengukuran.setAdapter(adapter);
     }
+
+    /* ---------- Helpers ---------- */
 
     private boolean isInternetAvailable() {
         try {
@@ -406,6 +494,10 @@ public class InputData2Activity extends AppCompatActivity {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    private String safeText(EditText et) {
+        return et == null ? "" : et.getText().toString().trim();
     }
 
     private void showToast(String msg) {
