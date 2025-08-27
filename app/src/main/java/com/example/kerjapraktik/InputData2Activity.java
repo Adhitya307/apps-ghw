@@ -1,9 +1,11 @@
 package com.example.kerjapraktik;
 
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.*;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -25,6 +27,9 @@ public class InputData2Activity extends AppCompatActivity {
     private Spinner inputElv624T1Kode, inputElv615T2Kode, inputPipaP1Kode;
     private EditText inputTmaWaduk;
 
+    // Tombol Hitung Semua Data
+    private Button btnHitungSemua;
+
     private int pengukuranId = -1;
     private final int[] srKodeArray = {1, 40, 66, 68, 70, 79, 81, 83, 85, 92, 94, 96, 98, 100, 102, 104, 106};
     private final Map<Integer, Spinner> srKodeInputs = new HashMap<>();
@@ -37,6 +42,9 @@ public class InputData2Activity extends AppCompatActivity {
     // Untuk cek-data & get_pengukuran
     private final String CEK_DATA_URL = "http://10.0.2.2/API_Android/public/rembesan/cek-data";
     private final String GET_PENGUKURAN_URL = "http://10.0.2.2/API_Android/public/rembesan/get_pengukuran";
+
+    // URL untuk Hitung Semua Data
+    private final String HITUNG_SEMUA_URL = "http://10.0.2.2/API_Android/public/rembesan/Rumus-Rembesan";
 
     // variabel sinkronisasi
     private boolean showSyncToast = false;
@@ -55,6 +63,9 @@ public class InputData2Activity extends AppCompatActivity {
         btnSubmitSR = findViewById(R.id.btnSubmitSR);
         btnSubmitBocoran = findViewById(R.id.btnSubmitBocoran);
         btnSubmitTmaWaduk = findViewById(R.id.btnSubmitTmaWaduk);
+
+        // Tombol Hitung Semua Data
+        btnHitungSemua = findViewById(R.id.btnHitungSemua);
 
         inputA1R = findViewById(R.id.inputA1R);
         inputA1L = findViewById(R.id.inputA1L);
@@ -109,6 +120,130 @@ public class InputData2Activity extends AppCompatActivity {
         btnSubmitBocoran.setOnClickListener(v -> simpanAtauOffline("bocoran", buatDataBocoran()));
         // TMA harus dikirim sebagai mode = "pengukuran" sesuai backend
         btnSubmitTmaWaduk.setOnClickListener(v -> simpanAtauOffline("pengukuran", buatDataTma()));
+
+        // Hitung semua data
+        btnHitungSemua.setOnClickListener(v -> handleHitungSemua());
+    }
+
+    /**
+     * Handler untuk tombol Hitung Semua Data
+     * Akan mengirim permintaan ke server untuk menghitung semua data berdasarkan pengukuran_id
+     */
+    private void handleHitungSemua() {
+        // Pastikan ada koneksi internet
+        if (!isInternetAvailable()) {
+            showToast("Tidak ada koneksi internet. Tidak dapat menghitung data.");
+            return;
+        }
+
+        // Dapatkan pengukuran_id yang dipilih
+        String selected = spinnerPengukuran.getSelectedItem() != null ? spinnerPengukuran.getSelectedItem().toString() : null;
+        int selectedPengukuranId = -1;
+
+        if (selected != null && tanggalToIdMap.containsKey(selected)) {
+            selectedPengukuranId = tanggalToIdMap.get(selected);
+        } else {
+            // fallback: cek prefs atau variabel global
+            if (pengukuranId != -1) {
+                selectedPengukuranId = pengukuranId;
+            } else {
+                showToast("Pilih data pengukuran terlebih dahulu!");
+                return;
+            }
+        }
+
+        // BUAT VARIABLE FINAL COPY untuk digunakan dalam lambda
+        final int finalPengukuranId = selectedPengukuranId;
+
+        // Tampilkan progress dialog
+        ProgressDialog progressDialog = new ProgressDialog(this);
+        progressDialog.setMessage("Menghitung data...");
+        progressDialog.setCancelable(false);
+        progressDialog.show();
+
+        new Thread(() -> {
+            try {
+                // Buat koneksi ke server
+                URL url = new URL(HITUNG_SEMUA_URL);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setDoOutput(true);
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setRequestProperty("Accept", "application/json");
+
+                // Buat data JSON - GUNAKAN VARIABLE FINAL
+                JSONObject jsonData = new JSONObject();
+                jsonData.put("pengukuran_id", finalPengukuranId);
+
+                // Kirim data
+                OutputStream os = conn.getOutputStream();
+                os.write(jsonData.toString().getBytes("UTF-8"));
+                os.flush();
+                os.close();
+
+                // Dapatkan respons
+                int responseCode = conn.getResponseCode();
+                BufferedReader reader;
+                if (responseCode == 200) {
+                    reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                } else {
+                    reader = new BufferedReader(new InputStreamReader(conn.getErrorStream()));
+                }
+
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    sb.append(line);
+                }
+                reader.close();
+
+                // Parse response JSON
+                JSONObject response = new JSONObject(sb.toString());
+                String status = response.optString("status", "");
+                String message = response.optString("message", "");
+
+                // Ambil data detail jika ada
+                JSONObject data = response.optJSONObject("data");
+                if (data != null) {
+                    // Anda bisa mengekstrak detail perhitungan di sini jika diperlukan
+                    JSONObject thomson = data.optJSONObject("thomson");
+                    JSONObject sr = data.optJSONObject("sr");
+                    JSONObject bocoran = data.optJSONObject("bocoran");
+                    JSONObject batasmaksimal = data.optJSONObject("batasmaksimal");
+
+                    // Log detail untuk debugging
+                    Log.d("HITUNG_SEMUA", "Thomson: " + (thomson != null ? thomson.toString() : "null"));
+                    Log.d("HITUNG_SEMUA", "SR: " + (sr != null ? sr.toString() : "null"));
+                    Log.d("HITUNG_SEMUA", "Bocoran: " + (bocoran != null ? bocoran.toString() : "null"));
+                }
+
+                runOnUiThread(() -> {
+                    progressDialog.dismiss();
+                    if ("success".equals(status)) {
+                        showToast("Perhitungan berhasil: " + message);
+
+                        // Optional: Tampilkan detail hasil perhitungan
+                        if (data != null) {
+                            JSONObject batasmaksimal = data.optJSONObject("batasmaksimal");
+                            if (batasmaksimal != null && batasmaksimal.optBoolean("success", false)) {
+                                double tmaWaduk = batasmaksimal.optDouble("tma_waduk", 0);
+                                double batasMaksimal = batasmaksimal.optDouble("batas_maksimal", 0);
+                                showToast("TMA Waduk: " + tmaWaduk + ", Batas Maksimal: " + batasMaksimal);
+                            }
+                        }
+                    } else {
+                        showToast("Gagal menghitung: " + message);
+                    }
+                });
+
+            } catch (Exception e) {
+                runOnUiThread(() -> {
+                    progressDialog.dismiss();
+                    showToast("Error: " + e.getMessage());
+                    Log.e("HITUNG_SEMUA", "Error", e);
+                });
+            }
+        }).start();
     }
 
     private void setupSpinners() {
@@ -227,13 +362,12 @@ public class InputData2Activity extends AppCompatActivity {
     }
 
     private void cekDanSimpanData(String table, Map<String, String> dataMap) {
-        // Untuk pengukuran (TMA) langsung kirim atau simpan offline, tidak perlu cek duplikat lewat cek-data
+        // Untuk pengukuran (TMA) langsung kirim atau simpan offline
         if ("pengukuran".equals(table)) {
             kirimLangsungAtauOffline(table, dataMap);
             return;
         }
 
-        // Untuk thomson, sr, bocoran -> cek lewat endpoint cek-data
         new Thread(() -> {
             try {
                 URL urlCek = new URL(CEK_DATA_URL + "?pengukuran_id=" + pengukuranId);
@@ -253,9 +387,12 @@ public class InputData2Activity extends AppCompatActivity {
                 JSONObject data = resp.has("data") ? resp.getJSONObject("data") : resp;
 
                 boolean dataSudahAda = false;
+                boolean dataLengkap = false;
+
                 switch (table) {
                     case "thomson":
                         dataSudahAda = data.optBoolean("thomson_ada", false);
+                        dataLengkap = data.optBoolean("thomson_lengkap", false);
                         break;
                     case "sr":
                         dataSudahAda = data.optBoolean("sr_ada", false);
@@ -266,15 +403,20 @@ public class InputData2Activity extends AppCompatActivity {
                 }
 
                 if (dataSudahAda) {
-                    runOnUiThread(() -> showToast("Data " + table + " sudah ada untuk pengukuran ini!"));
+                    if ("thomson".equals(table) && !dataLengkap) {
+                        // Masih ada kolom kosong → boleh insert
+                        kirimLangsungAtauOffline(table, dataMap);
+                    } else {
+                        // Data sudah ada & lengkap → block insert
+                        runOnUiThread(() -> showToast("Data " + table + " sudah lengkap untuk pengukuran ini!"));
+                    }
                     return;
                 }
 
-                // lanjut kirim/simpan offline
+                // Jika belum ada sama sekali → lanjut kirim
                 kirimLangsungAtauOffline(table, dataMap);
 
             } catch (Exception e) {
-                // jika gagal cek, fallback: simpan offline atau kirim langsung
                 runOnUiThread(() -> showToast("Gagal cek data: " + e.getMessage() + " — menyimpan secara offline/try-send"));
                 kirimLangsungAtauOffline(table, dataMap);
             }
