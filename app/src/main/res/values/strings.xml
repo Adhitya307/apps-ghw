@@ -4,10 +4,10 @@
 
     <string-array name="kode_options">
         <item></item> <!-- Item kosong sebagai default -->
-        <item>S</item>
-        <item>M</item>
-        <item>L</item>
-        <item>E</item>
+        <item>S (200 ml)</item>
+        <item>M (500 ml)</item>
+        <item>L (Liter)</item>
+        <item>E (Ember)</item>
     </string-array>
 
     <string-array name="periode_options">
