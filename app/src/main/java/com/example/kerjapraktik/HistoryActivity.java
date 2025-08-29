@@ -1,8 +1,13 @@
 package com.example.kerjapraktik;
 
+import android.content.Context;
+import android.database.Cursor;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
@@ -45,13 +50,16 @@ public class HistoryActivity extends AppCompatActivity {
     private ArrayList<Integer> pengukuranIds = new ArrayList<>();
     private ArrayList<String> pengukuranLabels = new ArrayList<>();
 
-    private static final String BASE_URL = "http://192.168.1.10/API_Android/public/api/rembesan/";
+    private static final String BASE_URL = "http://192.168.1.5/API_Android/public/api/rembesan/";
+
+    private DatabaseHelper dbHelper;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_history);
 
+        dbHelper = new DatabaseHelper(this);
         requestQueue = Volley.newRequestQueue(this);
 
         spinnerPengukuran = findViewById(R.id.spinnerPengukuran);
@@ -62,7 +70,6 @@ public class HistoryActivity extends AppCompatActivity {
         cardSR = findViewById(R.id.cardSR);
         cardBocoran = findViewById(R.id.cardBocoran);
 
-        // init
         tvTmaValue = findViewById(R.id.tvTmaValue);
         tvA1R = findViewById(R.id.tvA1R);
         tvA1L = findViewById(R.id.tvA1L);
@@ -79,175 +86,82 @@ public class HistoryActivity extends AppCompatActivity {
             int pos = spinnerPengukuran.getSelectedItemPosition();
             if (pos >= 0 && pos < pengukuranIds.size()) {
                 int pengukuranId = pengukuranIds.get(pos);
-                tampilkanData(pengukuranId);
+                if (isOnline()) {
+                    tampilkanDataOnline(pengukuranId);
+                } else {
+                    tampilkanDataOffline(pengukuranId);
+                }
             }
         });
     }
 
-    private void loadPengukuranList() {
-        String url = BASE_URL + "pengukuran";
-        JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
-                response -> {
-                    try {
-                        JSONArray data = response.getJSONArray("data");
-                        pengukuranIds.clear();
-                        pengukuranLabels.clear();
-
-                        for (int i = 0; i < data.length(); i++) {
-                            JSONObject obj = data.getJSONObject(i);
-                            int id = obj.getInt("id");
-                            String tgl = obj.getString("tanggal");
-                            pengukuranIds.add(id);
-
-                            // langsung tanggal saja
-                            pengukuranLabels.add(tgl);
-                        }
-
-                        android.widget.ArrayAdapter<String> spinnerAdapter =
-                                new android.widget.ArrayAdapter<>(this,
-                                        android.R.layout.simple_spinner_item, pengukuranLabels);
-                        spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-                        spinnerPengukuran.setAdapter(spinnerAdapter);
-
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                },
-                error -> error.printStackTrace());
-        requestQueue.add(request);
+    private boolean isOnline() {
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo netInfo = cm.getActiveNetworkInfo();
+        return netInfo != null && netInfo.isConnected();
     }
 
-    private void tampilkanData(int pengukuranId) {
+    private void loadPengukuranList() {
+        if (isOnline()) {
+            String url = BASE_URL + "pengukuran";
+            JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
+                    response -> {
+                        try {
+                            JSONArray data = response.getJSONArray("data");
+                            pengukuranIds.clear();
+                            pengukuranLabels.clear();
+
+                            for (int i = 0; i < data.length(); i++) {
+                                JSONObject obj = data.getJSONObject(i);
+                                int id = obj.getInt("id");
+                                String tgl = obj.getString("tanggal");
+                                pengukuranIds.add(id);
+                                pengukuranLabels.add(tgl);
+                            }
+
+                            ArrayAdapter<String> spinnerAdapter =
+                                    new ArrayAdapter<>(this,
+                                            android.R.layout.simple_spinner_item, pengukuranLabels);
+                            spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                            spinnerPengukuran.setAdapter(spinnerAdapter);
+
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    },
+                    error -> error.printStackTrace());
+            requestQueue.add(request);
+        } else {
+            // Offline: ambil list pengukuran dari SQLite
+            pengukuranIds.clear();
+            pengukuranLabels.clear();
+
+            Cursor cursor = dbHelper.getReadableDatabase().rawQuery("SELECT id, tanggal FROM t_data_pengukuran ORDER BY tanggal DESC", null);
+            if (cursor.moveToFirst()) {
+                do {
+                    int id = cursor.getInt(cursor.getColumnIndexOrThrow("id"));
+                    String tgl = cursor.getString(cursor.getColumnIndexOrThrow("tanggal"));
+                    pengukuranIds.add(id);
+                    pengukuranLabels.add(tgl);
+                } while (cursor.moveToNext());
+            }
+            cursor.close();
+
+            ArrayAdapter<String> spinnerAdapter =
+                    new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, pengukuranLabels);
+            spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            spinnerPengukuran.setAdapter(spinnerAdapter);
+        }
+    }
+
+    // ============ Tampilkan data online ============
+    private void tampilkanDataOnline(int pengukuranId) {
         String url = BASE_URL + "detail/" + pengukuranId;
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
                 response -> {
                     try {
-                        // Hide semua dulu
-                        cardTma.setVisibility(View.GONE);
-                        cardThomson.setVisibility(View.GONE);
-                        cardSR.setVisibility(View.GONE);
-                        cardBocoran.setVisibility(View.GONE);
-
                         JSONObject data = response.getJSONObject("data");
-
-                        // TMA
-                        if (data.has("tma")) {
-                            cardTma.setVisibility(View.VISIBLE);
-                            String tmaValue = data.getString("tma");
-                            tvTmaValue.setText(tmaValue);
-                        }
-
-                        // Thomson
-                        if (data.has("thomson")) {
-                            cardThomson.setVisibility(View.VISIBLE);
-                            JSONObject th = data.getJSONObject("thomson");
-                            tvA1R.setText("A1R: " + th.optString("a1_r", "--"));
-                            tvA1L.setText("A1L: " + th.optString("a1_l", "--"));
-                            tvB1.setText("B1: " + th.optString("b1", "--"));
-                            tvB3.setText("B3: " + th.optString("b3", "--"));
-                            tvB5.setText("B5: " + th.optString("b5", "--"));
-                        }
-
-                        // SR
-                        if (data.has("sr")) {
-                            cardSR.setVisibility(View.VISIBLE);
-                            JSONArray srArr = data.getJSONArray("sr");
-                            containerSR.removeAllViews(); // clear
-
-                            // Header
-                            LinearLayout headerLayout = new LinearLayout(this);
-                            headerLayout.setLayoutParams(new LinearLayout.LayoutParams(
-                                    LinearLayout.LayoutParams.MATCH_PARENT,
-                                    LinearLayout.LayoutParams.WRAP_CONTENT));
-                            headerLayout.setOrientation(LinearLayout.HORIZONTAL);
-                            headerLayout.setPadding(0, 0, 0, 16);
-
-                            TextView headerNama = createHeaderTextView("SR", 1.5f);
-                            TextView headerKode = createHeaderTextView("Kode", 1f);
-                            TextView headerNilai = createHeaderTextView("Nilai (detik)", 1f);
-
-                            headerLayout.addView(headerNama);
-                            headerLayout.addView(headerKode);
-                            headerLayout.addView(headerNilai);
-
-                            containerSR.addView(headerLayout);
-
-                            // Separator
-                            View separator = new View(this);
-                            separator.setLayoutParams(new LinearLayout.LayoutParams(
-                                    LinearLayout.LayoutParams.MATCH_PARENT, 2));
-                            separator.setBackgroundColor(getResources().getColor(android.R.color.darker_gray));
-                            containerSR.addView(separator);
-
-                            for (int i = 0; i < srArr.length(); i++) {
-                                JSONObject srObj = srArr.getJSONObject(i);
-                                String nama  = srObj.optString("nama", "SR" + (i + 1));
-                                String kode  = srObj.optString("kode", "-");
-                                String nilai = srObj.optString("nilai", "-");
-
-                                LinearLayout rowLayout = new LinearLayout(this);
-                                rowLayout.setLayoutParams(new LinearLayout.LayoutParams(
-                                        LinearLayout.LayoutParams.MATCH_PARENT,
-                                        LinearLayout.LayoutParams.WRAP_CONTENT));
-                                rowLayout.setOrientation(LinearLayout.HORIZONTAL);
-                                rowLayout.setPadding(0, 12, 0, 12);
-
-                                if (i % 2 == 0) {
-                                    rowLayout.setBackgroundColor(getResources().getColor(android.R.color.white));
-                                } else {
-                                    rowLayout.setBackgroundColor(getResources().getColor(R.color.row_alternate_color));
-                                }
-
-                                TextView tvNama = createDataTextView(nama, 1.5f);
-                                TextView tvKode = createDataTextView(kode, 1f);
-                                TextView tvNilai = createDataTextView(nilai, 1f);
-
-                                rowLayout.addView(tvNama);
-                                rowLayout.addView(tvKode);
-                                rowLayout.addView(tvNilai);
-
-                                containerSR.addView(rowLayout);
-                            }
-                        }
-
-                        // Bocoran (tabel)
-                        if (data.has("bocoran")) {
-                            cardBocoran.setVisibility(View.VISIBLE);
-                            JSONObject boc = data.getJSONObject("bocoran");
-                            containerBocoran.removeAllViews();
-
-                            // Header
-                            LinearLayout headerLayout = new LinearLayout(this);
-                            headerLayout.setLayoutParams(new LinearLayout.LayoutParams(
-                                    LinearLayout.LayoutParams.MATCH_PARENT,
-                                    LinearLayout.LayoutParams.WRAP_CONTENT));
-                            headerLayout.setOrientation(LinearLayout.HORIZONTAL);
-                            headerLayout.setPadding(0, 0, 0, 16);
-
-                            TextView headerNama = createHeaderTextView("Titik", 1.5f);
-                            TextView headerNilai = createHeaderTextView("Nilai (m)", 1f);
-                            TextView headerKode = createHeaderTextView("Kode", 1f);
-
-                            headerLayout.addView(headerNama);
-                            headerLayout.addView(headerNilai);
-                            headerLayout.addView(headerKode);
-
-                            containerBocoran.addView(headerLayout);
-
-                            addBocoranRow(containerBocoran, "ELV 624 T1",
-                                    boc.optString("elv_624_t1", "--"),
-                                    boc.optString("elv_624_t1_kode", "-"));
-
-                            addBocoranRow(containerBocoran, "ELV 615 T2",
-                                    boc.optString("elv_615_t2", "--"),
-                                    boc.optString("elv_615_t2_kode", "-"));
-
-                            addBocoranRow(containerBocoran, "PIPA P1",
-                                    boc.optString("pipa_p1", "--"),
-                                    boc.optString("pipa_p1_kode", "-"));
-
-                        }
-
+                        tampilkanDataJson(data);
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
@@ -256,11 +170,179 @@ public class HistoryActivity extends AppCompatActivity {
         requestQueue.add(request);
     }
 
+    // ============ Tampilkan data offline ============
+    private void tampilkanDataOffline(int pengukuranId) {
+        // Hide semua
+        cardTma.setVisibility(View.GONE);
+        cardThomson.setVisibility(View.GONE);
+        cardSR.setVisibility(View.GONE);
+        cardBocoran.setVisibility(View.GONE);
+
+        // === TMA ===
+        Cursor cursorPengukuran = dbHelper.getReadableDatabase().rawQuery(
+                "SELECT * FROM t_data_pengukuran WHERE id=?",
+                new String[]{String.valueOf(pengukuranId)});
+        if (cursorPengukuran.moveToFirst()) {
+            cardTma.setVisibility(View.VISIBLE);
+            tvTmaValue.setText(getDoubleOrDash(cursorPengukuran, "tma_waduk"));
+        }
+        cursorPengukuran.close();
+
+        // === Thomson ===
+        Cursor cursorThomson = dbHelper.getReadableDatabase().rawQuery(
+                "SELECT * FROM t_thomson_weir WHERE pengukuran_id=?",
+                new String[]{String.valueOf(pengukuranId)});
+        if (cursorThomson.moveToFirst()) {
+            cardThomson.setVisibility(View.VISIBLE);
+            tvA1R.setText("A1R: " + getDoubleOrDash(cursorThomson, "a1_r"));
+            tvA1L.setText("A1L: " + getDoubleOrDash(cursorThomson, "a1_l"));
+            tvB1.setText("B1: " + getDoubleOrDash(cursorThomson, "b1"));
+            tvB3.setText("B3: " + getDoubleOrDash(cursorThomson, "b3"));
+            tvB5.setText("B5: " + getDoubleOrDash(cursorThomson, "b5"));
+        }
+        cursorThomson.close();
+
+        // === SR ===
+        Cursor cursorSR = dbHelper.getReadableDatabase().rawQuery(
+                "SELECT * FROM t_sr WHERE pengukuran_id=?",
+                new String[]{String.valueOf(pengukuranId)});
+        if (cursorSR.moveToFirst()) {
+            cardSR.setVisibility(View.VISIBLE);
+            containerSR.removeAllViews();
+
+            String[] srKolom = {
+                    "sr_1", "sr_40", "sr_66", "sr_68", "sr_70",
+                    "sr_79", "sr_81", "sr_83", "sr_85", "sr_92",
+                    "sr_94", "sr_96", "sr_98", "sr_100", "sr_102",
+                    "sr_104", "sr_106"
+            };
+
+            for (String base : srKolom) {
+                String kode = cursorSR.getString(cursorSR.getColumnIndexOrThrow(base + "_kode"));
+                Double nilai = cursorSR.isNull(cursorSR.getColumnIndexOrThrow(base + "_nilai"))
+                        ? null : cursorSR.getDouble(cursorSR.getColumnIndexOrThrow(base + "_nilai"));
+
+                if (kode != null || nilai != null) {
+                    LinearLayout row = new LinearLayout(this);
+                    row.setOrientation(LinearLayout.HORIZONTAL);
+
+                    row.addView(createDataTextView(base.toUpperCase(), 1.5f));
+                    row.addView(createDataTextView(kode == null ? "-" : kode, 1f));
+                    row.addView(createDataTextView(nilai == null ? "-" : String.valueOf(nilai), 1f));
+
+                    containerSR.addView(row);
+                }
+            }
+        }
+        cursorSR.close();
+
+        // === Bocoran Baru (Offline) ===
+        Cursor cursorBocoran = dbHelper.getReadableDatabase().rawQuery(
+                "SELECT * FROM t_bocoran_baru WHERE pengukuran_id=?",
+                new String[]{String.valueOf(pengukuranId)});
+        if (cursorBocoran.moveToFirst()) {
+            cardBocoran.setVisibility(View.VISIBLE);
+            containerBocoran.removeAllViews();
+
+            addBocoranRow(
+                    containerBocoran,
+                    "ELV 624 T1",
+                    getDoubleOrDash(cursorBocoran, "elv_624_t1"),
+                    cursorBocoran.isNull(cursorBocoran.getColumnIndexOrThrow("elv_624_t1_kode"))
+                            ? "-" : cursorBocoran.getString(cursorBocoran.getColumnIndexOrThrow("elv_624_t1_kode"))
+            );
+
+            addBocoranRow(
+                    containerBocoran,
+                    "ELV 615 T2",
+                    getDoubleOrDash(cursorBocoran, "elv_615_t2"),
+                    cursorBocoran.isNull(cursorBocoran.getColumnIndexOrThrow("elv_615_t2_kode"))
+                            ? "-" : cursorBocoran.getString(cursorBocoran.getColumnIndexOrThrow("elv_615_t2_kode"))
+            );
+
+            addBocoranRow(
+                    containerBocoran,
+                    "PIPA P1",
+                    getDoubleOrDash(cursorBocoran, "pipa_p1"),
+                    cursorBocoran.isNull(cursorBocoran.getColumnIndexOrThrow("pipa_p1_kode"))
+                            ? "-" : cursorBocoran.getString(cursorBocoran.getColumnIndexOrThrow("pipa_p1_kode"))
+            );
+        }
+        cursorBocoran.close();
+    }
+
+    // ============ Online JSON ============
+    private void tampilkanDataJson(JSONObject data) throws Exception {
+        cardTma.setVisibility(View.GONE);
+        cardThomson.setVisibility(View.GONE);
+        cardSR.setVisibility(View.GONE);
+        cardBocoran.setVisibility(View.GONE);
+
+        // TMA
+        if (data.has("tma")) {
+            cardTma.setVisibility(View.VISIBLE);
+            tvTmaValue.setText(data.getString("tma"));
+        }
+
+        // Thomson
+        if (data.has("thomson")) {
+            cardThomson.setVisibility(View.VISIBLE);
+            JSONObject th = data.getJSONObject("thomson");
+            tvA1R.setText("A1R: " + th.optString("a1_r", "--"));
+            tvA1L.setText("A1L: " + th.optString("a1_l", "--"));
+            tvB1.setText("B1: " + th.optString("b1", "--"));
+            tvB3.setText("B3: " + th.optString("b3", "--"));
+            tvB5.setText("B5: " + th.optString("b5", "--"));
+        }
+
+        // SR
+        if (data.has("sr")) {
+            cardSR.setVisibility(View.VISIBLE);
+            containerSR.removeAllViews();
+            JSONArray srArr = data.getJSONArray("sr");
+            for (int i = 0; i < srArr.length(); i++) {
+                JSONObject srObj = srArr.getJSONObject(i);
+                String nama  = srObj.optString("nama", "SR" + (i + 1));
+                String kode  = srObj.optString("kode", "-");
+                String nilai = srObj.optString("nilai", "-");
+
+                LinearLayout row = new LinearLayout(this);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                row.addView(createDataTextView(nama, 1.5f));
+                row.addView(createDataTextView(kode, 1f));
+                row.addView(createDataTextView(nilai, 1f));
+
+                containerSR.addView(row);
+            }
+        }
+
+        // Bocoran Baru
+        if (data.has("bocoran")) {
+            cardBocoran.setVisibility(View.VISIBLE);
+            containerBocoran.removeAllViews();
+            JSONObject boc = data.getJSONObject("bocoran");
+
+            addBocoranRow(containerBocoran,
+                    "ELV 624 T1",
+                    boc.optString("elv_624_t1", "--"),
+                    boc.optString("elv_624_t1_kode", "-"));
+
+            addBocoranRow(containerBocoran,
+                    "ELV 615 T2",
+                    boc.optString("elv_615_t2", "--"),
+                    boc.optString("elv_615_t2_kode", "-"));
+
+            addBocoranRow(containerBocoran,
+                    "PIPA P1",
+                    boc.optString("pipa_p1", "--"),
+                    boc.optString("pipa_p1_kode", "-"));
+        }
+    }
+
+    // Utility =====================================================
     private void addBocoranRow(LinearLayout container, String nama, String nilai, String kode) {
         LinearLayout row = new LinearLayout(this);
-        row.setLayoutParams(new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
+        row.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setPadding(0, 12, 0, 12);
 
@@ -275,26 +357,14 @@ public class HistoryActivity extends AppCompatActivity {
         container.addView(row);
     }
 
-    private TextView createHeaderTextView(String text, float weight) {
-        TextView textView = new TextView(this);
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, weight);
-        params.gravity = Gravity.CENTER;
-        textView.setLayoutParams(params);
-        textView.setText(text);
-        textView.setTextSize(16);
-        textView.setTextColor(getResources().getColor(android.R.color.white));
-        textView.setBackgroundColor(getResources().getColor(R.color.primary_color));
-        textView.setPadding(8, 12, 8, 12);
-        textView.setGravity(Gravity.CENTER);
-        textView.setTypeface(null, android.graphics.Typeface.BOLD);
-        return textView;
+    private String getDoubleOrDash(Cursor c, String column) {
+        if (c.isNull(c.getColumnIndexOrThrow(column))) return "--";
+        return String.valueOf(c.getDouble(c.getColumnIndexOrThrow(column)));
     }
 
     private TextView createDataTextView(String text, float weight) {
         TextView textView = new TextView(this);
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, weight);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, weight);
         params.gravity = Gravity.CENTER;
         textView.setLayoutParams(params);
         textView.setText(text);
