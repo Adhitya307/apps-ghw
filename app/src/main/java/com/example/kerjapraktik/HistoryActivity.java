@@ -5,6 +5,7 @@ import android.database.Cursor;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
+import android.os.Environment;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.ArrayAdapter;
@@ -12,6 +13,7 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
@@ -24,12 +26,21 @@ import com.android.volley.toolbox.Volley;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
 
 public class HistoryActivity extends AppCompatActivity {
 
     private Spinner spinnerPengukuran;
     private Button btnTampilkanData;
+    private Button btnExportDB;
 
     // CardView
     private CardView cardTma, cardThomson, cardSR, cardBocoran;
@@ -50,7 +61,7 @@ public class HistoryActivity extends AppCompatActivity {
     private ArrayList<Integer> pengukuranIds = new ArrayList<>();
     private ArrayList<String> pengukuranLabels = new ArrayList<>();
 
-    private static final String BASE_URL = "http://192.168.1.5/API_Android/public/api/rembesan/";
+    private static final String BASE_URL = "http://192.168.1.7/API_Android/public/api/rembesan/";
 
     private DatabaseHelper dbHelper;
 
@@ -64,6 +75,7 @@ public class HistoryActivity extends AppCompatActivity {
 
         spinnerPengukuran = findViewById(R.id.spinnerPengukuran);
         btnTampilkanData = findViewById(R.id.btnTampilkanData);
+        btnExportDB = findViewById(R.id.btnExportDB);
 
         cardTma = findViewById(R.id.cardTma);
         cardThomson = findViewById(R.id.cardThomson);
@@ -93,6 +105,8 @@ public class HistoryActivity extends AppCompatActivity {
                 }
             }
         });
+
+        btnExportDB.setOnClickListener(v -> exportDatabaseToSQL());
     }
 
     private boolean isOnline() {
@@ -336,6 +350,127 @@ public class HistoryActivity extends AppCompatActivity {
                     "PIPA P1",
                     boc.optString("pipa_p1", "--"),
                     boc.optString("pipa_p1_kode", "-"));
+        }
+    }
+
+    // ============ Export Database ============
+    private void exportDatabaseToSQL() {
+        try {
+            // Dapatkan path database
+            File databasePath = getDatabasePath(DatabaseHelper.DB_NAME);
+
+            if (!databasePath.exists()) {
+                Toast.makeText(this, "Database tidak ditemukan", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            // Buat nama file dengan timestamp
+            String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
+            String fileName = "db_saguling_export_" + timeStamp + ".sql";
+
+            // Direktori download
+            File downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+            File exportFile = new File(downloadDir, fileName);
+
+            // Ekspor database ke file SQL
+            exportDatabase(databasePath, exportFile);
+
+            Toast.makeText(this, "Database berhasil diexport ke: " + exportFile.getAbsolutePath(), Toast.LENGTH_LONG).show();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            Toast.makeText(this, "Error exporting database: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void exportDatabase(File databasePath, File exportFile) throws Exception {
+        StringBuilder sqlContent = new StringBuilder();
+
+        // Header SQL
+        sqlContent.append("-- Database Export: ").append(new Date().toString()).append("\n");
+        sqlContent.append("-- Database: ").append(DatabaseHelper.DB_NAME).append("\n\n");
+
+        // Ekspor struktur dan data tabel
+        exportTableData("android_metadata", sqlContent);
+        exportTableData("t_data_pengukuran", sqlContent);
+        exportTableData("t_thomson_weir", sqlContent);
+        exportTableData("t_sr", sqlContent);
+        exportTableData("t_bocoran_baru", sqlContent);
+
+        // Tulis ke file
+        try (OutputStreamWriter writer = new OutputStreamWriter(
+                new FileOutputStream(exportFile), StandardCharsets.UTF_8)) {
+            writer.write(sqlContent.toString());
+            writer.flush();
+        }
+    }
+
+    private void exportTableData(String tableName, StringBuilder sqlContent) {
+        Cursor cursor = null;
+        try {
+            // Dapatkan struktur tabel
+            cursor = dbHelper.getReadableDatabase().rawQuery(
+                    "PRAGMA table_info(" + tableName + ")", null);
+
+            List<String> columns = new ArrayList<>();
+            while (cursor.moveToNext()) {
+                columns.add(cursor.getString(cursor.getColumnIndexOrThrow("name")));
+            }
+            cursor.close();
+
+            // Dapatkan data tabel
+            cursor = dbHelper.getReadableDatabase().rawQuery(
+                    "SELECT * FROM " + tableName, null);
+
+            sqlContent.append("-- Data untuk tabel: ").append(tableName).append("\n");
+
+            while (cursor.moveToNext()) {
+                StringBuilder insertStatement = new StringBuilder();
+                insertStatement.append("INSERT INTO ").append(tableName).append(" VALUES(");
+
+                for (int i = 0; i < columns.size(); i++) {
+                    if (i > 0) {
+                        insertStatement.append(", ");
+                    }
+
+                    int columnType = cursor.getType(i);
+                    switch (columnType) {
+                        case Cursor.FIELD_TYPE_NULL:
+                            insertStatement.append("NULL");
+                            break;
+                        case Cursor.FIELD_TYPE_INTEGER:
+                            insertStatement.append(cursor.getLong(i));
+                            break;
+                        case Cursor.FIELD_TYPE_FLOAT:
+                            insertStatement.append(cursor.getDouble(i));
+                            break;
+                        case Cursor.FIELD_TYPE_STRING:
+                            String value = cursor.getString(i);
+                            if (value != null) {
+                                insertStatement.append("'").append(value.replace("'", "''")).append("'");
+                            } else {
+                                insertStatement.append("NULL");
+                            }
+                            break;
+                        case Cursor.FIELD_TYPE_BLOB:
+                            insertStatement.append("NULL"); // Skip BLOB untuk simplicity
+                            break;
+                    }
+                }
+
+                insertStatement.append(");\n");
+                sqlContent.append(insertStatement.toString());
+            }
+
+            sqlContent.append("\n");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            sqlContent.append("-- Error exporting table: ").append(tableName).append(" - ").append(e.getMessage()).append("\n\n");
+        } finally {
+            if (cursor != null && !cursor.isClosed()) {
+                cursor.close();
+            }
         }
     }
 

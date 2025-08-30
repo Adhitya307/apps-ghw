@@ -359,5 +359,36 @@
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
+        <!-- TOMBOL EXPORT DATABASE -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="20dp"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="6dp"
+            app:cardBackgroundColor="#FFFFFF">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
+
+                <Button
+                    android:id="@+id/btnExportDB"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:text="Export Database ke SQL"
+                    android:backgroundTint="#28a745"
+                    android:textColor="#FFFFFF"
+                    android:textAllCaps="false"
+                    android:textSize="16sp"
+                    style="@style/Widget.AppCompat.Button.Colored"
+                    android:stateListAnimator="@null"
+                    android:elevation="2dp"/>
+
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
     </LinearLayout>
 </ScrollView>

@@ -37,14 +37,14 @@ public class InputData2Activity extends AppCompatActivity {
     private final Map<String, Integer> tanggalToIdMap = new HashMap<>();
 
     // Endpoint utama untuk POST
-    private final String SERVER_URL = "http://192.168.1.5/API_Android/public/rembesan/input";
+    private final String SERVER_URL = "http://192.168.1.7/API_Android/public/rembesan/input";
 
     // Untuk cek-data & get_pengukuran
-    private final String CEK_DATA_URL = "http://192.168.1.5/API_Android/public/rembesan/cek-data";
-    private final String GET_PENGUKURAN_URL = "http://192.168.1.5/API_Android/public/rembesan/get_pengukuran";
+    private final String CEK_DATA_URL = "http://192.168.1.7/API_Android/public/rembesan/cek-data";
+    private final String GET_PENGUKURAN_URL = "http://192.168.1.7/API_Android/public/rembesan/get_pengukuran";
 
     // URL untuk Hitung Semua Data
-    private final String HITUNG_SEMUA_URL = "http://192.168.1.5/API_Android/public/rembesan/Rumus-Rembesan";
+    private final String HITUNG_SEMUA_URL = "http://192.168.1.7/API_Android/public/rembesan/Rumus-Rembesan";
 
     // variabel sinkronisasi
     private boolean showSyncToast = false;
