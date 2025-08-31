@@ -227,5 +227,294 @@ public class HomeActivity extends AppCompatActivity {
                 Log.e(TAG, "Error bocoran: " + t.getMessage(), t);
             }
         });
+
+        // === 5. Data Batas Maksimal ===
+        api.getBatasMaksimal().enqueue(new Callback<BatasMaksimalResponse>() {
+            @Override
+            public void onResponse(Call<BatasMaksimalResponse> call, Response<BatasMaksimalResponse> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    List<BatasMaksimalModel> batasList = response.body().getData();
+                    int successCount = 0;
+                    int totalCount = batasList.size();
+
+                    for (BatasMaksimalModel b : batasList) {
+                        try {
+                            dbHelper.insertPBatasMaksimal(
+                                    b.getPengukuran_id(),
+                                    b.getBatas_maksimal()
+                            );
+                            successCount++;
+                        } catch (Exception e) {
+                            Log.e(TAG, "Gagal simpan batas maksimal, pengukuran ID=" + b.getPengukuran_id(), e);
+                        }
+                    }
+
+                    String message = "Batas Maksimal: " + successCount + "/" + totalCount + " data tersinkron";
+                    Log.i(TAG, message);
+                    Toast.makeText(HomeActivity.this, message, Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<BatasMaksimalResponse> call, Throwable t) {
+                Log.e(TAG, "Error batas maksimal: " + t.getMessage(), t);
+            }
+        });
+
+        // === 6. Data Bocoran Baru (p_) ===
+        api.getPBocoranBaru().enqueue(new Callback<PBocoranBaruResponse>() {
+            @Override
+            public void onResponse(Call<PBocoranBaruResponse> call, Response<PBocoranBaruResponse> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    List<PBocoranBaruModel> bocoranList = response.body().getData();
+                    int successCount = 0;
+                    int totalCount = bocoranList.size();
+
+                    for (PBocoranBaruModel b : bocoranList) {
+                        try {
+                            dbHelper.insertPBocoranBaru(
+                                    b.getId(),
+                                    b.getPengukuran_id(),
+                                    b.getTalang1(),
+                                    b.getTalang2(),
+                                    b.getPipa(),
+                                    b.getCreated_at(),
+                                    b.getUpdated_at()
+                            );
+                            successCount++;
+                        } catch (Exception e) {
+                            Log.e(TAG, "Gagal simpan p_bocoran_baru, ID=" + b.getId(), e);
+                        }
+                    }
+
+                    String message = "P Bocoran: " + successCount + "/" + totalCount + " data tersinkron";
+                    Log.i(TAG, message);
+                    Toast.makeText(HomeActivity.this, message, Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<PBocoranBaruResponse> call, Throwable t) {
+                Log.e(TAG, "Error p_bocoran_baru: " + t.getMessage(), t);
+            }
+        });
+
+        // === 7. Data Inti Gallery ===
+        api.getPIntiGallery().enqueue(new Callback<PIntiGalleryResponse>() {
+            @Override
+            public void onResponse(Call<PIntiGalleryResponse> call, Response<PIntiGalleryResponse> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    List<PIntiGalleryModel> intiList = response.body().getData();
+                    int successCount = 0;
+                    int totalCount = intiList.size();
+
+                    for (PIntiGalleryModel i : intiList) {
+                        try {
+                            dbHelper.insertPIntiGallery(
+                                    i.getPengukuran_id(),
+                                    i.getA1(),
+                                    i.getAmbang_a1(),
+                                    i.getCreated_at(),
+                                    i.getUpdated_at()
+                            );
+                            successCount++;
+                        } catch (Exception e) {
+                            Log.e(TAG, "Gagal simpan p_intigalery, pengukuran ID=" + i.getPengukuran_id(), e);
+                        }
+                    }
+
+                    String message = "Inti Gallery: " + successCount + "/" + totalCount + " data tersinkron";
+                    Log.i(TAG, message);
+                    Toast.makeText(HomeActivity.this, message, Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<PIntiGalleryResponse> call, Throwable t) {
+                Log.e(TAG, "Error p_intigalery: " + t.getMessage(), t);
+            }
+        });
+
+        // === 8. Data Spillway ===
+        api.getPSpillway().enqueue(new Callback<PSpillwayResponse>() {
+            @Override
+            public void onResponse(Call<PSpillwayResponse> call, Response<PSpillwayResponse> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    List<PSpillwayModel> spillwayList = response.body().getData();
+                    int successCount = 0;
+                    int totalCount = spillwayList.size();
+
+                    for (PSpillwayModel s : spillwayList) {
+                        try {
+                            dbHelper.insertPSpillway(
+                                    s.getPengukuran_id(),
+                                    s.getB3(),
+                                    s.getAmbang(),
+                                    s.getCreated_at(),
+                                    s.getUpdated_at()
+                            );
+                            successCount++;
+                        } catch (Exception e) {
+                            Log.e(TAG, "Gagal simpan p_spillway, pengukuran ID=" + s.getPengukuran_id(), e);
+                        }
+                    }
+
+                    String message = "Spillway: " + successCount + "/" + totalCount + " data tersinkron";
+                    Log.i(TAG, message);
+                    Toast.makeText(HomeActivity.this, message, Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<PSpillwayResponse> call, Throwable t) {
+                Log.e(TAG, "Error p_spillway: " + t.getMessage(), t);
+            }
+        });
+
+        // === 9. Data P SR (hasil) ===
+        api.getPSR().enqueue(new Callback<PSRResponse>() {
+            @Override
+            public void onResponse(Call<PSRResponse> call, Response<PSRResponse> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    List<PSRModel> psrList = response.body().getData();
+                    int successCount = 0;
+                    int totalCount = psrList.size();
+
+                    for (PSRModel p : psrList) {
+                        try {
+                            dbHelper.insertPSr(
+                                    p.getPengukuran_id(),
+                                    p.getSr_1_q(), p.getSr_40_q(), p.getSr_66_q(), p.getSr_68_q(),
+                                    p.getSr_70_q(), p.getSr_79_q(), p.getSr_81_q(), p.getSr_83_q(),
+                                    p.getSr_85_q(), p.getSr_92_q(), p.getSr_94_q(), p.getSr_96_q(),
+                                    p.getSr_98_q(), p.getSr_100_q(), p.getSr_102_q(), p.getSr_104_q(),
+                                    p.getSr_106_q(), p.getCreated_at(), p.getUpdated_at()
+                            );
+                            successCount++;
+                        } catch (Exception e) {
+                            Log.e(TAG, "Gagal simpan p_sr, pengukuran ID=" + p.getPengukuran_id(), e);
+                        }
+                    }
+
+                    String message = "P SR: " + successCount + "/" + totalCount + " data tersinkron";
+                    Log.i(TAG, message);
+                    Toast.makeText(HomeActivity.this, message, Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<PSRResponse> call, Throwable t) {
+                Log.e(TAG, "Error p_sr: " + t.getMessage(), t);
+            }
+        });
+
+        // === 10. Data Tebing Kanan ===
+        api.getPTebingKanan().enqueue(new Callback<PTebingKananResponse>() {
+            @Override
+            public void onResponse(Call<PTebingKananResponse> call, Response<PTebingKananResponse> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    List<PTebingKananModel> tebingList = response.body().getData();
+                    int successCount = 0;
+                    int totalCount = tebingList.size();
+
+                    for (PTebingKananModel t : tebingList) {
+                        try {
+                            dbHelper.insertPTebingKanan(
+                                    t.getPengukuran_id(),
+                                    t.getSr(),
+                                    t.getAmbang(),
+                                    t.getB5(),
+                                    t.getCreated_at(),
+                                    t.getUpdated_at()
+                            );
+                            successCount++;
+                        } catch (Exception e) {
+                            Log.e(TAG, "Gagal simpan p_tebingkanan, pengukuran ID=" + t.getPengukuran_id(), e);
+                        }
+                    }
+
+                    String message = "Tebing Kanan: " + successCount + "/" + totalCount + " data tersinkron";
+                    Log.i(TAG, message);
+                    Toast.makeText(HomeActivity.this, message, Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<PTebingKananResponse> call, Throwable t) {
+                Log.e(TAG, "Error p_tebingkanan: " + t.getMessage(), t);
+            }
+        });
+
+        // === 11. Data P Thomson Weir (hasil) ===
+        api.getPThomsonWeir().enqueue(new Callback<PThomsonWeirResponse>() {
+            @Override
+            public void onResponse(Call<PThomsonWeirResponse> call, Response<PThomsonWeirResponse> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    List<PThomsonWeirModel> thomsonList = response.body().getData();
+                    int successCount = 0;
+                    int totalCount = thomsonList.size();
+
+                    for (PThomsonWeirModel t : thomsonList) {
+                        try {
+                            dbHelper.insertPThomsonWeir(
+                                    t.getPengukuran_id(),
+                                    t.getA1_r(),
+                                    t.getA1_l(),
+                                    t.getB1(),
+                                    t.getB3(),
+                                    t.getB5()
+                            );
+                            successCount++;
+                        } catch (Exception e) {
+                            Log.e(TAG, "Gagal simpan p_thomson_weir, pengukuran ID=" + t.getPengukuran_id(), e);
+                        }
+                    }
+
+                    String message = "P Thomson: " + successCount + "/" + totalCount + " data tersinkron";
+                    Log.i(TAG, message);
+                    Toast.makeText(HomeActivity.this, message, Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<PThomsonWeirResponse> call, Throwable t) {
+                Log.e(TAG, "Error p_thomson_weir: " + t.getMessage(), t);
+            }
+        });
+
+        // === 12. Data Total Bocoran ===
+        api.getPTotalBocoran().enqueue(new Callback<PTotalBocoranResponse>() {
+            @Override
+            public void onResponse(Call<PTotalBocoranResponse> call, Response<PTotalBocoranResponse> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    List<PTotalBocoranModel> totalBocoranList = response.body().getData();
+                    int successCount = 0;
+                    int totalCount = totalBocoranList.size();
+
+                    for (PTotalBocoranModel t : totalBocoranList) {
+                        try {
+                            dbHelper.insertPTotalBocoran(
+                                    t.getPengukuran_id(),
+                                    t.getR1(),
+                                    t.getCreated_at(),
+                                    t.getUpdated_at()
+                            );
+                            successCount++;
+                        } catch (Exception e) {
+                            Log.e(TAG, "Gagal simpan p_totalbocoran, pengukuran ID=" + t.getPengukuran_id(), e);
+                        }
+                    }
+
+                    String message = "Total Bocoran: " + successCount + "/" + totalCount + " data tersinkron";
+                    Log.i(TAG, message);
+                    Toast.makeText(HomeActivity.this, message, Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<PTotalBocoranResponse> call, Throwable t) {
+                Log.e(TAG, "Error p_totalbocoran: " + t.getMessage(), t);
+            }
+        });
     }
 }

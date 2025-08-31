@@ -390,12 +390,35 @@ public class HistoryActivity extends AppCompatActivity {
         sqlContent.append("-- Database Export: ").append(new Date().toString()).append("\n");
         sqlContent.append("-- Database: ").append(DatabaseHelper.DB_NAME).append("\n\n");
 
-        // Ekspor struktur dan data tabel
-        exportTableData("android_metadata", sqlContent);
-        exportTableData("t_data_pengukuran", sqlContent);
-        exportTableData("t_thomson_weir", sqlContent);
-        exportTableData("t_sr", sqlContent);
-        exportTableData("t_bocoran_baru", sqlContent);
+        // Daftar semua tabel yang akan diekspor
+        String[] allTables = {
+                "android_metadata",
+                "t_data_pengukuran",
+                "t_thomson_weir",
+                "t_sr",
+                "t_bocoran_baru",
+                "ambang",
+                "p_batasmaksimal",
+                "p_intigalery",
+                "p_spillway",
+                "p_sr",
+                "p_tebingkanan",
+                "p_thomson_weir",
+                "p_totalbocoran",
+                "thomson",
+                "t_ambang_batas",
+                "p_bocoran_baru"
+        };
+
+        // Ekspor struktur dan data untuk setiap tabel
+        for (String tableName : allTables) {
+            try {
+                exportTableData(tableName, sqlContent);
+            } catch (Exception e) {
+                sqlContent.append("-- Error exporting table: ").append(tableName)
+                        .append(" - ").append(e.getMessage()).append("\n\n");
+            }
+        }
 
         // Tulis ke file
         try (OutputStreamWriter writer = new OutputStreamWriter(
@@ -408,9 +431,26 @@ public class HistoryActivity extends AppCompatActivity {
     private void exportTableData(String tableName, StringBuilder sqlContent) {
         Cursor cursor = null;
         try {
+            // Cek apakah tabel exists
+            cursor = dbHelper.getReadableDatabase().rawQuery(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+                    new String[]{tableName});
+
+            if (!cursor.moveToFirst()) {
+                // Tabel tidak ada, skip
+                sqlContent.append("-- Table ").append(tableName).append(" does not exist\n\n");
+                return;
+            }
+            cursor.close();
+
             // Dapatkan struktur tabel
             cursor = dbHelper.getReadableDatabase().rawQuery(
                     "PRAGMA table_info(" + tableName + ")", null);
+
+            if (cursor.getCount() == 0) {
+                sqlContent.append("-- Table ").append(tableName).append(" has no columns\n\n");
+                return;
+            }
 
             List<String> columns = new ArrayList<>();
             while (cursor.moveToNext()) {
@@ -422,12 +462,25 @@ public class HistoryActivity extends AppCompatActivity {
             cursor = dbHelper.getReadableDatabase().rawQuery(
                     "SELECT * FROM " + tableName, null);
 
+            sqlContent.append("-- ===========================================\n");
             sqlContent.append("-- Data untuk tabel: ").append(tableName).append("\n");
+            sqlContent.append("-- ===========================================\n");
 
+            int rowCount = 0;
             while (cursor.moveToNext()) {
                 StringBuilder insertStatement = new StringBuilder();
-                insertStatement.append("INSERT INTO ").append(tableName).append(" VALUES(");
+                insertStatement.append("INSERT INTO ").append(tableName).append(" (");
 
+                // Tambahkan nama kolom
+                for (int i = 0; i < columns.size(); i++) {
+                    if (i > 0) {
+                        insertStatement.append(", ");
+                    }
+                    insertStatement.append(columns.get(i));
+                }
+                insertStatement.append(") VALUES(");
+
+                // Tambahkan nilai
                 for (int i = 0; i < columns.size(); i++) {
                     if (i > 0) {
                         insertStatement.append(", ");
@@ -447,26 +500,31 @@ public class HistoryActivity extends AppCompatActivity {
                         case Cursor.FIELD_TYPE_STRING:
                             String value = cursor.getString(i);
                             if (value != null) {
-                                insertStatement.append("'").append(value.replace("'", "''")).append("'");
+                                // Escape single quotes
+                                String escapedValue = value.replace("'", "''");
+                                insertStatement.append("'").append(escapedValue).append("'");
                             } else {
                                 insertStatement.append("NULL");
                             }
                             break;
                         case Cursor.FIELD_TYPE_BLOB:
-                            insertStatement.append("NULL"); // Skip BLOB untuk simplicity
+                            // Skip BLOB data untuk simplicity
+                            insertStatement.append("NULL");
                             break;
                     }
                 }
 
                 insertStatement.append(");\n");
                 sqlContent.append(insertStatement.toString());
+                rowCount++;
             }
 
-            sqlContent.append("\n");
+            sqlContent.append("-- Total rows: ").append(rowCount).append("\n\n");
 
         } catch (Exception e) {
             e.printStackTrace();
-            sqlContent.append("-- Error exporting table: ").append(tableName).append(" - ").append(e.getMessage()).append("\n\n");
+            sqlContent.append("-- Error exporting table: ").append(tableName)
+                    .append(" - ").append(e.getMessage()).append("\n\n");
         } finally {
             if (cursor != null && !cursor.isClosed()) {
                 cursor.close();
