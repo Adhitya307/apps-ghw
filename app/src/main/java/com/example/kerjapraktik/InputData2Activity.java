@@ -578,20 +578,45 @@ public class InputData2Activity extends AppCompatActivity {
                     final List<String> tanggalList = new ArrayList<>();
                     tanggalToIdMap.clear();
 
+                    // Dapatkan bulan & tahun saat ini
+                    Calendar cal = Calendar.getInstance();
+                    int bulanIni = cal.get(Calendar.MONTH) + 1; // MONTH mulai dari 0
+                    int tahunIni = cal.get(Calendar.YEAR);
+
                     for (int i = 0; i < arr.length(); i++) {
                         JSONObject obj = arr.getJSONObject(i);
                         int id = obj.getInt("id");
                         String tanggal = obj.getString("tanggal");
-                        tanggalToIdMap.put(tanggal, id);
-                        tanggalList.add(tanggal);
-                        db.insertPengukuranMaster(id, tanggal);
+
+                        // Parse bulan dan tahun dari tanggal
+                        String[] parts = tanggal.split("-"); // format YYYY-MM-DD
+                        if (parts.length >= 2) {
+                            int tahunData = Integer.parseInt(parts[0]);
+                            int bulanData = Integer.parseInt(parts[1]);
+
+                            if (tahunData == tahunIni && bulanData == bulanIni) {
+                                tanggalToIdMap.put(tanggal, id);
+                                tanggalList.add(tanggal);
+                                db.insertPengukuranMaster(id, tanggal);
+                            }
+                        }
+                    }
+
+                    // Jika tidak ada data bulan ini
+                    if (tanggalList.isEmpty()) {
+                        tanggalList.add("Belum ada pengukuran bulan ini");
+                        pengukuranId = -1; // disable submit
                     }
 
                     runOnUiThread(() -> {
                         ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, tanggalList);
                         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
                         spinnerPengukuran.setAdapter(adapter);
+
+                        // Pilih item pertama otomatis
+                        spinnerPengukuran.setSelection(0);
                     });
+
                 } else {
                     runOnUiThread(() -> showToast("Gagal ambil daftar pengukuran dari server."));
                 }
@@ -602,6 +627,7 @@ public class InputData2Activity extends AppCompatActivity {
             }
         }).start();
     }
+
 
     private void loadTanggalOffline() {
         OfflineDataHelper db = new OfflineDataHelper(this);

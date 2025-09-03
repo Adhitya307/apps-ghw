@@ -83,6 +83,8 @@ public class InputDataActivity extends AppCompatActivity {
         spinnerPengukuran = findViewById(R.id.spinnerPengukuran);
         btnPilihPengukuran = findViewById(R.id.btnPilihPengukuran);
 
+        syncPengukuranMaster();
+
         initModalComponents();
         initFormComponents();
         setupSpinners();
@@ -872,4 +874,75 @@ public class InputDataActivity extends AppCompatActivity {
     private void showToast(String msg) {
         runOnUiThread(() -> Toast.makeText(this, msg, Toast.LENGTH_LONG).show());
     }
+
+    private void syncPengukuranMaster() {
+        if (!isInternetAvailable()) {
+            showToast("Tidak ada koneksi internet. Sinkronisasi gagal.");
+            return;
+        }
+
+        // Ambil bulan & tahun sekarang
+        Calendar cal = Calendar.getInstance();
+        int bulanSekarang = cal.get(Calendar.MONTH) + 1; // Januari = 0
+        int tahunSekarang = cal.get(Calendar.YEAR);
+
+        new Thread(() -> {
+            try {
+                URL url = new URL(GET_PENGUKURAN_URL);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setRequestProperty("Accept", "application/json");
+
+                BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) sb.append(line);
+                reader.close();
+
+                JSONObject response = new JSONObject(sb.toString());
+                JSONArray dataArray = response.getJSONArray("data");
+
+                // Filter bulan ini
+                pengukuranMap.clear();
+                List<String> bulanIniList = new ArrayList<>();
+
+                for (int i = 0; i < dataArray.length(); i++) {
+                    JSONObject obj = dataArray.getJSONObject(i);
+                    String tanggal = obj.getString("tanggal"); // format: yyyy-MM-dd
+                    int id = obj.getInt("id");
+
+                    String[] parts = tanggal.split("-");
+                    int tahun = Integer.parseInt(parts[0]);
+                    int bulan = Integer.parseInt(parts[1]);
+
+                    if (tahun == tahunSekarang && bulan == bulanSekarang) {
+                        bulanIniList.add(tanggal);
+                        pengukuranMap.put(tanggal, id);
+                    }
+                }
+
+                runOnUiThread(() -> {
+                    tanggalList.clear();
+                    tanggalList.addAll(bulanIniList);
+                    pengukuranAdapter.notifyDataSetChanged();
+
+                    // Handling spinner kosong
+                    if (tanggalList.isEmpty()) {
+                        showToast("Tidak ada data pengukuran untuk bulan ini.");
+                    } else {
+                        // Optional: auto-select tanggal pertama
+                        spinnerPengukuran.setSelection(0);
+                        pengukuranId = pengukuranMap.get(tanggalList.get(0));
+                        getSharedPreferences("pengukuran", MODE_PRIVATE)
+                                .edit().putInt("pengukuran_id", pengukuranId).apply();
+                    }
+                });
+
+            } catch (Exception e) {
+                Log.e("SYNC_MASTER", "Error syncPengukuranMaster", e);
+                runOnUiThread(() -> showToast("Sinkronisasi gagal: " + e.getMessage()));
+            }
+        }).start();
+    }
+
 }
