@@ -61,7 +61,7 @@ public class HistoryActivity extends AppCompatActivity {
     private ArrayList<Integer> pengukuranIds = new ArrayList<>();
     private ArrayList<String> pengukuranLabels = new ArrayList<>();
 
-    private static final String BASE_URL = "http://192.168.1.7/API_Android/public/api/rembesan/";
+    private static final String BASE_URL = "http://192.168.1.35/API_Android/public/api/rembesan/";
 
     private DatabaseHelper dbHelper;
 
@@ -407,7 +407,8 @@ public class HistoryActivity extends AppCompatActivity {
                 "p_totalbocoran",
                 "thomson",
                 "t_ambang_batas",
-                "p_bocoran_baru"
+                "p_bocoran_baru",
+                "analisa_look_burt"
         };
 
         // Ekspor struktur dan data untuk setiap tabel

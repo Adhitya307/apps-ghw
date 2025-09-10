@@ -55,4 +55,9 @@ public interface ApiService {
     // Total Bocoran
     @GET("api/rembesan/backup/p_totalbocoran")
     Call<PTotalBocoranResponse> getPTotalBocoran();
+
+    // Retrofit API
+    @GET("api/rembesan/analisa_look_burt")
+    Call<AnalisaLookBurtResponse> getAnalisaLookBurt();
+
 }

@@ -58,11 +58,11 @@ public class InputDataActivity extends AppCompatActivity {
     private SharedPreferences syncPrefs;
 
     // API URL
-    private static final String BASE_URL = "http://192.168.1.7/API_Android/public/rembesan/";
+    private static final String BASE_URL = "http://192.168.1.35/API_Android/public/rembesan/";
     private static final String INSERT_DATA_URL = BASE_URL + "input";
     private static final String CEK_DATA_URL = BASE_URL + "cek-data";
     private static final String GET_PENGUKURAN_URL = BASE_URL + "get_pengukuran";
-    private static final String HITUNG_SEMUA_URL = "http://192.168.1.7/API_Android/public/rembesan/Rumus-Rembesan";
+    private static final String HITUNG_SEMUA_URL = "http://192.168.1.35/API_Android/public/rembesan/Rumus-Rembesan";
 
     // Map untuk simpan pasangan tanggal → ID
     private final Map<String, Integer> pengukuranMap = new HashMap<>();
@@ -585,22 +585,43 @@ public class InputDataActivity extends AppCompatActivity {
 
                 runOnUiThread(() -> {
                     progressDialog.dismiss();
-                    if ("success".equals(status)) {
-                        showToast("Perhitungan berhasil: " + message);
 
-                        // Optional: Tampilkan detail hasil perhitungan
-                        if (data != null) {
+                    if (data != null) {
+                        // Ambil status dari server, fallback ke "partial" jika null
+                        String statusServer = data.optString("status", "partial");
+                        String messageServer = data.optString("message", "");
+
+                        if ("success".equals(statusServer) || "partial".equals(statusServer)) {
+                            // Tampilkan toast utama
+                            showToast("Perhitungan selesai: " + messageServer);
+
+                            // Tampilkan detail hasil yang tersedia
                             JSONObject batasmaksimal = data.optJSONObject("batasmaksimal");
-                            if (batasmaksimal != null && batasmaksimal.optBoolean("success", false)) {
-                                double tmaWaduk = batasmaksimal.optDouble("tma_waduk", 0);
-                                double batasMaksimal = batasmaksimal.optDouble("batas_maksimal", 0);
-                                showToast("TMA Waduk: " + tmaWaduk + ", Batas Maksimal: " + batasMaksimal);
+                            if (batasmaksimal != null) {
+                                double tmaWaduk = batasmaksimal.optDouble("tma_waduk", -1);
+                                double batasMaksimal = batasmaksimal.optDouble("batas_maksimal", -1);
+
+                                String hasil = "";
+                                if (tmaWaduk >= 0) hasil += "TMA Waduk: " + tmaWaduk;
+                                if (batasMaksimal >= 0) {
+                                    if (!hasil.isEmpty()) hasil += ", ";
+                                    hasil += "Batas Maksimal: " + batasMaksimal;
+                                }
+
+                                if (!hasil.isEmpty()) showToast(hasil);
                             }
+
+                        } else {
+                            // Status gagal dari server
+                            showToast("Gagal menghitung: " + messageServer);
                         }
+
                     } else {
-                        showToast("Gagal menghitung: " + message);
+                        // Data null
+                        showToast("Gagal menghitung: data tidak tersedia.");
                     }
                 });
+
 
             } catch (Exception e) {
                 runOnUiThread(() -> {

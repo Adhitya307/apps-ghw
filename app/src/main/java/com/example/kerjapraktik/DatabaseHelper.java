@@ -12,7 +12,7 @@ import com.android.volley.BuildConfig;
 public class DatabaseHelper extends SQLiteOpenHelper {
 
     public static final String DB_NAME = "db_saguling.db";
-    public static final int DB_VERSION = 10; // naikin versi biar drop & create ulang
+    public static final int DB_VERSION = 12; // naikin versi biar drop & create ulang
     private static final String TAG = "DBHelper";
 
     private static SQLiteDatabase instance; // cache connection
@@ -165,6 +165,21 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 "created_at TEXT, " +
                 "updated_at TEXT, " +
                 "is_synced INTEGER DEFAULT 0)");
+
+// Tabel analisa_look_burt
+        db.execSQL("CREATE TABLE IF NOT EXISTS analisa_look_burt (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +          // id otomatis bertambah
+                "pengukuran_id INTEGER UNIQUE, " +                  // unik supaya bisa update berdasarkan pengukuran_id
+                "rembesan_bendungan REAL, " +
+                "panjang_bendungan REAL, " +
+                "rembesan_per_m REAL, " +
+                "nilai_ambang_ok REAL DEFAULT 0.28, " +
+                "nilai_ambang_notok REAL DEFAULT 0.56, " +
+                "keterangan TEXT, " +
+                "is_synced INTEGER DEFAULT 0, " +                  // 0 = belum sinkron, 1 = sudah sinkron
+                "FOREIGN KEY (pengukuran_id) REFERENCES t_data_pengukuran(id) ON DELETE CASCADE" +
+                ")");
+
     }
 
     @Override
@@ -182,6 +197,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.execSQL("DROP TABLE IF EXISTS p_tebingkanan");
         db.execSQL("DROP TABLE IF EXISTS p_thomson_weir");
         db.execSQL("DROP TABLE IF EXISTS p_totalbocoran");
+        db.execSQL("DROP TABLE IF EXISTS analisa_look_burt");
 
         onCreate(db);
     }
@@ -660,34 +676,62 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return exists;
     }
 
-    // ============================================
-    // ========== DEBUG : PRINT ALL DATA ==========
-    // ============================================
-    public void debugPrintAllPengukuran() {
-        SQLiteDatabase db = getDB();
-        Cursor cursor = db.rawQuery("SELECT * FROM t_data_pengukuran", null);
+    // ===== Insert atau Update AnalisaLookBurt =====
+    public void insertAnalisaLookBurt(AnalisaLookBurtModel model) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
 
-        Log.d(TAG, "==== Isi t_data_pengukuran ====");
-        if (cursor.moveToFirst()) {
-            do {
-                int id = cursor.getInt(cursor.getColumnIndexOrThrow("id"));
-                String tahun = cursor.getString(cursor.getColumnIndexOrThrow("tahun"));
-                String bulan = cursor.getString(cursor.getColumnIndexOrThrow("bulan"));
-                String periode = cursor.getString(cursor.getColumnIndexOrThrow("periode"));
-                String tanggal = cursor.getString(cursor.getColumnIndexOrThrow("tanggal"));
-                double tma = cursor.isNull(cursor.getColumnIndexOrThrow("tma_waduk")) ? -1 : cursor.getDouble(cursor.getColumnIndexOrThrow("tma_waduk"));
-                double hujan = cursor.isNull(cursor.getColumnIndexOrThrow("curah_hujan")) ? -1 : cursor.getDouble(cursor.getColumnIndexOrThrow("curah_hujan"));
-                String tempId = cursor.getString(cursor.getColumnIndexOrThrow("temp_id"));
+        values.put("pengukuran_id", model.getPengukuranId());
+        values.put("rembesan_bendungan", model.getRembesanBendungan() != null ? model.getRembesanBendungan() : 0.0);
+        values.put("panjang_bendungan", model.getPanjangBendungan() != null ? model.getPanjangBendungan() : 0.0);
+        values.put("rembesan_per_m", model.getRembesanPerM() != null ? model.getRembesanPerM() : 0.0);
+        values.put("nilai_ambang_ok", model.getNilaiAmbangOk() != null ? model.getNilaiAmbangOk() : 0.28);
+        values.put("nilai_ambang_notok", model.getNilaiAmbangNotok() != null ? model.getNilaiAmbangNotok() : 0.56);
+        values.put("keterangan", model.getKeterangan() != null ? model.getKeterangan() : "");
+        values.put("is_synced", 1); // tandai sudah sinkron
 
-                Log.d(TAG, "Row -> ID=" + id + ", Tahun=" + tahun +
-                        ", Bulan=" + bulan + ", Periode=" + periode +
-                        ", Tanggal=" + tanggal + ", TMA=" + tma +
-                        ", Hujan=" + hujan + ", TempId=" + tempId);
-            } while (cursor.moveToNext());
-        } else {
-            Log.w(TAG, "⚠️ Tidak ada data di t_data_pengukuran");
+        // Gunakan INSERT OR REPLACE agar update otomatis jika pengukuran_id sudah ada
+        db.insertWithOnConflict(
+                "analisa_look_burt",
+                null,
+                values,
+                SQLiteDatabase.CONFLICT_REPLACE
+        );
+
+        Log.d("DatabaseHelper", "✅ Insert/Update analisa_look_burt | pengukuran_id=" + model.getPengukuranId());
+    }
+
+    // ===== Ambil AnalisaLookBurt by pengukuranId =====
+    public AnalisaLookBurtModel getAnalisaLookBurtByPengukuranId(int pengukuranId) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        AnalisaLookBurtModel model = null;
+        Cursor cursor = null;
+
+        try {
+            cursor = db.rawQuery("SELECT * FROM analisa_look_burt WHERE pengukuran_id = ?",
+                    new String[]{String.valueOf(pengukuranId)});
+
+            if (cursor.moveToFirst()) {
+                model = new AnalisaLookBurtModel();
+                model.setPengukuranId(cursor.getInt(cursor.getColumnIndexOrThrow("pengukuran_id")));
+                model.setRembesanBendungan(!cursor.isNull(cursor.getColumnIndexOrThrow("rembesan_bendungan"))
+                        ? cursor.getDouble(cursor.getColumnIndexOrThrow("rembesan_bendungan")) : 0.0);
+                model.setPanjangBendungan(!cursor.isNull(cursor.getColumnIndexOrThrow("panjang_bendungan"))
+                        ? cursor.getDouble(cursor.getColumnIndexOrThrow("panjang_bendungan")) : 0.0);
+                model.setRembesanPerM(!cursor.isNull(cursor.getColumnIndexOrThrow("rembesan_per_m"))
+                        ? cursor.getDouble(cursor.getColumnIndexOrThrow("rembesan_per_m")) : 0.0);
+                model.setNilaiAmbangOk(!cursor.isNull(cursor.getColumnIndexOrThrow("nilai_ambang_ok"))
+                        ? cursor.getDouble(cursor.getColumnIndexOrThrow("nilai_ambang_ok")) : 0.28);
+                model.setNilaiAmbangNotok(!cursor.isNull(cursor.getColumnIndexOrThrow("nilai_ambang_notok"))
+                        ? cursor.getDouble(cursor.getColumnIndexOrThrow("nilai_ambang_notok")) : 0.56);
+                model.setKeterangan(cursor.getString(cursor.getColumnIndexOrThrow("keterangan")));
+                model.setIsSynced(cursor.getInt(cursor.getColumnIndexOrThrow("is_synced")));
+            }
+        } finally {
+            if (cursor != null) cursor.close();
         }
 
-        cursor.close();
+        return model;
     }
+
 }

@@ -37,14 +37,14 @@ public class InputData2Activity extends AppCompatActivity {
     private final Map<String, Integer> tanggalToIdMap = new HashMap<>();
 
     // Endpoint utama untuk POST
-    private final String SERVER_URL = "http://192.168.1.7/API_Android/public/rembesan/input";
+    private final String SERVER_URL = "http://192.168.1.35/API_Android/public/rembesan/input";
 
     // Untuk cek-data & get_pengukuran
-    private final String CEK_DATA_URL = "http://192.168.1.7/API_Android/public/rembesan/cek-data";
-    private final String GET_PENGUKURAN_URL = "http://192.168.1.7/API_Android/public/rembesan/get_pengukuran";
+    private final String CEK_DATA_URL = "http://192.168.1.35/API_Android/public/rembesan/cek-data";
+    private final String GET_PENGUKURAN_URL = "http://192.168.1.35/API_Android/public/rembesan/get_pengukuran";
 
     // URL untuk Hitung Semua Data
-    private final String HITUNG_SEMUA_URL = "http://192.168.1.7/API_Android/public/rembesan/Rumus-Rembesan";
+    private final String HITUNG_SEMUA_URL = "http://192.168.1.35/API_Android/public/rembesan/Rumus-Rembesan";
 
     // variabel sinkronisasi
     private boolean showSyncToast = false;
@@ -219,22 +219,43 @@ public class InputData2Activity extends AppCompatActivity {
 
                 runOnUiThread(() -> {
                     progressDialog.dismiss();
-                    if ("success".equals(status)) {
-                        showToast("Perhitungan berhasil: " + message);
 
-                        // Optional: Tampilkan detail hasil perhitungan
-                        if (data != null) {
+                    if (data != null) {
+                        // Ambil status dari server, fallback ke "partial" jika null
+                        String statusServer = data.optString("status", "partial");
+                        String messageServer = data.optString("message", "");
+
+                        if ("success".equals(statusServer) || "partial".equals(statusServer)) {
+                            // Tampilkan toast utama
+                            showToast("Perhitungan selesai: " + messageServer);
+
+                            // Tampilkan detail hasil yang tersedia
                             JSONObject batasmaksimal = data.optJSONObject("batasmaksimal");
-                            if (batasmaksimal != null && batasmaksimal.optBoolean("success", false)) {
-                                double tmaWaduk = batasmaksimal.optDouble("tma_waduk", 0);
-                                double batasMaksimal = batasmaksimal.optDouble("batas_maksimal", 0);
-                                showToast("TMA Waduk: " + tmaWaduk + ", Batas Maksimal: " + batasMaksimal);
+                            if (batasmaksimal != null) {
+                                double tmaWaduk = batasmaksimal.optDouble("tma_waduk", -1);
+                                double batasMaksimal = batasmaksimal.optDouble("batas_maksimal", -1);
+
+                                String hasil = "";
+                                if (tmaWaduk >= 0) hasil += "TMA Waduk: " + tmaWaduk;
+                                if (batasMaksimal >= 0) {
+                                    if (!hasil.isEmpty()) hasil += ", ";
+                                    hasil += "Batas Maksimal: " + batasMaksimal;
+                                }
+
+                                if (!hasil.isEmpty()) showToast(hasil);
                             }
+
+                        } else {
+                            // Status gagal dari server
+                            showToast("Gagal menghitung: " + messageServer);
                         }
+
                     } else {
-                        showToast("Gagal menghitung: " + message);
+                        // Data null
+                        showToast("Gagal menghitung: data tidak tersedia.");
                     }
                 });
+
 
             } catch (Exception e) {
                 runOnUiThread(() -> {
