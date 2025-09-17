@@ -12,7 +12,7 @@ import com.android.volley.BuildConfig;
 public class DatabaseHelper extends SQLiteOpenHelper {
 
     public static final String DB_NAME = "db_saguling.db";
-    public static final int DB_VERSION = 12; // naikin versi biar drop & create ulang
+    public static final int DB_VERSION = 13; // naikin versi biar drop & create ulang
     private static final String TAG = "DBHelper";
 
     private static SQLiteDatabase instance; // cache connection

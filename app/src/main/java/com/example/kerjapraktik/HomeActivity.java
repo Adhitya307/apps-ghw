@@ -18,6 +18,8 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
+
+
 public class HomeActivity extends AppCompatActivity {
 
     private LinearLayout btnInput, btnInputHP2, btnHistory;
@@ -59,6 +61,7 @@ public class HomeActivity extends AppCompatActivity {
             Intent intent = new Intent(HomeActivity.this, HistoryActivity.class);
             startActivity(intent);
         });
+
     }
 
     private boolean isOnline() {

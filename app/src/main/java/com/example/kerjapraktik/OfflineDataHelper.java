@@ -14,7 +14,7 @@ import java.util.Map;
 public class OfflineDataHelper extends SQLiteOpenHelper {
 
     private static final String DB_NAME = "offline_sync.db";
-    private static final int DB_VERSION = 2;
+    private static final int DB_VERSION = 3; // <- dinaikkan versi agar onUpgrade dijalankan
 
     public OfflineDataHelper(Context context) {
         super(context, DB_NAME, null, DB_VERSION);
@@ -42,6 +42,12 @@ public class OfflineDataHelper extends SQLiteOpenHelper {
                 "json TEXT, " +
                 "is_synced INTEGER DEFAULT 0)");
 
+        // ✅ Tambahan tabel baru untuk TMA Waduk
+        db.execSQL("CREATE TABLE IF NOT EXISTS tma_waduk (" +
+                "temp_id TEXT PRIMARY KEY, " +
+                "json TEXT, " +
+                "is_synced INTEGER DEFAULT 0)");
+
         db.execSQL("CREATE TABLE IF NOT EXISTS pengukuran_master (" +
                 "id INTEGER PRIMARY KEY, tanggal TEXT)");
     }
@@ -52,6 +58,15 @@ public class OfflineDataHelper extends SQLiteOpenHelper {
         try { db.execSQL("ALTER TABLE thomson ADD COLUMN is_synced INTEGER DEFAULT 0"); } catch (Exception ignored) {}
         try { db.execSQL("ALTER TABLE sr ADD COLUMN is_synced INTEGER DEFAULT 0"); } catch (Exception ignored) {}
         try { db.execSQL("ALTER TABLE bocoran ADD COLUMN is_synced INTEGER DEFAULT 0"); } catch (Exception ignored) {}
+
+        // ✅ Tambahkan tabel tma_waduk saat upgrade
+        try {
+            db.execSQL("CREATE TABLE IF NOT EXISTS tma_waduk (" +
+                    "temp_id TEXT PRIMARY KEY, " +
+                    "json TEXT, " +
+                    "is_synced INTEGER DEFAULT 0)");
+        } catch (Exception ignored) {}
+
         try {
             db.execSQL("CREATE TABLE IF NOT EXISTS pengukuran_master (" +
                     "id INTEGER PRIMARY KEY, tanggal TEXT)");
@@ -104,7 +119,8 @@ public class OfflineDataHelper extends SQLiteOpenHelper {
         return !getUnsyncedData("pengukuran").isEmpty() ||
                 !getUnsyncedData("thomson").isEmpty() ||
                 !getUnsyncedData("sr").isEmpty() ||
-                !getUnsyncedData("bocoran").isEmpty();
+                !getUnsyncedData("bocoran").isEmpty() ||
+                !getUnsyncedData("tma_waduk").isEmpty(); // ✅ tambahan
     }
 
     // Tandai data sudah tersinkron

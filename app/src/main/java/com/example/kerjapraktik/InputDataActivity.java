@@ -58,11 +58,11 @@ public class InputDataActivity extends AppCompatActivity {
     private SharedPreferences syncPrefs;
 
     // API URL
-    private static final String BASE_URL = "http://192.168.1.35/API_Android/public/rembesan/";
+    private static final String BASE_URL = "http://192.168.1.28/API_Android/public/rembesan/";
     private static final String INSERT_DATA_URL = BASE_URL + "input";
     private static final String CEK_DATA_URL = BASE_URL + "cek-data";
     private static final String GET_PENGUKURAN_URL = BASE_URL + "get_pengukuran";
-    private static final String HITUNG_SEMUA_URL = "http://192.168.1.35/API_Android/public/rembesan/Rumus-Rembesan";
+    private static final String HITUNG_SEMUA_URL = BASE_URL + "Rumus-Rembesan";
 
     // Map untuk simpan pasangan tanggal → ID
     private final Map<String, Integer> pengukuranMap = new HashMap<>();
@@ -76,14 +76,14 @@ public class InputDataActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_input_data);
 
+        // inisialisasi database offline + prefs
         offlineDb = new OfflineDataHelper(this);
         syncPrefs = getSharedPreferences("sync_prefs", MODE_PRIVATE);
         calendar = Calendar.getInstance();
 
+        // init UI components dulu (important)
         spinnerPengukuran = findViewById(R.id.spinnerPengukuran);
         btnPilihPengukuran = findViewById(R.id.btnPilihPengukuran);
-
-        syncPengukuranMaster();
 
         initModalComponents();
         initFormComponents();
@@ -91,35 +91,31 @@ public class InputDataActivity extends AppCompatActivity {
         setupModalDropdowns();
         setupModalCalendar();
 
-        // Ambil pengukuran_id dari SharedPreferences
-        SharedPreferences prefs = getSharedPreferences("pengukuran", MODE_PRIVATE);
-        pengukuranId = prefs.getInt("pengukuran_id", -1);
-
         // Siapkan adapter spinner (awal kosong, nanti diisi saat load)
         pengukuranAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, tanggalList);
         pengukuranAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerPengukuran.setAdapter(pengukuranAdapter);
 
-        // Saat user memilih item di spinner, simpan selection secara silent (tanpa toast)
+        // Ambil pengukuran_id dari SharedPreferences (jika ada)
+        SharedPreferences prefs = getSharedPreferences("pengukuran", MODE_PRIVATE);
+        pengukuranId = prefs.getInt("pengukuran_id", -1);
+
+        // set listener spinner
         spinnerPengukuran.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            boolean userSelect = false;
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                // Kita tidak immediately show toast; hanya simpan pengukuranId
+            @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 String selected = position >= 0 && position < tanggalList.size() ? tanggalList.get(position) : null;
                 if (selected != null && pengukuranMap.containsKey(selected)) {
                     pengukuranId = pengukuranMap.get(selected);
-                    // update prefs silently
                     getSharedPreferences("pengukuran", MODE_PRIVATE).edit().putInt("pengukuran_id", pengukuranId).apply();
                 }
             }
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {}
+            @Override public void onNothingSelected(AdapterView<?> parent) {}
         });
 
-        // Load data pengukuran untuk spinner
-        loadPengukuranList();
+        // sekarang sinkron pengukuran master (dipanggil setelah adapter ready & UI inisialisasi)
+        syncPengukuranMaster();
 
+        // tombol pilih pengukuran
         btnPilihPengukuran.setOnClickListener(v -> {
             Object sel = spinnerPengukuran.getSelectedItem();
             if (sel == null) {
@@ -140,18 +136,32 @@ public class InputDataActivity extends AppCompatActivity {
             }
         });
 
+        // set click listeners (pastikan sudah di-init di initFormComponents)
+        if (btnSubmitTmaWaduk != null) btnSubmitTmaWaduk.setOnClickListener(v -> handleTmaWaduk());
+        if (btnSubmitThomson != null) btnSubmitThomson.setOnClickListener(v -> handleThomson());
+        if (btnSubmitSR != null) btnSubmitSR.setOnClickListener(v -> handleSR());
+        if (btnSubmitBocoran != null) btnSubmitBocoran.setOnClickListener(v -> handleBocoran());
+        if (btnHitungSemua != null) btnHitungSemua.setOnClickListener(v -> handleHitungSemua());
 
-        // Submit data
-        btnSubmitTmaWaduk.setOnClickListener(v -> handleTmaWaduk());
-        btnSubmitThomson.setOnClickListener(v -> handleThomson());
-        btnSubmitSR.setOnClickListener(v -> handleSR());
-        btnSubmitBocoran.setOnClickListener(v -> handleBocoran());
+        // tampilkan modal jika komponen ada
+        if (modalPengukuran != null && modalOverlay != null && mainContent != null) {
+            showModal();
+        }
+    }
 
-        // Hitung semua data
-        btnHitungSemua.setOnClickListener(v -> handleHitungSemua());
-
-        // Tampilkan modal pertama kali (jika mau paksa input pengukuran baru)
-        showModal();
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // jalankan sinkronisasi offline -> online saat internet tersedia
+        if (isInternetAvailable()) {
+            // gunakan hasUnsyncedData untuk cek lebih aman
+            if (offlineDb.hasUnsyncedData()) {
+                syncAllOfflineData(() -> showToast("Sinkronisasi data offline selesai"));
+            } else {
+                // jika tidak ada data unsynced, masih bisa update master
+                syncPengukuranMaster();
+            }
+        }
     }
 
     private void initModalComponents() {
@@ -166,9 +176,9 @@ public class InputDataActivity extends AppCompatActivity {
         modalInputTanggal = findViewById(R.id.modalInputTanggal);
         modalBtnSubmitPengukuran = findViewById(R.id.modalBtnSubmitPengukuran);
 
-        btnCloseModal.setOnClickListener(v -> hideModal());
-        modalOverlay.setOnClickListener(v -> hideModal());
-        modalBtnSubmitPengukuran.setOnClickListener(v -> handleModalPengukuran());
+        if (btnCloseModal != null) btnCloseModal.setOnClickListener(v -> hideModal());
+        if (modalOverlay != null) modalOverlay.setOnClickListener(v -> hideModal());
+        if (modalBtnSubmitPengukuran != null) modalBtnSubmitPengukuran.setOnClickListener(v -> handleModalPengukuran());
     }
 
     private void initFormComponents() {
@@ -187,18 +197,24 @@ public class InputDataActivity extends AppCompatActivity {
         btnSubmitSR = findViewById(R.id.btnSubmitSR);
         btnSubmitBocoran = findViewById(R.id.btnSubmitBocoran);
 
-        // Inisialisasi tombol Hitung Semua Data
         btnHitungSemua = findViewById(R.id.btnHitungSemua);
 
         elv624T1Kode = findViewById(R.id.elv_624_t1_kode);
         elv615T2Kode = findViewById(R.id.elv_615_t2_kode);
         pipaP1Kode = findViewById(R.id.pipa_p1_kode);
 
+        // inisialisasi SR spinners secara defensif
         for (int kode : srKodeArray) {
-            int resId = getResources().getIdentifier("sr_" + kode + "_kode", "id", getPackageName());
-            Spinner spinner = findViewById(resId);
-            if (spinner != null) {
-                srKodeSpinners.put(kode, spinner);
+            try {
+                int resId = getResources().getIdentifier("sr_" + kode + "_kode", "id", getPackageName());
+                if (resId != 0) {
+                    Spinner spinner = findViewById(resId);
+                    if (spinner != null) {
+                        srKodeSpinners.put(kode, spinner);
+                    }
+                }
+            } catch (Exception e) {
+                Log.w("INIT_FORM", "SR spinner tidak ditemukan untuk kode " + kode);
             }
         }
     }
@@ -222,26 +238,35 @@ public class InputDataActivity extends AppCompatActivity {
     }
 
     private void setupModalDropdowns() {
-        String[] bulanArray = getResources().getStringArray(R.array.bulan_options);
-        ArrayAdapter<String> bulanAdapter = new ArrayAdapter<>(this, android.R.layout.simple_dropdown_item_1line, bulanArray);
-        modalInputBulan.setAdapter(bulanAdapter);
-        modalInputBulan.setOnClickListener(v -> modalInputBulan.showDropDown());
+        try {
+            String[] bulanArray = getResources().getStringArray(R.array.bulan_options);
+            ArrayAdapter<String> bulanAdapter = new ArrayAdapter<>(this, android.R.layout.simple_dropdown_item_1line, bulanArray);
+            if (modalInputBulan != null) {
+                modalInputBulan.setAdapter(bulanAdapter);
+                modalInputBulan.setOnClickListener(v -> modalInputBulan.showDropDown());
+            }
 
-        String[] periodeArray = getResources().getStringArray(R.array.periode_options);
-        ArrayAdapter<String> periodeAdapter = new ArrayAdapter<>(this, android.R.layout.simple_dropdown_item_1line, periodeArray);
-        modalInputPeriode.setAdapter(periodeAdapter);
-        modalInputPeriode.setOnClickListener(v -> modalInputPeriode.showDropDown());
+            String[] periodeArray = getResources().getStringArray(R.array.periode_options);
+            ArrayAdapter<String> periodeAdapter = new ArrayAdapter<>(this, android.R.layout.simple_dropdown_item_1line, periodeArray);
+            if (modalInputPeriode != null) {
+                modalInputPeriode.setAdapter(periodeAdapter);
+                modalInputPeriode.setOnClickListener(v -> modalInputPeriode.showDropDown());
+            }
+        } catch (Exception e) {
+            Log.w("SETUP_MODAL", "Gagal setup dropdown: " + e.getMessage());
+        }
     }
 
     private void setupModalCalendar() {
-        modalInputTanggal.setOnClickListener(v -> showModalDatePickerDialog());
-        // safe get parent layout
-        try {
-            TextInputLayout tanggalLayout = (TextInputLayout) modalInputTanggal.getParent().getParent();
-            if (tanggalLayout != null) {
-                tanggalLayout.setEndIconOnClickListener(v -> showModalDatePickerDialog());
-            }
-        } catch (Exception ignored) {}
+        if (modalInputTanggal != null) {
+            modalInputTanggal.setOnClickListener(v -> showModalDatePickerDialog());
+            try {
+                TextInputLayout tanggalLayout = (TextInputLayout) modalInputTanggal.getParent().getParent();
+                if (tanggalLayout != null) {
+                    tanggalLayout.setEndIconOnClickListener(v -> showModalDatePickerDialog());
+                }
+            } catch (Exception ignored) {}
+        }
     }
 
     private void showModalDatePickerDialog() {
@@ -252,7 +277,7 @@ public class InputDataActivity extends AppCompatActivity {
                     calendar.set(Calendar.MONTH, month);
                     calendar.set(Calendar.DAY_OF_MONTH, dayOfMonth);
                     SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
-                    modalInputTanggal.setText(dateFormat.format(calendar.getTime()));
+                    if (modalInputTanggal != null) modalInputTanggal.setText(dateFormat.format(calendar.getTime()));
                 },
                 calendar.get(Calendar.YEAR),
                 calendar.get(Calendar.MONTH),
@@ -262,6 +287,7 @@ public class InputDataActivity extends AppCompatActivity {
     }
 
     private void showModal() {
+        if (modalPengukuran == null || modalOverlay == null || mainContent == null) return;
         modalPengukuran.setVisibility(View.VISIBLE);
         modalOverlay.setVisibility(View.VISIBLE);
         mainContent.setAlpha(0.5f);
@@ -269,6 +295,7 @@ public class InputDataActivity extends AppCompatActivity {
     }
 
     private void hideModal() {
+        if (modalPengukuran == null || modalOverlay == null || mainContent == null) return;
         modalPengukuran.setVisibility(View.GONE);
         modalOverlay.setVisibility(View.GONE);
         mainContent.setAlpha(1.0f);
@@ -281,92 +308,68 @@ public class InputDataActivity extends AppCompatActivity {
             showToast("Offline: Tidak bisa ambil data pengukuran");
             return;
         }
+
         new Thread(() -> {
+            HttpURLConnection conn = null;
             try {
                 URL url = new URL(GET_PENGUKURAN_URL);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
                 conn.setRequestProperty("Accept", "application/json");
+                conn.setConnectTimeout(7000);
+                conn.setReadTimeout(7000);
 
-                BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                int code = conn.getResponseCode();
+                InputStream is = (code == 200) ? conn.getInputStream() : conn.getErrorStream();
+                BufferedReader reader = new BufferedReader(new InputStreamReader(is));
                 StringBuilder sb = new StringBuilder();
                 String line;
                 while ((line = reader.readLine()) != null) sb.append(line);
                 reader.close();
 
                 JSONObject response = new JSONObject(sb.toString());
-                JSONArray dataArray = response.getJSONArray("data");
+                JSONArray dataArray = response.optJSONArray("data");
+                if (dataArray == null) dataArray = new JSONArray();
 
-                // refresh map & list
                 pengukuranMap.clear();
                 List<String> newTanggalList = new ArrayList<>();
                 for (int i = 0; i < dataArray.length(); i++) {
                     JSONObject obj = dataArray.getJSONObject(i);
-                    int id = obj.getInt("id");
-                    String tanggal = obj.getString("tanggal");
-                    newTanggalList.add(tanggal);
-                    pengukuranMap.put(tanggal, id);
+                    int id = obj.optInt("id", -1);
+                    String tanggal = obj.optString("tanggal", "");
+                    if (!tanggal.isEmpty()) {
+                        newTanggalList.add(tanggal);
+                        pengukuranMap.put(tanggal, id);
+                    }
                 }
 
                 runOnUiThread(() -> {
                     tanggalList.clear();
                     tanggalList.addAll(newTanggalList);
-                    pengukuranAdapter.notifyDataSetChanged();
+                    if (pengukuranAdapter != null) pengukuranAdapter.notifyDataSetChanged();
                 });
 
             } catch (Exception e) {
                 Log.e("LOAD_PENGUKURAN", "error", e);
                 runOnUiThread(() -> showToast("Gagal ambil data pengukuran: " + e.getMessage()));
+            } finally {
+                if (conn != null) conn.disconnect();
             }
         }).start();
     }
 
     /** Fetch ulang daftar pengukuran setelah tambah baru */
     private void refreshPengukuranList() {
-        if (!isInternetAvailable()) return;
-
-        new Thread(() -> {
-            try {
-                URL url = new URL(GET_PENGUKURAN_URL);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("GET");
-                conn.setRequestProperty("Accept", "application/json");
-
-                BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                StringBuilder sb = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) sb.append(line);
-                reader.close();
-
-                JSONObject response = new JSONObject(sb.toString());
-                JSONArray dataArray = response.getJSONArray("data");
-
-                pengukuranMap.clear();
-                List<String> newTanggalList = new ArrayList<>();
-                for (int i = 0; i < dataArray.length(); i++) {
-                    JSONObject obj = dataArray.getJSONObject(i);
-                    int id = obj.getInt("id");
-                    String tanggal = obj.getString("tanggal");
-                    newTanggalList.add(tanggal);
-                    pengukuranMap.put(tanggal, id);
-                }
-
-                runOnUiThread(() -> {
-                    tanggalList.clear();
-                    tanggalList.addAll(newTanggalList);
-                    pengukuranAdapter.notifyDataSetChanged();
-                    // Tidak auto-select, biarkan user pilih manual
-                });
-
-            } catch (Exception e) {
-                Log.e("REFRESH_PENGUKURAN", "error", e);
-                runOnUiThread(() -> showToast("Gagal refresh pengukuran: " + e.getMessage()));
-            }
-        }).start();
+        loadPengukuranList();
     }
 
     /** Simpan pengukuran baru dari modal **/
     private void handleModalPengukuran() {
+        if (modalInputTahun == null || modalInputBulan == null || modalInputPeriode == null || modalInputTanggal == null) {
+            showToast("Form modal belum siap");
+            return;
+        }
+
         Map<String, String> data = new HashMap<>();
         data.put("mode", "pengukuran");
         data.put("tahun", modalInputTahun.getText().toString().trim());
@@ -380,65 +383,70 @@ public class InputDataActivity extends AppCompatActivity {
         }
 
         if (isInternetAvailable()) {
-            sendToServer(data, "pengukuran", true); // di sini nanti auto-refresh spinner & pilih tanggal baru
+            sendToServer(data, "pengukuran", true);
         } else {
+            // buat tempId jika belum ada
             tempId = "local_" + System.currentTimeMillis();
             data.put("temp_id", tempId);
             saveOffline("pengukuran", tempId, data);
             hideModal();
-            showToast("Data pengukuran tersimpan offline");
         }
     }
 
     private void handleTmaWaduk() {
         Map<String, String> data = new HashMap<>();
         data.put("mode", "pengukuran");
-        data.put("tma_waduk", inputTmaWaduk.getText().toString().trim());
+        data.put("tma_waduk", inputTmaWaduk != null ? inputTmaWaduk.getText().toString().trim() : "");
 
-        // Prefer gunakan pengukuran yang dipilih di spinner (user flow)
-        String selected = spinnerPengukuran.getSelectedItem() != null ? spinnerPengukuran.getSelectedItem().toString() : null;
+        String selected = spinnerPengukuran != null && spinnerPengukuran.getSelectedItem() != null
+                ? spinnerPengukuran.getSelectedItem().toString() : null;
+
         if (selected != null && pengukuranMap.containsKey(selected)) {
             pengukuranId = pengukuranMap.get(selected);
             data.put("pengukuran_id", String.valueOf(pengukuranId));
         } else {
-            // fallback: cek prefs / tempId
             pengukuranId = getSharedPreferences("pengukuran", MODE_PRIVATE).getInt("pengukuran_id", -1);
             if (pengukuranId != -1) {
                 data.put("pengukuran_id", String.valueOf(pengukuranId));
-            } else if (tempId != null) {
-                data.put("temp_id", tempId);
             } else {
-                showToast("Isi data pengukuran terlebih dahulu (pilih tanggal dari dropdown)!");
-                return;
+                // jika belum pilih pengukuran, buat tempId dan simpan offline
+                if (tempId == null) tempId = "local_" + System.currentTimeMillis();
+                data.put("temp_id", tempId);
             }
         }
 
-        if (isInternetAvailable() && data.containsKey("pengukuran_id")) cekDanSimpanData("pengukuran", data, false);
-        else saveOffline("pengukuran", tempId, data);
+        if (isInternetAvailable() && data.containsKey("pengukuran_id")) {
+            cekDanSimpanData("tma_waduk", data, false);
+        } else {
+            saveOffline("tma_waduk", data.getOrDefault("temp_id", "local_" + System.currentTimeMillis()), data);
+        }
     }
 
     private void handleThomson() {
         Map<String, String> data = new HashMap<>();
         data.put("mode", "thomson");
-        data.put("a1_r", inputA1R.getText().toString().trim());
-        data.put("a1_l", inputA1L.getText().toString().trim());
-        data.put("b1", inputB1.getText().toString().trim());
-        data.put("b3", inputB3.getText().toString().trim());
-        data.put("b5", inputB5.getText().toString().trim());
+        data.put("a1_r", inputA1R != null ? inputA1R.getText().toString().trim() : "");
+        data.put("a1_l", inputA1L != null ? inputA1L.getText().toString().trim() : "");
+        data.put("b1", inputB1 != null ? inputB1.getText().toString().trim() : "");
+        data.put("b3", inputB3 != null ? inputB3.getText().toString().trim() : "");
+        data.put("b5", inputB5 != null ? inputB5.getText().toString().trim() : "");
 
-        // same selection logic as TMA
-        String selected = spinnerPengukuran.getSelectedItem() != null ? spinnerPengukuran.getSelectedItem().toString() : null;
+        String selected = spinnerPengukuran != null && spinnerPengukuran.getSelectedItem() != null
+                ? spinnerPengukuran.getSelectedItem().toString() : null;
+
         if (selected != null && pengukuranMap.containsKey(selected)) {
             data.put("pengukuran_id", String.valueOf(pengukuranMap.get(selected)));
         } else {
             int prefId = getSharedPreferences("pengukuran", MODE_PRIVATE).getInt("pengukuran_id", -1);
             if (prefId != -1) data.put("pengukuran_id", String.valueOf(prefId));
-            else if (tempId != null) data.put("temp_id", tempId);
-            else { showToast("Isi data pengukuran terlebih dahulu!"); return; }
+            else {
+                if (tempId == null) tempId = "local_" + System.currentTimeMillis();
+                data.put("temp_id", tempId);
+            }
         }
 
         if (isInternetAvailable() && data.containsKey("pengukuran_id")) cekDanSimpanData("thomson", data, false);
-        else saveOffline("thomson", tempId, data);
+        else saveOffline("thomson", data.getOrDefault("temp_id", "local_" + System.currentTimeMillis()), data);
     }
 
     private void handleSR() {
@@ -455,62 +463,64 @@ public class InputDataActivity extends AppCompatActivity {
             data.put("sr_" + kode + "_nilai", getTextFromId("sr_" + kode + "_nilai"));
         }
 
-        // same selection logic as Thomson
-        String selected = spinnerPengukuran.getSelectedItem() != null ? spinnerPengukuran.getSelectedItem().toString() : null;
+        String selected = spinnerPengukuran != null && spinnerPengukuran.getSelectedItem() != null
+                ? spinnerPengukuran.getSelectedItem().toString() : null;
+
         if (selected != null && pengukuranMap.containsKey(selected)) {
             data.put("pengukuran_id", String.valueOf(pengukuranMap.get(selected)));
         } else {
             int prefId = getSharedPreferences("pengukuran", MODE_PRIVATE).getInt("pengukuran_id", -1);
             if (prefId != -1) data.put("pengukuran_id", String.valueOf(prefId));
-            else if (tempId != null) data.put("temp_id", tempId);
-            else { showToast("Isi data pengukuran terlebih dahulu!"); return; }
+            else {
+                if (tempId == null) tempId = "local_" + System.currentTimeMillis();
+                data.put("temp_id", tempId);
+            }
         }
 
         if (isInternetAvailable() && data.containsKey("pengukuran_id")) cekDanSimpanData("sr", data, false);
-        else saveOffline("sr", tempId, data);
+        else saveOffline("sr", data.getOrDefault("temp_id", "local_" + System.currentTimeMillis()), data);
     }
 
     private void handleBocoran() {
         Map<String, String> data = new HashMap<>();
         data.put("mode", "bocoran");
-        data.put("elv_624_t1", inputElv624T1.getText().toString().trim());
-        data.put("elv_624_t1_kode", elv624T1Kode.getSelectedItem().toString());
-        data.put("elv_615_t2", inputElv615T2.getText().toString().trim());
-        data.put("elv_615_t2_kode", elv615T2Kode.getSelectedItem().toString());
-        data.put("pipa_p1", inputPipaP1.getText().toString().trim());
-        data.put("pipa_p1_kode", pipaP1Kode.getSelectedItem().toString());
+        data.put("elv_624_t1", inputElv624T1 != null ? inputElv624T1.getText().toString().trim() : "");
+        data.put("elv_624_t1_kode", (elv624T1Kode != null && elv624T1Kode.getSelectedItem() != null) ? elv624T1Kode.getSelectedItem().toString() : "");
+        data.put("elv_615_t2", inputElv615T2 != null ? inputElv615T2.getText().toString().trim() : "");
+        data.put("elv_615_t2_kode", (elv615T2Kode != null && elv615T2Kode.getSelectedItem() != null) ? elv615T2Kode.getSelectedItem().toString() : "");
+        data.put("pipa_p1", inputPipaP1 != null ? inputPipaP1.getText().toString().trim() : "");
+        data.put("pipa_p1_kode", (pipaP1Kode != null && pipaP1Kode.getSelectedItem() != null) ? pipaP1Kode.getSelectedItem().toString() : "");
 
-        // same selection logic
-        String selected = spinnerPengukuran.getSelectedItem() != null ? spinnerPengukuran.getSelectedItem().toString() : null;
+        String selected = spinnerPengukuran != null && spinnerPengukuran.getSelectedItem() != null
+                ? spinnerPengukuran.getSelectedItem().toString() : null;
         if (selected != null && pengukuranMap.containsKey(selected)) {
             data.put("pengukuran_id", String.valueOf(pengukuranMap.get(selected)));
         } else {
             int prefId = getSharedPreferences("pengukuran", MODE_PRIVATE).getInt("pengukuran_id", -1);
             if (prefId != -1) data.put("pengukuran_id", String.valueOf(prefId));
-            else if (tempId != null) data.put("temp_id", tempId);
-            else { showToast("Isi data pengukuran terlebih dahulu!"); return; }
+            else {
+                if (tempId == null) tempId = "local_" + System.currentTimeMillis();
+                data.put("temp_id", tempId);
+            }
         }
 
         if (isInternetAvailable() && data.containsKey("pengukuran_id")) cekDanSimpanData("bocoran", data, false);
-        else saveOffline("bocoran", tempId, data);
+        else saveOffline("bocoran", data.getOrDefault("temp_id", "local_" + System.currentTimeMillis()), data);
     }
 
-
     private void handleHitungSemua() {
-        // Pastikan ada koneksi internet
         if (!isInternetAvailable()) {
             showToast("Tidak ada koneksi internet. Tidak dapat menghitung data.");
             return;
         }
 
-        // Dapatkan pengukuran_id yang dipilih
-        String selected = spinnerPengukuran.getSelectedItem() != null ? spinnerPengukuran.getSelectedItem().toString() : null;
+        String selected = spinnerPengukuran != null && spinnerPengukuran.getSelectedItem() != null
+                ? spinnerPengukuran.getSelectedItem().toString() : null;
         int selectedPengukuranId = -1;
 
         if (selected != null && pengukuranMap.containsKey(selected)) {
             selectedPengukuranId = pengukuranMap.get(selected);
         } else {
-            // fallback: cek prefs
             selectedPengukuranId = getSharedPreferences("pengukuran", MODE_PRIVATE).getInt("pengukuran_id", -1);
             if (selectedPengukuranId == -1) {
                 showToast("Pilih data pengukuran terlebih dahulu!");
@@ -518,142 +528,112 @@ public class InputDataActivity extends AppCompatActivity {
             }
         }
 
-        // BUAT VARIABLE FINAL COPY untuk digunakan dalam lambda
         final int finalPengukuranId = selectedPengukuranId;
 
-        // Tampilkan progress dialog
         ProgressDialog progressDialog = new ProgressDialog(this);
         progressDialog.setMessage("Menghitung data...");
         progressDialog.setCancelable(false);
         progressDialog.show();
 
         new Thread(() -> {
+            HttpURLConnection conn = null;
             try {
-                // Buat koneksi ke server
                 URL url = new URL(HITUNG_SEMUA_URL);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setDoOutput(true);
-                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
                 conn.setRequestProperty("Accept", "application/json");
+                conn.setConnectTimeout(9000);
+                conn.setReadTimeout(9000);
 
-                // Buat data JSON - GUNAKAN VARIABLE FINAL
                 JSONObject jsonData = new JSONObject();
                 jsonData.put("pengukuran_id", finalPengukuranId);
 
-                // Kirim data
                 OutputStream os = conn.getOutputStream();
                 os.write(jsonData.toString().getBytes("UTF-8"));
                 os.flush();
                 os.close();
 
-                // Dapatkan respons
                 int responseCode = conn.getResponseCode();
-                BufferedReader reader;
-                if (responseCode == 200) {
-                    reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                } else {
-                    reader = new BufferedReader(new InputStreamReader(conn.getErrorStream()));
-                }
-
+                InputStream is = (responseCode == 200) ? conn.getInputStream() : conn.getErrorStream();
+                BufferedReader reader = new BufferedReader(new InputStreamReader(is));
                 StringBuilder sb = new StringBuilder();
                 String line;
-                while ((line = reader.readLine()) != null) {
-                    sb.append(line);
-                }
+                while ((line = reader.readLine()) != null) sb.append(line);
                 reader.close();
 
-                // Parse response JSON
                 JSONObject response = new JSONObject(sb.toString());
-                String status = response.optString("status", "");
-                String message = response.optString("message", "");
-
-                // Ambil data detail jika ada
                 JSONObject data = response.optJSONObject("data");
-                if (data != null) {
-                    // Anda bisa mengekstrak detail perhitungan di sini jika diperlukan
-                    JSONObject thomson = data.optJSONObject("thomson");
-                    JSONObject sr = data.optJSONObject("sr");
-                    JSONObject bocoran = data.optJSONObject("bocoran");
-                    JSONObject batasmaksimal = data.optJSONObject("batasmaksimal");
-
-                    // Log detail untuk debugging
-                    Log.d("HITUNG_SEMUA", "Thomson: " + (thomson != null ? thomson.toString() : "null"));
-                    Log.d("HITUNG_SEMUA", "SR: " + (sr != null ? sr.toString() : "null"));
-                    Log.d("HITUNG_SEMUA", "Bocoran: " + (bocoran != null ? bocoran.toString() : "null"));
-                }
 
                 runOnUiThread(() -> {
                     progressDialog.dismiss();
-
                     if (data != null) {
-                        // Ambil status dari server, fallback ke "partial" jika null
                         String statusServer = data.optString("status", "partial");
                         String messageServer = data.optString("message", "");
-
                         if ("success".equals(statusServer) || "partial".equals(statusServer)) {
-                            // Tampilkan toast utama
                             showToast("Perhitungan selesai: " + messageServer);
-
-                            // Tampilkan detail hasil yang tersedia
                             JSONObject batasmaksimal = data.optJSONObject("batasmaksimal");
                             if (batasmaksimal != null) {
                                 double tmaWaduk = batasmaksimal.optDouble("tma_waduk", -1);
                                 double batasMaksimal = batasmaksimal.optDouble("batas_maksimal", -1);
-
                                 String hasil = "";
                                 if (tmaWaduk >= 0) hasil += "TMA Waduk: " + tmaWaduk;
                                 if (batasMaksimal >= 0) {
                                     if (!hasil.isEmpty()) hasil += ", ";
                                     hasil += "Batas Maksimal: " + batasMaksimal;
                                 }
-
                                 if (!hasil.isEmpty()) showToast(hasil);
                             }
-
                         } else {
-                            // Status gagal dari server
                             showToast("Gagal menghitung: " + messageServer);
                         }
-
                     } else {
-                        // Data null
-                        showToast("Gagal menghitung: data tidak tersedia.");
+                        showToast("Perhitungan selesai, silakan cek web.");
                     }
                 });
 
-
             } catch (Exception e) {
+                Log.e("HITUNG_SEMUA", "Error", e);
                 runOnUiThread(() -> {
                     progressDialog.dismiss();
                     showToast("Error: " + e.getMessage());
-                    Log.e("HITUNG_SEMUA", "Error", e);
                 });
+            } finally {
+                if (conn != null) conn.disconnect();
             }
         }).start();
     }
 
     private void cekDanSimpanData(String table, Map<String, String> dataMap, boolean isPengukuran) {
         if (isPengukuran) {
-            // Untuk pengukuran (TMA), langsung simpan tanpa cek
             sendToServer(dataMap, table, isPengukuran);
             return;
         }
 
         new Thread(() -> {
+            HttpURLConnection connCek = null;
             try {
-                // Cek status data terlebih dahulu
-                URL urlCek = new URL(CEK_DATA_URL + "?pengukuran_id=" + dataMap.get("pengukuran_id"));
-                HttpURLConnection connCek = (HttpURLConnection) urlCek.openConnection();
+                String pengukuranIdParam = dataMap.get("pengukuran_id");
+                if (pengukuranIdParam == null) {
+                    // langsung simpan jika tidak ada pengukuran_id (mungkin offline)
+                    sendToServer(dataMap, table, isPengukuran);
+                    return;
+                }
+
+                URL urlCek = new URL(CEK_DATA_URL + "?pengukuran_id=" + URLEncoder.encode(pengukuranIdParam, "UTF-8"));
+                connCek = (HttpURLConnection) urlCek.openConnection();
                 connCek.setRequestMethod("GET");
                 connCek.setRequestProperty("Accept", "application/json");
+                connCek.setConnectTimeout(7000);
+                connCek.setReadTimeout(7000);
 
-                BufferedReader readerCek = new BufferedReader(new InputStreamReader(connCek.getInputStream()));
+                int code = connCek.getResponseCode();
+                InputStream is = (code == 200) ? connCek.getInputStream() : connCek.getErrorStream();
+                BufferedReader readerCek = new BufferedReader(new InputStreamReader(is));
                 StringBuilder sbCek = new StringBuilder();
                 String lineCek;
-                while ((lineCek = readerCek.readLine()) != null) {
-                    sbCek.append(lineCek);
-                }
+                while ((lineCek = readerCek.readLine()) != null) sbCek.append(lineCek);
                 readerCek.close();
 
                 JSONObject responseCek = new JSONObject(sbCek.toString());
@@ -681,35 +661,28 @@ public class InputDataActivity extends AppCompatActivity {
 
                 if (dataSudahAda) {
                     if ("thomson".equals(table) && !dataLengkap) {
-                        // Thomson ada tapi belum lengkap → boleh insert
                         sendToServer(dataMap, table, isPengukuran);
                     } else {
-                        // Sudah ada & lengkap → block insert
                         runOnUiThread(() -> showToast("Data " + table + " sudah lengkap untuk pengukuran ini!"));
                     }
                     return;
                 }
 
-                // Jika data belum ada → lanjutkan penyimpanan
                 sendToServer(dataMap, table, isPengukuran);
 
             } catch (Exception e) {
                 Log.e("CEK_SAVE", "error", e);
                 runOnUiThread(() -> showToast("Gagal cek data, mencoba simpan langsung..."));
-
-                // Fallback: simpan langsung jika gagal cek
                 sendToServer(dataMap, table, isPengukuran);
+            } finally {
+                if (connCek != null) connCek.disconnect();
             }
         }).start();
     }
 
-
     private void syncAllOfflineData(Runnable onComplete) {
-        boolean adaData = !offlineDb.getAllData("pengukuran").isEmpty()
-                || !offlineDb.getAllData("tma_waduk").isEmpty()
-                || !offlineDb.getAllData("thomson").isEmpty()
-                || !offlineDb.getAllData("sr").isEmpty()
-                || !offlineDb.getAllData("bocoran").isEmpty();
+        // gunakan hasUnsyncedData agar lebih efisien
+        boolean adaData = offlineDb.hasUnsyncedData();
 
         if (!adaData) {
             if (onComplete != null) onComplete.run();
@@ -728,7 +701,8 @@ public class InputDataActivity extends AppCompatActivity {
     }
 
     private void syncDataSerial(String tableName, Runnable next) {
-        List<Map<String, String>> dataList = offlineDb.getAllData(tableName);
+        // gunakan hanya unsynced data
+        List<Map<String, String>> dataList = offlineDb.getUnsyncedData(tableName);
         if (dataList.isEmpty()) {
             if (next != null) next.run();
             return;
@@ -738,7 +712,7 @@ public class InputDataActivity extends AppCompatActivity {
 
     private void syncDataItem(String tableName, List<Map<String, String>> dataList, int index, Runnable onFinish) {
         if (index >= dataList.size()) {
-            onFinish.run();
+            if (onFinish != null) onFinish.run();
             return;
         }
 
@@ -750,13 +724,16 @@ public class InputDataActivity extends AppCompatActivity {
             JSONObject jsonData = new JSONObject(jsonStr);
 
             new Thread(() -> {
+                HttpURLConnection conn = null;
                 try {
                     URL url = new URL(INSERT_DATA_URL);
-                    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                    conn = (HttpURLConnection) url.openConnection();
                     conn.setRequestMethod("POST");
                     conn.setDoOutput(true);
-                    conn.setRequestProperty("Content-Type", "application/json");
+                    conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
                     conn.setRequestProperty("Accept", "application/json");
+                    conn.setConnectTimeout(9000);
+                    conn.setReadTimeout(9000);
 
                     OutputStream os = conn.getOutputStream();
                     os.write(jsonData.toString().getBytes("UTF-8"));
@@ -764,13 +741,8 @@ public class InputDataActivity extends AppCompatActivity {
                     os.close();
 
                     int responseCode = conn.getResponseCode();
-                    BufferedReader reader;
-                    if (responseCode == 200) {
-                        reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                    } else {
-                        reader = new BufferedReader(new InputStreamReader(conn.getErrorStream()));
-                    }
-
+                    InputStream is = (responseCode == 200) ? conn.getInputStream() : conn.getErrorStream();
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(is));
                     StringBuilder response = new StringBuilder();
                     String line;
                     while ((line = reader.readLine()) != null) response.append(line);
@@ -778,34 +750,44 @@ public class InputDataActivity extends AppCompatActivity {
 
                     if (responseCode == 200) {
                         JSONObject jsonResponse = new JSONObject(response.toString());
-                        if ("success".equals(jsonResponse.optString("status"))) {
+                        if ("success".equalsIgnoreCase(jsonResponse.optString("status"))) {
                             offlineDb.deleteByTempId(tableName, tempId);
+                            Log.d("SYNC", "Data " + tableName + " tempId=" + tempId + " berhasil disinkronisasi");
+                        } else {
+                            Log.e("SYNC", "Gagal sinkron data " + tableName + " tempId=" + tempId + ": " + jsonResponse.optString("message"));
                         }
+                    } else {
+                        Log.e("SYNC", "Response error code " + responseCode + " untuk data " + tableName + " tempId=" + tempId);
                     }
 
                 } catch (Exception e) {
                     Log.e("SYNC", "Error sync " + tableName + " tempId=" + tempId, e);
+                } finally {
+                    if (conn != null) conn.disconnect();
                 }
 
                 runOnUiThread(() -> syncDataItem(tableName, dataList, index + 1, onFinish));
             }).start();
 
         } catch (Exception e) {
+            Log.e("SYNC", "JSON parse error untuk data " + tableName + " tempId=" + tempId, e);
             runOnUiThread(() -> syncDataItem(tableName, dataList, index + 1, onFinish));
         }
     }
 
     private void sendToServer(Map<String, String> dataMap, String table, boolean isPengukuran) {
         new Thread(() -> {
+            HttpURLConnection conn = null;
             try {
                 URL url = new URL(INSERT_DATA_URL);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setDoOutput(true);
-                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
                 conn.setRequestProperty("Accept", "application/json");
+                conn.setConnectTimeout(9000);
+                conn.setReadTimeout(9000);
 
-                // Konversi Map menjadi JSON
                 JSONObject jsonData = new JSONObject();
                 for (Map.Entry<String, String> entry : dataMap.entrySet()) {
                     jsonData.put(entry.getKey(), entry.getValue());
@@ -817,44 +799,30 @@ public class InputDataActivity extends AppCompatActivity {
                 os.close();
 
                 int responseCode = conn.getResponseCode();
-                BufferedReader reader;
-                if (responseCode == 200) {
-                    reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                } else {
-                    reader = new BufferedReader(new InputStreamReader(conn.getErrorStream()));
-                }
-
+                InputStream is = (responseCode == 200) ? conn.getInputStream() : conn.getErrorStream();
+                BufferedReader reader = new BufferedReader(new InputStreamReader(is));
                 StringBuilder sb = new StringBuilder();
                 String line;
-                while ((line = reader.readLine()) != null) {
-                    sb.append(line);
-                }
+                while ((line = reader.readLine()) != null) sb.append(line);
                 reader.close();
 
                 JSONObject response = new JSONObject(sb.toString());
                 String status = response.optString("status", "");
                 String message = response.optString("message", "");
 
-                // Simpan pengukuran_id jika dikembalikan
                 if (isPengukuran && response.has("pengukuran_id")) {
-                    pengukuranId = response.getInt("pengukuran_id");
+                    pengukuranId = response.optInt("pengukuran_id", -1);
                     SharedPreferences prefs = getSharedPreferences("pengukuran", MODE_PRIVATE);
                     prefs.edit().putInt("pengukuran_id", pengukuranId).apply();
-                    // clear tempId because now we have real id
                     tempId = null;
                 }
 
                 runOnUiThread(() -> {
-                    if ("success".equals(status)) {
+                    if ("success".equalsIgnoreCase(status)) {
                         showToast(message);
                         if (isPengukuran) {
-                            // Tutup modal
                             hideModal();
                             Toast.makeText(InputDataActivity.this, "Data pengukuran tersimpan", Toast.LENGTH_SHORT).show();
-
-                            // Setelah sukses insert pengukuran:
-                            // refresh spinner & pilih tanggal yang baru diinput
-                            String tanggalBaru = dataMap.get("tanggal"); // dari modal
                             refreshPengukuranList();
                         }
                     } else {
@@ -864,32 +832,53 @@ public class InputDataActivity extends AppCompatActivity {
 
             } catch (Exception e) {
                 Log.e("SEND", "error", e);
-                runOnUiThread(() -> showToast("Gagal kirim: " + e.getMessage()));
+                // jika gagal dikarenakan koneksi atau server, simpan offline agar aman
+                runOnUiThread(() -> showToast("Gagal kirim: " + e.getMessage() + ". Data akan disimpan offline."));
+                try {
+                    // buat tempId jika belum ada
+                    if (tempId == null) tempId = "local_" + System.currentTimeMillis();
+                    saveOffline(table, tempId, dataMap);
+                } catch (Exception ex) {
+                    Log.e("SEND_SAVE_OFFLINE", "Gagal simpan offline", ex);
+                }
+            } finally {
+                if (conn != null) conn.disconnect();
             }
         }).start();
     }
 
     private void saveOffline(String table, String tempId, Map<String, String> data) {
         try {
+            if (tempId == null) tempId = "local_" + System.currentTimeMillis();
             JSONObject json = new JSONObject(data);
             offlineDb.insertData(table, tempId, json.toString());
             showToast("Tidak ada internet. Data disimpan offline.");
             syncPrefs.edit().putBoolean("toast_shown", false).apply();
         } catch (Exception e) {
+            Log.e("SAVE_OFFLINE", "error", e);
             showToast("Gagal simpan offline: " + e.getMessage());
         }
     }
 
     private String getTextFromId(String idName) {
-        int id = getResources().getIdentifier(idName, "id", getPackageName());
-        EditText et = findViewById(id);
-        return et != null ? et.getText().toString() : "";
+        try {
+            int id = getResources().getIdentifier(idName, "id", getPackageName());
+            if (id == 0) return "";
+            EditText et = findViewById(id);
+            return et != null ? et.getText().toString() : "";
+        } catch (Exception e) {
+            return "";
+        }
     }
 
     private boolean isInternetAvailable() {
-        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkInfo active = cm.getActiveNetworkInfo();
-        return active != null && active.isConnected();
+        try {
+            ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+            NetworkInfo active = cm != null ? cm.getActiveNetworkInfo() : null;
+            return active != null && active.isConnected();
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private void showToast(String msg) {
@@ -902,37 +891,43 @@ public class InputDataActivity extends AppCompatActivity {
             return;
         }
 
-        // Ambil bulan & tahun sekarang
         Calendar cal = Calendar.getInstance();
-        int bulanSekarang = cal.get(Calendar.MONTH) + 1; // Januari = 0
+        int bulanSekarang = cal.get(Calendar.MONTH) + 1;
         int tahunSekarang = cal.get(Calendar.YEAR);
 
         new Thread(() -> {
+            HttpURLConnection conn = null;
             try {
                 URL url = new URL(GET_PENGUKURAN_URL);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
                 conn.setRequestProperty("Accept", "application/json");
+                conn.setConnectTimeout(7000);
+                conn.setReadTimeout(7000);
 
-                BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                int code = conn.getResponseCode();
+                InputStream is = (code == 200) ? conn.getInputStream() : conn.getErrorStream();
+                BufferedReader reader = new BufferedReader(new InputStreamReader(is));
                 StringBuilder sb = new StringBuilder();
                 String line;
                 while ((line = reader.readLine()) != null) sb.append(line);
                 reader.close();
 
                 JSONObject response = new JSONObject(sb.toString());
-                JSONArray dataArray = response.getJSONArray("data");
+                JSONArray dataArray = response.optJSONArray("data");
+                if (dataArray == null) dataArray = new JSONArray();
 
-                // Filter bulan ini
                 pengukuranMap.clear();
                 List<String> bulanIniList = new ArrayList<>();
 
                 for (int i = 0; i < dataArray.length(); i++) {
                     JSONObject obj = dataArray.getJSONObject(i);
-                    String tanggal = obj.getString("tanggal"); // format: yyyy-MM-dd
-                    int id = obj.getInt("id");
+                    String tanggal = obj.optString("tanggal", "");
+                    int id = obj.optInt("id", -1);
+                    if (tanggal.isEmpty()) continue;
 
                     String[] parts = tanggal.split("-");
+                    if (parts.length < 2) continue;
                     int tahun = Integer.parseInt(parts[0]);
                     int bulan = Integer.parseInt(parts[1]);
 
@@ -945,13 +940,11 @@ public class InputDataActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     tanggalList.clear();
                     tanggalList.addAll(bulanIniList);
-                    pengukuranAdapter.notifyDataSetChanged();
+                    if (pengukuranAdapter != null) pengukuranAdapter.notifyDataSetChanged();
 
-                    // Handling spinner kosong
                     if (tanggalList.isEmpty()) {
                         showToast("Tidak ada data pengukuran untuk bulan ini.");
                     } else {
-                        // Optional: auto-select tanggal pertama
                         spinnerPengukuran.setSelection(0);
                         pengukuranId = pengukuranMap.get(tanggalList.get(0));
                         getSharedPreferences("pengukuran", MODE_PRIVATE)
@@ -962,8 +955,9 @@ public class InputDataActivity extends AppCompatActivity {
             } catch (Exception e) {
                 Log.e("SYNC_MASTER", "Error syncPengukuranMaster", e);
                 runOnUiThread(() -> showToast("Sinkronisasi gagal: " + e.getMessage()));
+            } finally {
+                if (conn != null) conn.disconnect();
             }
         }).start();
     }
-
 }
