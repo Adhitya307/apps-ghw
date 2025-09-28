@@ -58,7 +58,7 @@ public class InputDataActivity extends AppCompatActivity {
     private SharedPreferences syncPrefs;
 
     // API URL
-    private static final String BASE_URL = "http://192.168.1.28/API_Android/public/rembesan/";
+    private static final String BASE_URL = "http://192.168.1.10/API_Android/public/rembesan/";
     private static final String INSERT_DATA_URL = BASE_URL + "input";
     private static final String CEK_DATA_URL = BASE_URL + "cek-data";
     private static final String GET_PENGUKURAN_URL = BASE_URL + "get_pengukuran";
@@ -154,15 +154,35 @@ public class InputDataActivity extends AppCompatActivity {
         super.onResume();
         // jalankan sinkronisasi offline -> online saat internet tersedia
         if (isInternetAvailable()) {
-            // gunakan hasUnsyncedData untuk cek lebih aman
             if (offlineDb.hasUnsyncedData()) {
-                syncAllOfflineData(() -> showToast("Sinkronisasi data offline selesai"));
+                syncAllOfflineData(() -> {
+                    if (!isAlreadySynced()) {
+                        showToast("Sinkronisasi data offline selesai");
+                        markAsSynced();
+                    }
+                });
             } else {
                 // jika tidak ada data unsynced, masih bisa update master
                 syncPengukuranMaster();
             }
         }
     }
+
+    /** Cek apakah sudah pernah sinkron hari ini */
+    private boolean isAlreadySynced() {
+        SharedPreferences prefs = getSharedPreferences("app_prefs", MODE_PRIVATE);
+        String lastSyncDate = prefs.getString("last_sync_date", "");
+        String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+        return today.equals(lastSyncDate);
+    }
+
+    /** Tandai sudah sinkron hari ini */
+    private void markAsSynced() {
+        SharedPreferences prefs = getSharedPreferences("app_prefs", MODE_PRIVATE);
+        String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+        prefs.edit().putString("last_sync_date", today).apply();
+    }
+
 
     private void initModalComponents() {
         modalPengukuran = findViewById(R.id.modalPengukuran);
@@ -269,15 +289,55 @@ public class InputDataActivity extends AppCompatActivity {
         }
     }
 
+
     private void showModalDatePickerDialog() {
         DatePickerDialog datePickerDialog = new DatePickerDialog(
                 this,
-                (view, year, month, dayOfMonth) -> {
-                    calendar.set(Calendar.YEAR, year);
-                    calendar.set(Calendar.MONTH, month);
-                    calendar.set(Calendar.DAY_OF_MONTH, dayOfMonth);
+                (view, selectedYear, selectedMonth, selectedDay) -> {
+                    // update calendar and format tanggal (yyyy-MM-dd)
+                    calendar.set(Calendar.YEAR, selectedYear);
+                    calendar.set(Calendar.MONTH, selectedMonth);
+                    calendar.set(Calendar.DAY_OF_MONTH, selectedDay);
                     SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
                     if (modalInputTanggal != null) modalInputTanggal.setText(dateFormat.format(calendar.getTime()));
+
+                    // set tahun otomatis
+                    if (modalInputTahun != null) modalInputTahun.setText(String.valueOf(selectedYear));
+
+                    // set bulan otomatis (gunakan nama dari resources bulan_options)
+                    try {
+                        String[] bulanNama = getResources().getStringArray(R.array.bulan_options);
+                        if (modalInputBulan != null) {
+                            if (selectedMonth >= 0 && selectedMonth < bulanNama.length) {
+                                modalInputBulan.setText(bulanNama[selectedMonth]);
+                            } else {
+                                modalInputBulan.setText(String.format(Locale.getDefault(), "%02d", (selectedMonth + 1)));
+                            }
+                        }
+                    } catch (Exception ignored) {}
+
+                    // hitung triwulan otomatis berdasarkan bulan (selectedMonth: 0..11)
+                    String triwulan;
+                    if (selectedMonth <= 2) { // Jan-Mar
+                        triwulan = "TW-1";
+                    } else if (selectedMonth <= 5) { // Apr-Jun
+                        triwulan = "TW-2";
+                    } else if (selectedMonth <= 8) { // Jul-Sep
+                        triwulan = "TW-3";
+                    } else { // Oct-Dec
+                        triwulan = "TW-4";
+                    }
+                    // set di modalInputPeriode (AutoCompleteTextView) agar user masih bisa ubah manual
+                    if (modalInputPeriode != null) {
+                        // setText dengan filter = false agar tidak memicu filtering dropdown
+                        try {
+                            // AutoCompleteTextView punya setText(CharSequence, boolean)
+                            ((android.widget.AutoCompleteTextView) modalInputPeriode).setText(triwulan, false);
+                        } catch (Exception e) {
+                            // fallback ke setText biasa
+                            modalInputPeriode.setText(triwulan);
+                        }
+                    }
                 },
                 calendar.get(Calendar.YEAR),
                 calendar.get(Calendar.MONTH),
@@ -285,6 +345,7 @@ public class InputDataActivity extends AppCompatActivity {
         );
         datePickerDialog.show();
     }
+
 
     private void showModal() {
         if (modalPengukuran == null || modalOverlay == null || mainContent == null) return;
@@ -544,8 +605,8 @@ public class InputDataActivity extends AppCompatActivity {
                 conn.setDoOutput(true);
                 conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
                 conn.setRequestProperty("Accept", "application/json");
-                conn.setConnectTimeout(9000);
-                conn.setReadTimeout(9000);
+                conn.setConnectTimeout(300_000);
+                conn.setReadTimeout(300_000);
 
                 JSONObject jsonData = new JSONObject();
                 jsonData.put("pengukuran_id", finalPengukuranId);

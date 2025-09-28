@@ -166,7 +166,7 @@
                         android:id="@+id/inputA1R"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:hint="A1 R"
+                        android:hint="A1 R (Gallery)"
                         android:inputType="numberDecimal"/>
                 </com.google.android.material.textfield.TextInputLayout>
 
@@ -180,7 +180,7 @@
                         android:id="@+id/inputA1L"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:hint="A1 L"
+                        android:hint="A1 L (Gallery)"
                         android:inputType="numberDecimal"/>
                 </com.google.android.material.textfield.TextInputLayout>
 
@@ -194,7 +194,7 @@
                         android:id="@+id/inputB1"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:hint="B1"
+                        android:hint="B1 (Gallery)"
                         android:inputType="numberDecimal"/>
                 </com.google.android.material.textfield.TextInputLayout>
 
@@ -208,7 +208,7 @@
                         android:id="@+id/inputB3"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:hint="B3"
+                        android:hint="B3 (Stilling Basin)"
                         android:inputType="numberDecimal"/>
                 </com.google.android.material.textfield.TextInputLayout>
 
@@ -222,7 +222,7 @@
                         android:id="@+id/inputB5"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:hint="B5"
+                        android:hint="B5 (Stilling Basin)"
                         android:inputType="numberDecimal"/>
                 </com.google.android.material.textfield.TextInputLayout>
 

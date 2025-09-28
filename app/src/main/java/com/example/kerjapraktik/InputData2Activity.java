@@ -23,34 +23,17 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * InputData2Activity.java
- *
- * Versi lengkap untuk menggantikan file lama.
- * Fitur:
- * - Offline save ke SQLite melalui OfflineDataHelper (insertData, getUnsyncedData, deleteByTempId, insertPengukuranMaster, getPengukuranMaster)
- * - Auto-sync saat onResume()
- * - Sinkronisasi serial per tabel (pengukuran, thomson, sr, bocoran)
- * - Logging rapi: TAG + kategori (INFO, WARN, ERROR, IDLE) agar Android client jelas membedakan
- * - Robust defensive checks agar tidak crash
- * - Penggunaan background thread untuk network / DB
- *
- * Catatan:
- * - Pastikan class OfflineDataHelper ada di project (sesuai file sebelumnya).
- * - Pastikan permission INTERNET ada di AndroidManifest.xml
- *
- * Penulis: ChatGPT (generated for user)
- * Tanggal: 2025-09-17
- */
+
 public class InputData2Activity extends AppCompatActivity {
 
     private static final String TAG = "InputData2Activity";
 
     // API endpoints (sesuaikan jika perlu)
-    private static final String BASE_URL = "http://192.168.1.28/API_Android/public/rembesan/";
+    private static final String BASE_URL = "http://192.168.1.10/API_Android/public/rembesan/";
     private static final String SERVER_INPUT_URL = BASE_URL + "input";
     private static final String CEK_DATA_URL = BASE_URL + "cek-data";
     private static final String GET_PENGUKURAN_URL = BASE_URL + "get_pengukuran";
@@ -108,12 +91,11 @@ public class InputData2Activity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         logInfo("onResume", "onResume fired; checking offline data to sync...");
-        // Reset counters
+
         syncCounter.set(0);
         syncTotal = 0;
         showSyncToast = false;
 
-        // Count offline items
         try {
             syncTotal += offlineDb.getUnsyncedData("pengukuran").size();
             syncTotal += offlineDb.getUnsyncedData("thomson").size();
@@ -124,17 +106,15 @@ public class InputData2Activity extends AppCompatActivity {
         }
 
         if (syncTotal > 0) {
-            showSyncToast = true;
             logInfo("onResume", "Found " + syncTotal + " offline rows to sync");
         }
 
         if (isInternetAvailable()) {
-            // First refresh master, then sync offline data serially
             syncPengukuranMaster(() -> {
-                // sync in sequence
                 syncAllOfflineData(() -> {
-                    if (showSyncToast) {
+                    if (syncTotal > 0 && !isAlreadySynced()) {
                         showToast("Sinkronisasi offline selesai");
+                        markAsSynced();
                     }
                 });
             });
@@ -142,6 +122,22 @@ public class InputData2Activity extends AppCompatActivity {
             loadTanggalOffline();
         }
     }
+
+    /** Cek apakah sudah pernah sinkron hari ini */
+    private boolean isAlreadySynced() {
+        SharedPreferences prefs = getSharedPreferences("app_prefs", MODE_PRIVATE);
+        String lastSyncDate = prefs.getString("last_sync_date", "");
+        String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+        return today.equals(lastSyncDate);
+    }
+
+    /** Tandai sudah sinkron hari ini */
+    private void markAsSynced() {
+        SharedPreferences prefs = getSharedPreferences("app_prefs", MODE_PRIVATE);
+        String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+        prefs.edit().putString("last_sync_date", today).apply();
+    }
+
 
     private void bindViews() {
         spinnerPengukuran = findViewById(R.id.spinnerPengukuran);
@@ -752,8 +748,8 @@ public class InputData2Activity extends AppCompatActivity {
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setDoOutput(true);
-                conn.setConnectTimeout(15_000);
-                conn.setReadTimeout(15_000);
+                conn.setConnectTimeout(300_000);
+                conn.setReadTimeout(300_000);
                 conn.setRequestProperty("Content-Type", "application/json");
                 conn.setRequestProperty("Accept", "application/json");
                 JSONObject json = new JSONObject();

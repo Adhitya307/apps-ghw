@@ -165,7 +165,7 @@
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
-                                android:text="Input Data HP 1"
+                                android:text="Input Data HP 1 (Stilling Basin)"
                                 android:textColor="@color/text_primary"
                                 android:textSize="16sp"/>
                         </LinearLayout>
@@ -201,7 +201,7 @@
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
-                                android:text="Input Data HP 2"
+                                android:text="Input Data HP (Gallery)"
                                 android:textColor="@color/text_primary"
                                 android:textSize="16sp"/>
                         </LinearLayout>
