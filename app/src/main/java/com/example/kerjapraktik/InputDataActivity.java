@@ -1,17 +1,22 @@
 package com.example.kerjapraktik;
 
+import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.graphics.Color;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Gravity;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.*;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
+import androidx.core.content.ContextCompat;
 
 import com.google.android.material.textfield.TextInputLayout;
 
@@ -58,7 +63,7 @@ public class InputDataActivity extends AppCompatActivity {
     private SharedPreferences syncPrefs;
 
     // API URL
-    private static final String BASE_URL = "http://192.168.1.10/API_Android/public/rembesan/";
+    private static final String BASE_URL = "http://192.168.1.14/API_Android/public/rembesan/";
     private static final String INSERT_DATA_URL = BASE_URL + "input";
     private static final String CEK_DATA_URL = BASE_URL + "cek-data";
     private static final String GET_PENGUKURAN_URL = BASE_URL + "get_pengukuran";
@@ -115,11 +120,11 @@ public class InputDataActivity extends AppCompatActivity {
         // sekarang sinkron pengukuran master (dipanggil setelah adapter ready & UI inisialisasi)
         syncPengukuranMaster();
 
-        // tombol pilih pengukuran
+// tombol pilih pengukuran
         btnPilihPengukuran.setOnClickListener(v -> {
             Object sel = spinnerPengukuran.getSelectedItem();
             if (sel == null) {
-                showToast("Pilih tanggal pengukuran dulu.");
+                showElegantToast("Pilih tanggal pengukuran dulu.", "warning");
                 return;
             }
 
@@ -130,11 +135,15 @@ public class InputDataActivity extends AppCompatActivity {
                         .edit()
                         .putInt("pengukuran_id", pengukuranId)
                         .apply();
-                showToast("ID terpilih: " + pengukuranId);
+
+                // 🔹 Ubah notifikasi agar menampilkan tanggal terpilih, bukan ID
+                showElegantToast("Tanggal terpilih: " + selected, "success");
+
             } else {
-                showToast("Tanggal tidak dikenali, coba sinkron ulang.");
+                showElegantToast("Tanggal tidak dikenali, coba sinkron ulang.", "error");
             }
         });
+
 
         // set click listeners (pastikan sudah di-init di initFormComponents)
         if (btnSubmitTmaWaduk != null) btnSubmitTmaWaduk.setOnClickListener(v -> handleTmaWaduk());
@@ -157,7 +166,7 @@ public class InputDataActivity extends AppCompatActivity {
             if (offlineDb.hasUnsyncedData()) {
                 syncAllOfflineData(() -> {
                     if (!isAlreadySynced()) {
-                        showToast("Sinkronisasi data offline selesai");
+                        showElegantToast("Sinkronisasi data offline selesai", "success");
                         markAsSynced();
                     }
                 });
@@ -182,7 +191,6 @@ public class InputDataActivity extends AppCompatActivity {
         String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
         prefs.edit().putString("last_sync_date", today).apply();
     }
-
 
     private void initModalComponents() {
         modalPengukuran = findViewById(R.id.modalPengukuran);
@@ -289,7 +297,6 @@ public class InputDataActivity extends AppCompatActivity {
         }
     }
 
-
     private void showModalDatePickerDialog() {
         DatePickerDialog datePickerDialog = new DatePickerDialog(
                 this,
@@ -346,7 +353,6 @@ public class InputDataActivity extends AppCompatActivity {
         datePickerDialog.show();
     }
 
-
     private void showModal() {
         if (modalPengukuran == null || modalOverlay == null || mainContent == null) return;
         modalPengukuran.setVisibility(View.VISIBLE);
@@ -366,7 +372,7 @@ public class InputDataActivity extends AppCompatActivity {
     /** Load daftar pengukuran ke spinner (memperbarui list & notify adapter) **/
     private void loadPengukuranList() {
         if (!isInternetAvailable()) {
-            showToast("Offline: Tidak bisa ambil data pengukuran");
+            showElegantToast("Offline: Tidak bisa ambil data pengukuran", "warning");
             return;
         }
 
@@ -412,7 +418,7 @@ public class InputDataActivity extends AppCompatActivity {
 
             } catch (Exception e) {
                 Log.e("LOAD_PENGUKURAN", "error", e);
-                runOnUiThread(() -> showToast("Gagal ambil data pengukuran: " + e.getMessage()));
+                runOnUiThread(() -> showElegantToast("Gagal ambil data pengukuran: " + e.getMessage(), "error"));
             } finally {
                 if (conn != null) conn.disconnect();
             }
@@ -427,7 +433,7 @@ public class InputDataActivity extends AppCompatActivity {
     /** Simpan pengukuran baru dari modal **/
     private void handleModalPengukuran() {
         if (modalInputTahun == null || modalInputBulan == null || modalInputPeriode == null || modalInputTanggal == null) {
-            showToast("Form modal belum siap");
+            showElegantToast("Form modal belum siap", "error");
             return;
         }
 
@@ -439,7 +445,7 @@ public class InputDataActivity extends AppCompatActivity {
         data.put("tanggal", modalInputTanggal.getText().toString().trim());
 
         if (data.get("tahun").isEmpty() || data.get("bulan").isEmpty() || data.get("periode").isEmpty() || data.get("tanggal").isEmpty()) {
-            showToast("Harap isi semua field yang wajib");
+            showElegantToast("Harap isi semua field yang wajib", "warning");
             return;
         }
 
@@ -569,32 +575,33 @@ public class InputDataActivity extends AppCompatActivity {
         else saveOffline("bocoran", data.getOrDefault("temp_id", "local_" + System.currentTimeMillis()), data);
     }
 
+    /* ---------- Hitung semua ---------- */
+
     private void handleHitungSemua() {
         if (!isInternetAvailable()) {
-            showToast("Tidak ada koneksi internet. Tidak dapat menghitung data.");
+            showElegantToast("Tidak ada koneksi internet. Tidak dapat menghitung data.", "error");
             return;
         }
 
-        String selected = spinnerPengukuran != null && spinnerPengukuran.getSelectedItem() != null
-                ? spinnerPengukuran.getSelectedItem().toString() : null;
-        int selectedPengukuranId = -1;
-
-        if (selected != null && pengukuranMap.containsKey(selected)) {
-            selectedPengukuranId = pengukuranMap.get(selected);
+        String sel = spinnerPengukuran.getSelectedItem() != null ? spinnerPengukuran.getSelectedItem().toString() : null;
+        int id = -1;
+        if (sel != null && pengukuranMap.containsKey(sel)) {
+            id = pengukuranMap.get(sel);
         } else {
-            selectedPengukuranId = getSharedPreferences("pengukuran", MODE_PRIVATE).getInt("pengukuran_id", -1);
-            if (selectedPengukuranId == -1) {
-                showToast("Pilih data pengukuran terlebih dahulu!");
-                return;
-            }
+            SharedPreferences prefs = getSharedPreferences("pengukuran", MODE_PRIVATE);
+            id = prefs.getInt("pengukuran_id", -1);
         }
 
-        final int finalPengukuranId = selectedPengukuranId;
+        if (id == -1) {
+            showElegantToast("Pilih data pengukuran terlebih dahulu!", "warning");
+            return;
+        }
 
-        ProgressDialog progressDialog = new ProgressDialog(this);
-        progressDialog.setMessage("Menghitung data...");
-        progressDialog.setCancelable(false);
-        progressDialog.show();
+        final int finalId = id;
+        ProgressDialog pd = new ProgressDialog(this);
+        pd.setMessage("Menghitung data...");
+        pd.setCancelable(false);
+        pd.show();
 
         new Thread(() -> {
             HttpURLConnection conn = null;
@@ -603,67 +610,279 @@ public class InputDataActivity extends AppCompatActivity {
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setDoOutput(true);
-                conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-                conn.setRequestProperty("Accept", "application/json");
                 conn.setConnectTimeout(300_000);
                 conn.setReadTimeout(300_000);
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setRequestProperty("Accept", "application/json");
 
-                JSONObject jsonData = new JSONObject();
-                jsonData.put("pengukuran_id", finalPengukuranId);
+                JSONObject json = new JSONObject();
+                json.put("pengukuran_id", finalId);
 
                 OutputStream os = conn.getOutputStream();
-                os.write(jsonData.toString().getBytes("UTF-8"));
+                os.write(json.toString().getBytes("UTF-8"));
                 os.flush();
                 os.close();
 
-                int responseCode = conn.getResponseCode();
-                InputStream is = (responseCode == 200) ? conn.getInputStream() : conn.getErrorStream();
-                BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+                int code = conn.getResponseCode();
+                InputStream is = (code == 200) ? conn.getInputStream() : conn.getErrorStream();
+                BufferedReader br = new BufferedReader(new InputStreamReader(is));
                 StringBuilder sb = new StringBuilder();
                 String line;
-                while ((line = reader.readLine()) != null) sb.append(line);
-                reader.close();
+                while ((line = br.readLine()) != null) sb.append(line);
+                br.close();
 
-                JSONObject response = new JSONObject(sb.toString());
-                JSONObject data = response.optJSONObject("data");
-
+                JSONObject resp = new JSONObject(sb.toString());
                 runOnUiThread(() -> {
-                    progressDialog.dismiss();
-                    if (data != null) {
-                        String statusServer = data.optString("status", "partial");
-                        String messageServer = data.optString("message", "");
-                        if ("success".equals(statusServer) || "partial".equals(statusServer)) {
-                            showToast("Perhitungan selesai: " + messageServer);
-                            JSONObject batasmaksimal = data.optJSONObject("batasmaksimal");
-                            if (batasmaksimal != null) {
-                                double tmaWaduk = batasmaksimal.optDouble("tma_waduk", -1);
-                                double batasMaksimal = batasmaksimal.optDouble("batas_maksimal", -1);
-                                String hasil = "";
-                                if (tmaWaduk >= 0) hasil += "TMA Waduk: " + tmaWaduk;
-                                if (batasMaksimal >= 0) {
-                                    if (!hasil.isEmpty()) hasil += ", ";
-                                    hasil += "Batas Maksimal: " + batasMaksimal;
-                                }
-                                if (!hasil.isEmpty()) showToast(hasil);
+                    pd.dismiss();
+                    try {
+                        String status = resp.optString("status", "");
+                        JSONObject messages = resp.optJSONObject("messages");
+                        JSONObject data = resp.optJSONObject("data");
+                        String tanggal = resp.optString("tanggal", "-");
+
+                        // 🔹 Ringkasan pesan perhitungan
+                        StringBuilder msgBuilder = new StringBuilder();
+                        if (messages != null) {
+                            Iterator<String> keys = messages.keys();
+                            while (keys.hasNext()) {
+                                String key = keys.next();
+                                String value = messages.optString(key, "");
+                                msgBuilder.append("• ").append(key).append(": ").append(value).append("\n");
                             }
-                        } else {
-                            showToast("Gagal menghitung: " + messageServer);
                         }
-                    } else {
-                        showToast("Perhitungan selesai, silakan cek web.");
+
+                        // 🔹 Hasil Look Burt
+                        String lookBurtInfo = "";
+                        String statusKeterangan = "aman"; // default
+                        if (data != null) {
+                            String rembBendungan = data.optString("rembesan_bendungan", "-");
+                            String rembPerM = data.optString("rembesan_per_m", "-");
+                            String ket = data.optString("keterangan", "-");
+                            lookBurtInfo = "\n💧 Analisa Look Burt:\n"
+                                    + "  - Rembesan Bendungan: " + rembBendungan + "\n"
+                                    + "  - Rembesan per M: " + rembPerM + "\n"
+                                    + "  - Keterangan: " + ket;
+
+                            // Tentukan status berdasarkan keterangan
+                            if (ket.toLowerCase().contains("bahaya")) {
+                                statusKeterangan = "danger";
+                            } else if (ket.toLowerCase().contains("peringatan") || ket.toLowerCase().contains("waspada")) {
+                                statusKeterangan = "warning";
+                            } else {
+                                statusKeterangan = "success";
+                            }
+                        }
+
+                        // 🔹 Tentukan notifikasi akhir
+                        if ("success".equalsIgnoreCase(status)) {
+                            showCalculationResultDialog("✅ Perhitungan Berhasil",
+                                    "Semua perhitungan berhasil untuk tanggal " + tanggal + lookBurtInfo,
+                                    statusKeterangan, tanggal);
+                        } else if ("partial_error".equalsIgnoreCase(status)) {
+                            showCalculationResultDialog("⚠️ Perhitungan Sebagian Berhasil",
+                                    "Beberapa perhitungan gagal:\n\n" + msgBuilder.toString() + lookBurtInfo,
+                                    "warning", tanggal);
+                        } else if ("error".equalsIgnoreCase(status)) {
+                            showElegantToast("❌ Gagal menghitung: " + resp.optString("message", "Terjadi kesalahan"), "error");
+                        } else {
+                            showElegantToast("ℹ️ Respon tidak dikenal dari server", "info");
+                        }
+
+                    } catch (Exception e) {
+                        showElegantToast("Error parsing hasil: " + e.getMessage(), "error");
                     }
                 });
 
             } catch (Exception e) {
-                Log.e("HITUNG_SEMUA", "Error", e);
                 runOnUiThread(() -> {
-                    progressDialog.dismiss();
-                    showToast("Error: " + e.getMessage());
+                    pd.dismiss();
+                    showElegantToast("Error saat menghitung: " + e.getMessage(), "error");
                 });
             } finally {
                 if (conn != null) conn.disconnect();
             }
         }).start();
+    }
+
+    private void showCalculationResultDialog(String title, String message, String status, String tanggal) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+
+        // Inflate custom layout
+        LayoutInflater inflater = LayoutInflater.from(this);
+        View dialogView = inflater.inflate(R.layout.dialog_calculation_result, null);
+        builder.setView(dialogView);
+
+        // Initialize views
+        TextView titleText = dialogView.findViewById(R.id.dialog_title);
+        TextView messageText = dialogView.findViewById(R.id.dialog_message);
+        TextView tanggalText = dialogView.findViewById(R.id.dialog_tanggal);
+        ImageView iconView = dialogView.findViewById(R.id.dialog_icon);
+        Button okButton = dialogView.findViewById(R.id.dialog_button_ok);
+        LinearLayout headerLayout = dialogView.findViewById(R.id.dialog_header);
+
+        // Set data berdasarkan status
+        int colorRes = getColorForStatus(status);
+        int iconRes = getIconForStatus(status);
+
+        titleText.setText(title);
+        messageText.setText(message);
+        tanggalText.setText("📅 Tanggal: " + tanggal);
+        iconView.setImageResource(iconRes);
+
+        // 🔥 PERBAIKAN UI: Gradient background untuk header
+        headerLayout.setBackgroundColor(ContextCompat.getColor(this, colorRes));
+
+        // 🔥 PERBAIKAN UI: Tambahkan elevation/shadow
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            headerLayout.setElevation(8f);
+            okButton.setElevation(4f);
+        }
+
+        // 🔥 PERBAIKAN UI: Animasi icon
+        iconView.setAlpha(0f);
+        iconView.animate().alpha(1f).setDuration(500).start();
+
+        // 🔥 PERBAIKAN UI: Style button dengan ripple effect
+        okButton.setBackgroundColor(ContextCompat.getColor(this, colorRes));
+        okButton.setTextColor(Color.WHITE);
+
+        // 🔥 PERBAIKAN UI: Format message dengan styling
+        String formattedMessage = formatMessageWithIcons(message);
+        messageText.setText(formattedMessage);
+
+        // 🔥 PERBAIKAN UI: Animasi dialog masuk
+        dialogView.setAlpha(0f);
+        dialogView.setScaleX(0.8f);
+        dialogView.setScaleY(0.8f);
+
+        final AlertDialog dialog = builder.create();
+        dialog.setCancelable(false);
+
+        // Tampilkan dialog dulu baru animasi
+        dialog.show();
+
+        // Animasi dialog masuk
+        dialogView.animate()
+                .alpha(1f)
+                .scaleX(1f)
+                .scaleY(1f)
+                .setDuration(300)
+                .start();
+
+        okButton.setOnClickListener(v -> {
+            // 🔥 PERBAIKAN UI: Animasi tombol ketika ditekan
+            v.animate().scaleX(0.95f).scaleY(0.95f).setDuration(100).withEndAction(() -> {
+                v.animate().scaleX(1f).scaleY(1f).setDuration(100).start();
+            }).start();
+
+            // 🔥 PERBAIKAN UI: Animasi dialog keluar
+            dialogView.animate()
+                    .alpha(0f)
+                    .scaleX(0.8f)
+                    .scaleY(0.8f)
+                    .setDuration(200)
+                    .withEndAction(dialog::dismiss)
+                    .start();
+        });
+    }
+
+    // 🔥 METHOD BARU: Format pesan dengan icon dan styling
+    private String formatMessageWithIcons(String message) {
+        // Ganti keyword dengan icon
+        String formatted = message
+                .replace("Analisa Look Burt", "🔍 Analisa Look Burt")
+                .replace("Rembesan Bendungan", "💧 Rembesan Bendungan")
+                .replace("Rembesan per M", "📏 Rembesan per M")
+                .replace("Keterangan:", "📋 Keterangan:")
+                .replace("Berhasil", "✅ Berhasil")
+                .replace("Gagal", "❌ Gagal")
+                .replace("Aman", "🟢 Aman")
+                .replace("Peringatan", "🟡 Peringatan")
+                .replace("Bahaya", "🔴 Bahaya");
+
+        return formatted;
+    }
+
+    // Method untuk toast elegan dengan improvement
+    private void showElegantToast(String message, String type) {
+        runOnUiThread(() -> {
+            LayoutInflater inflater = getLayoutInflater();
+            View layout = inflater.inflate(R.layout.toast_custom,
+                    (android.view.ViewGroup) findViewById(R.id.custom_toast_container));
+
+            TextView text = layout.findViewById(R.id.custom_toast_text);
+            ImageView icon = layout.findViewById(R.id.custom_toast_icon);
+            CardView card = layout.findViewById(R.id.custom_toast_card);
+
+            // 🔥 PERBAIKAN: Format pesan toast
+            String formattedMessage = formatMessageWithIcons(message);
+            text.setText(formattedMessage);
+
+            // Set warna dan icon berdasarkan type
+            int colorRes = getColorForStatus(type);
+            int iconRes = getIconForStatus(type);
+
+            card.setCardBackgroundColor(ContextCompat.getColor(this, colorRes));
+            icon.setImageResource(iconRes);
+
+            // 🔥 PERBAIKAN: Animasi toast
+            card.setAlpha(0f);
+            card.setScaleX(0.8f);
+            card.setScaleY(0.8f);
+
+            Toast toast = new Toast(getApplicationContext());
+            toast.setDuration(Toast.LENGTH_LONG);
+            toast.setView(layout);
+            toast.setGravity(Gravity.TOP | Gravity.CENTER_HORIZONTAL, 0, 150);
+
+            toast.show();
+
+            // Animasi toast masuk
+            card.animate()
+                    .alpha(1f)
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .setDuration(300)
+                    .start();
+        });
+    }
+
+    // Helper method untuk mendapatkan warna berdasarkan status
+    private int getColorForStatus(String status) {
+        switch (status.toLowerCase()) {
+            case "success":
+            case "aman":
+                return R.color.pln_success; // Hijau PLN
+            case "warning":
+            case "peringatan":
+                return R.color.pln_warning; // Kuning/Oranye
+            case "error":
+            case "danger":
+            case "bahaya":
+                return R.color.pln_danger; // Merah
+            case "info":
+            default:
+                return R.color.pln_info; // Biru PLN
+        }
+    }
+
+    // Helper method untuk mendapatkan icon berdasarkan status
+    private int getIconForStatus(String status) {
+        switch (status.toLowerCase()) {
+            case "success":
+            case "aman":
+                return R.drawable.ic_success;
+            case "warning":
+            case "peringatan":
+                return R.drawable.ic_warning;
+            case "error":
+            case "danger":
+            case "bahaya":
+                return R.drawable.ic_danger;
+            case "info":
+            default:
+                return R.drawable.ic_info;
+        }
     }
 
     private void cekDanSimpanData(String table, Map<String, String> dataMap, boolean isPengukuran) {
@@ -724,7 +943,7 @@ public class InputDataActivity extends AppCompatActivity {
                     if ("thomson".equals(table) && !dataLengkap) {
                         sendToServer(dataMap, table, isPengukuran);
                     } else {
-                        runOnUiThread(() -> showToast("Data " + table + " sudah lengkap untuk pengukuran ini!"));
+                        runOnUiThread(() -> showElegantToast("Data " + table + " sudah lengkap untuk pengukuran ini!", "info"));
                     }
                     return;
                 }
@@ -733,7 +952,7 @@ public class InputDataActivity extends AppCompatActivity {
 
             } catch (Exception e) {
                 Log.e("CEK_SAVE", "error", e);
-                runOnUiThread(() -> showToast("Gagal cek data, mencoba simpan langsung..."));
+                runOnUiThread(() -> showElegantToast("Gagal cek data, mencoba simpan langsung...", "warning"));
                 sendToServer(dataMap, table, isPengukuran);
             } finally {
                 if (connCek != null) connCek.disconnect();
@@ -880,21 +1099,20 @@ public class InputDataActivity extends AppCompatActivity {
 
                 runOnUiThread(() -> {
                     if ("success".equalsIgnoreCase(status)) {
-                        showToast(message);
+                        showElegantToast(message, "success");
                         if (isPengukuran) {
                             hideModal();
-                            Toast.makeText(InputDataActivity.this, "Data pengukuran tersimpan", Toast.LENGTH_SHORT).show();
                             refreshPengukuranList();
                         }
                     } else {
-                        showToast("Error: " + message);
+                        showElegantToast("Error: " + message, "error");
                     }
                 });
 
             } catch (Exception e) {
                 Log.e("SEND", "error", e);
                 // jika gagal dikarenakan koneksi atau server, simpan offline agar aman
-                runOnUiThread(() -> showToast("Gagal kirim: " + e.getMessage() + ". Data akan disimpan offline."));
+                runOnUiThread(() -> showElegantToast("Gagal kirim: " + e.getMessage() + ". Data akan disimpan offline.", "warning"));
                 try {
                     // buat tempId jika belum ada
                     if (tempId == null) tempId = "local_" + System.currentTimeMillis();
@@ -913,11 +1131,11 @@ public class InputDataActivity extends AppCompatActivity {
             if (tempId == null) tempId = "local_" + System.currentTimeMillis();
             JSONObject json = new JSONObject(data);
             offlineDb.insertData(table, tempId, json.toString());
-            showToast("Tidak ada internet. Data disimpan offline.");
+            showElegantToast("Tidak ada internet. Data disimpan offline.", "warning");
             syncPrefs.edit().putBoolean("toast_shown", false).apply();
         } catch (Exception e) {
             Log.e("SAVE_OFFLINE", "error", e);
-            showToast("Gagal simpan offline: " + e.getMessage());
+            showElegantToast("Gagal simpan offline: " + e.getMessage(), "error");
         }
     }
 
@@ -948,7 +1166,7 @@ public class InputDataActivity extends AppCompatActivity {
 
     private void syncPengukuranMaster() {
         if (!isInternetAvailable()) {
-            showToast("Tidak ada koneksi internet. Sinkronisasi gagal.");
+            showElegantToast("Tidak ada koneksi internet. Sinkronisasi gagal.", "warning");
             return;
         }
 
@@ -1004,7 +1222,7 @@ public class InputDataActivity extends AppCompatActivity {
                     if (pengukuranAdapter != null) pengukuranAdapter.notifyDataSetChanged();
 
                     if (tanggalList.isEmpty()) {
-                        showToast("Tidak ada data pengukuran untuk bulan ini.");
+                        showElegantToast("Tidak ada data pengukuran untuk bulan ini.", "info");
                     } else {
                         spinnerPengukuran.setSelection(0);
                         pengukuranId = pengukuranMap.get(tanggalList.get(0));
@@ -1015,7 +1233,7 @@ public class InputDataActivity extends AppCompatActivity {
 
             } catch (Exception e) {
                 Log.e("SYNC_MASTER", "Error syncPengukuranMaster", e);
-                runOnUiThread(() -> showToast("Sinkronisasi gagal: " + e.getMessage()));
+                runOnUiThread(() -> showElegantToast("Sinkronisasi gagal: " + e.getMessage(), "error"));
             } finally {
                 if (conn != null) conn.disconnect();
             }

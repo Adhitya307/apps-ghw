@@ -14,4 +14,14 @@
     <color name="pln_primary_dark">#002171</color>
     <color name="primary_color">#0054A6</color>
     <color name="row_alternate_color">#F0F5FF</color>
+
+    <!-- Status Colors untuk Notifikasi -->
+    <color name="pln_success">#4CAF50</color>
+    <color name="pln_warning">#FF9800</color>
+    <color name="pln_danger">#F44336</color>
+    <color name="pln_info">#2196F3</color>
+
+    <!-- Text Colors untuk Notifikasi -->
+    <color name="primary_text">#212121</color>
+    <color name="secondary_text">#757575</color>
 </resources>
