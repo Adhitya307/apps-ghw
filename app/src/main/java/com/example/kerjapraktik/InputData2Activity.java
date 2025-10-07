@@ -18,6 +18,9 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
 import androidx.core.content.ContextCompat;
 
+// TAMBAHKAN IMPORT INI
+import com.google.android.material.textfield.TextInputLayout;
+
 import org.json.JSONObject;
 import org.json.JSONArray;
 
@@ -37,7 +40,7 @@ public class InputData2Activity extends AppCompatActivity {
     private static final String TAG = "InputData2Activity";
 
     // API endpoints (sesuaikan jika perlu)
-    private static final String BASE_URL = "http://192.168.1.14/API_Android/public/rembesan/";
+    private static final String BASE_URL = "http://192.168.1.6/API_Android/public/rembesan/";
     private static final String SERVER_INPUT_URL = BASE_URL + "input";
     private static final String CEK_DATA_URL = BASE_URL + "cek-data";
     private static final String GET_PENGUKURAN_URL = BASE_URL + "get_pengukuran";
@@ -81,6 +84,9 @@ public class InputData2Activity extends AppCompatActivity {
         setupSpinners();
         setupClickHandlers();
 
+        // Sembunyikan field yang tidak diperlukan di HP 2
+        hideUnnecessaryFieldsHP2();
+
         // initial load from server or offline master
         if (isInternetAvailable()) {
             logInfo("onCreate", "Internet available -> sync master pengukuran");
@@ -91,6 +97,92 @@ public class InputData2Activity extends AppCompatActivity {
         }
     }
 
+    // METHOD BARU YANG DIPERBAIKI: Sembunyikan field yang tidak diperlukan di HP 2
+    private void hideUnnecessaryFieldsHP2() {
+        try {
+            Log.i("InputData2Activity", "hideUnnecessaryFieldsHP2 - Memulai penyembunyian field untuk HP 2");
+
+            // === PERBAIKAN 1: Gunakan ID layout yang sudah ada di XML ===
+            // Sembunyikan A1 R, A1 L, B1 di Thomson Weir (HP 2 hanya butuh B3 dan B5)
+            TextInputLayout a1rLayout = findViewById(R.id.a1r_layout);
+            TextInputLayout a1lLayout = findViewById(R.id.a1l_layout);
+            TextInputLayout b1Layout = findViewById(R.id.b1_layout);
+
+            if (a1rLayout != null) {
+                a1rLayout.setVisibility(View.GONE);
+                Log.i("InputData2Activity", "hideUnnecessaryFieldsHP2 - A1 R layout disembunyikan");
+            } else {
+                Log.w("InputData2Activity", "hideUnnecessaryFieldsHP2 - A1 R layout tidak ditemukan");
+            }
+
+            if (a1lLayout != null) {
+                a1lLayout.setVisibility(View.GONE);
+                Log.i("InputData2Activity", "hideUnnecessaryFieldsHP2 - A1 L layout disembunyikan");
+            } else {
+                Log.w("InputData2Activity", "hideUnnecessaryFieldsHP2 - A1 L layout tidak ditemukan");
+            }
+
+            if (b1Layout != null) {
+                b1Layout.setVisibility(View.GONE);
+                Log.i("InputData2Activity", "hideUnnecessaryFieldsHP2 - B1 layout disembunyikan");
+            } else {
+                Log.w("InputData2Activity", "hideUnnecessaryFieldsHP2 - B1 layout tidak ditemukan");
+            }
+
+            // === PERBAIKAN 2: Sembunyikan seluruh section Bocoran di HP 2 ===
+            CardView bocoranSection = findViewById(R.id.bocoran_section_card);
+            if (bocoranSection != null) {
+                bocoranSection.setVisibility(View.GONE);
+                Log.i("InputData2Activity", "hideUnnecessaryFieldsHP2 - Section bocoran disembunyikan");
+            } else {
+                Log.w("InputData2Activity", "hideUnnecessaryFieldsHP2 - Section bocoran tidak ditemukan");
+
+                // Fallback: sembunyikan komponen individual jika section tidak ditemukan
+                hideIndividualBocoranComponents();
+            }
+
+            // === PERBAIKAN 3: Update judul Thomson untuk HP 2 ===
+            TextView thomsonTitle = findViewById(R.id.thomson_title);
+            if (thomsonTitle != null) {
+                thomsonTitle.setText("Thomson Weir - STILLING BASIN (B3, B5)");
+                Log.i("InputData2Activity", "hideUnnecessaryFieldsHP2 - Judul Thomson diupdate");
+            }
+
+            // === PERBAIKAN 4: Update tombol Thomson untuk HP 2 ===
+            if (btnSubmitThomson != null) {
+                btnSubmitThomson.setText("Simpan Thomson - Stilling Basin");
+                Log.i("InputData2Activity", "hideUnnecessaryFieldsHP2 - Tombol Thomson diupdate");
+            }
+
+            Log.i("InputData2Activity", "hideUnnecessaryFieldsHP2 - Penyembunyian field untuk HP 2 selesai");
+
+        } catch (Exception e) {
+            Log.e("InputData2Activity", "hideUnnecessaryFieldsHP2 - Error: " + e.getMessage(), e);
+            // Jangan crash aplikasi, cukup log error-nya
+        }
+    }
+
+    // Method fallback untuk menyembunyikan komponen bocoran individual
+    private void hideIndividualBocoranComponents() {
+        try {
+            int[] bocoranComponentIds = {
+                    R.id.inputElv624T1, R.id.inputElv624T1Kode,
+                    R.id.inputElv615T2, R.id.inputElv615T2Kode,
+                    R.id.inputPipaP1, R.id.inputPipaP1Kode,
+                    R.id.btnSubmitBocoran
+            };
+
+            for (int id : bocoranComponentIds) {
+                View view = findViewById(id);
+                if (view != null) {
+                    view.setVisibility(View.GONE);
+                }
+            }
+            Log.i("InputData2Activity", "hideIndividualBocoranComponents - Komponen bocoran individual disembunyikan");
+        } catch (Exception e) {
+            Log.w("InputData2Activity", "hideIndividualBocoranComponents - Gagal menyembunyikan komponen bocoran: " + e.getMessage());
+        }
+    }
     @Override
     protected void onResume() {
         super.onResume();
@@ -209,7 +301,6 @@ public class InputData2Activity extends AppCompatActivity {
                 pengukuranId = tanggalToIdMap.get(selected);
                 prefs.edit().putInt("pengukuran_id", pengukuranId).apply();
 
-                // 🔹 Ubah dari "ID terpilih" jadi "Tanggal terpilih"
                 showElegantToast("Tanggal terpilih: " + selected, "success");
                 logInfo("btnPilih", "tanggal pengukuran terpilih = " + selected);
 
@@ -220,7 +311,7 @@ public class InputData2Activity extends AppCompatActivity {
         });
 
         btnSubmitThomson.setOnClickListener(v -> {
-            Map<String,String> m = buildThomsonData();
+            Map<String,String> m = buildThomsonDataHP2();
             if (m != null) simpanAtauOffline("thomson", m);
         });
 
@@ -244,7 +335,8 @@ public class InputData2Activity extends AppCompatActivity {
 
     /* ---------- Builders ---------- */
 
-    private Map<String,String> buildThomsonData() {
+    // METHOD BARU: Build Thomson data khusus untuk HP 2 (hanya B3 dan B5)
+    private Map<String,String> buildThomsonDataHP2() {
         if (pengukuranId == -1) {
             showElegantToast("Pilih pengukuran terlebih dahulu.", "warning");
             return null;
@@ -252,11 +344,16 @@ public class InputData2Activity extends AppCompatActivity {
         Map<String,String> map = new HashMap<>();
         map.put("mode", "thomson");
         map.put("pengukuran_id", String.valueOf(pengukuranId));
-        map.put("a1_r", safeText(inputA1R));
-        map.put("a1_l", safeText(inputA1L));
-        map.put("b1", safeText(inputB1));
+
+        // A1 R, A1 L, B1 dikosongkan (karena diinput di HP 1)
+        map.put("a1_r", "");
+        map.put("a1_l", "");
+        map.put("b1", "");
+
+        // HANYA kirim B3 dan B5 yang diinput di HP 2
         map.put("b3", safeText(inputB3));
         map.put("b5", safeText(inputB5));
+
         return map;
     }
 

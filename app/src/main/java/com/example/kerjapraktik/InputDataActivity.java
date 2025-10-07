@@ -63,7 +63,7 @@ public class InputDataActivity extends AppCompatActivity {
     private SharedPreferences syncPrefs;
 
     // API URL
-    private static final String BASE_URL = "http://192.168.1.14/API_Android/public/rembesan/";
+    private static final String BASE_URL = "http://192.168.1.6/API_Android/public/rembesan/";
     private static final String INSERT_DATA_URL = BASE_URL + "input";
     private static final String CEK_DATA_URL = BASE_URL + "cek-data";
     private static final String GET_PENGUKURAN_URL = BASE_URL + "get_pengukuran";
@@ -96,6 +96,9 @@ public class InputDataActivity extends AppCompatActivity {
         setupModalDropdowns();
         setupModalCalendar();
 
+        // Sembunyikan field yang tidak diperlukan di HP 1
+        hideUnnecessaryFieldsHP1();
+
         // Siapkan adapter spinner (awal kosong, nanti diisi saat load)
         pengukuranAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, tanggalList);
         pengukuranAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -120,7 +123,7 @@ public class InputDataActivity extends AppCompatActivity {
         // sekarang sinkron pengukuran master (dipanggil setelah adapter ready & UI inisialisasi)
         syncPengukuranMaster();
 
-// tombol pilih pengukuran
+        // tombol pilih pengukuran
         btnPilihPengukuran.setOnClickListener(v -> {
             Object sel = spinnerPengukuran.getSelectedItem();
             if (sel == null) {
@@ -136,7 +139,6 @@ public class InputDataActivity extends AppCompatActivity {
                         .putInt("pengukuran_id", pengukuranId)
                         .apply();
 
-                // 🔹 Ubah notifikasi agar menampilkan tanggal terpilih, bukan ID
                 showElegantToast("Tanggal terpilih: " + selected, "success");
 
             } else {
@@ -144,10 +146,9 @@ public class InputDataActivity extends AppCompatActivity {
             }
         });
 
-
         // set click listeners (pastikan sudah di-init di initFormComponents)
         if (btnSubmitTmaWaduk != null) btnSubmitTmaWaduk.setOnClickListener(v -> handleTmaWaduk());
-        if (btnSubmitThomson != null) btnSubmitThomson.setOnClickListener(v -> handleThomson());
+        if (btnSubmitThomson != null) btnSubmitThomson.setOnClickListener(v -> handleThomsonHP1());
         if (btnSubmitSR != null) btnSubmitSR.setOnClickListener(v -> handleSR());
         if (btnSubmitBocoran != null) btnSubmitBocoran.setOnClickListener(v -> handleBocoran());
         if (btnHitungSemua != null) btnHitungSemua.setOnClickListener(v -> handleHitungSemua());
@@ -155,6 +156,25 @@ public class InputDataActivity extends AppCompatActivity {
         // tampilkan modal jika komponen ada
         if (modalPengukuran != null && modalOverlay != null && mainContent != null) {
             showModal();
+        }
+    }
+
+    // METHOD BARU: Sembunyikan field yang tidak diperlukan di HP 1 (SIMPLE VERSION)
+    private void hideUnnecessaryFieldsHP1() {
+        // Sembunyikan B3 dan B5
+        if (inputB3 != null) inputB3.setVisibility(View.GONE);
+        if (inputB5 != null) inputB5.setVisibility(View.GONE);
+
+        // Sembunyikan tombol SR
+        if (btnSubmitSR != null) btnSubmitSR.setVisibility(View.GONE);
+
+        // Update judul dan tombol Thomson
+        if (findViewById(R.id.thomson_title) != null) {
+            TextView thomsonTitle = findViewById(R.id.thomson_title);
+            thomsonTitle.setText("Thomson Weir - GALLERY (A1 R, A1 L, B1)");
+        }
+        if (btnSubmitThomson != null) {
+            btnSubmitThomson.setText("Simpan Thomson - Gallery");
         }
     }
 
@@ -489,14 +509,19 @@ public class InputDataActivity extends AppCompatActivity {
         }
     }
 
-    private void handleThomson() {
+    // METHOD BARU: Handle Thomson khusus untuk HP 1 (hanya A1 R, A1 L, B1)
+    private void handleThomsonHP1() {
         Map<String, String> data = new HashMap<>();
         data.put("mode", "thomson");
+
+        // HP 1 hanya mengirim A1 R, A1 L, B1
         data.put("a1_r", inputA1R != null ? inputA1R.getText().toString().trim() : "");
         data.put("a1_l", inputA1L != null ? inputA1L.getText().toString().trim() : "");
         data.put("b1", inputB1 != null ? inputB1.getText().toString().trim() : "");
-        data.put("b3", inputB3 != null ? inputB3.getText().toString().trim() : "");
-        data.put("b5", inputB5 != null ? inputB5.getText().toString().trim() : "");
+
+        // B3 dan B5 dikosongkan (akan diisi oleh HP 2)
+        data.put("b3", "");
+        data.put("b5", "");
 
         String selected = spinnerPengukuran != null && spinnerPengukuran.getSelectedItem() != null
                 ? spinnerPengukuran.getSelectedItem().toString() : null;

@@ -273,7 +273,7 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- SECTION: t_thomson_weir -->
+            <!-- SECTION: t_thomson_weir - GALLERY -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -288,14 +288,16 @@
                     android:padding="16dp">
 
                     <TextView
+                        android:id="@+id/thomson_title"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Thomson Weir (mm)"
+                        android:text="Thomson Weir - GALLERY (A1 R, A1 L, B1)"
                         android:textColor="#0054A6"
                         android:textStyle="bold"
                         android:textSize="16sp"
                         android:layout_marginBottom="12dp" />
 
+                    <!-- HANYA TAMPILKAN FIELD INI UNTUK HP 1 -->
                     <com.google.android.material.textfield.TextInputLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -320,7 +322,7 @@
                             android:id="@+id/inputA1L"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:hint="A1 L (Gallery) "
+                            android:hint="A1 L (Gallery)"
                             android:inputType="numberDecimal"/>
                     </com.google.android.material.textfield.TextInputLayout>
 
@@ -334,15 +336,18 @@
                             android:id="@+id/inputB1"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:hint="B1 (Gallery) "
+                            android:hint="B1 (Gallery)"
                             android:inputType="numberDecimal"/>
                     </com.google.android.material.textfield.TextInputLayout>
 
+                    <!-- B3 dan B5 DISEMBUNYIKAN UNTUK HP 1 -->
                     <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/b3_layout"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="8dp"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        android:visibility="gone">
 
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/inputB3"
@@ -353,10 +358,12 @@
                     </com.google.android.material.textfield.TextInputLayout>
 
                     <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/b5_layout"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="8dp"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        android:visibility="gone">
 
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/inputB5"
@@ -368,7 +375,7 @@
 
                     <Button
                         android:id="@+id/btnSubmitThomson"
-                        android:text="Simpan Thomson Weir"
+                        android:text="Simpan Thomson - Gallery"
                         android:layout_width="match_parent"
                         android:layout_height="48dp"
                         android:layout_marginTop="12dp"
@@ -379,13 +386,15 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- SECTION: t_sr -->
+            <!-- SECTION: t_sr - DISEMBUNYIKAN UNTUK HP 1 -->
             <androidx.cardview.widget.CardView
+                android:id="@+id/sr_section_card"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
                 app:cardCornerRadius="8dp"
-                app:cardElevation="4dp">
+                app:cardElevation="4dp"
+                android:visibility="gone">
 
                 <LinearLayout
                     android:layout_width="match_parent"

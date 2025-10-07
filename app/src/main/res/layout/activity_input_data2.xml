@@ -80,6 +80,7 @@
                     android:textColor="#FFFFFF"
                     android:textAllCaps="false"
                     style="@style/Widget.MaterialComponents.Button"/>
+
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
@@ -133,7 +134,7 @@
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
-        <!-- SECTION: t_thomson_weir -->
+        <!-- SECTION: t_thomson_weir - STILLING BASIN -->
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -148,33 +149,33 @@
                 android:padding="16dp">
 
                 <TextView
+                    android:id="@+id/thomson_title"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Thomson Weir (mm)"
+                    android:text="Thomson Weir - STILLING BASIN (B3, B5)"
                     android:textColor="#0054A6"
                     android:textStyle="bold"
                     android:textSize="16sp"
                     android:layout_marginBottom="12dp" />
 
+                <!-- A1 R, A1 L, B1 DISEMBUNYIKAN UNTUK HP 2 -->
                 <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/a1r_layout"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="8dp"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                    android:visibility="gone">
 
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/inputA1R"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:hint="A1 R (Gallery)"
-                        android:inputType="numberDecimal"/>
                 </com.google.android.material.textfield.TextInputLayout>
 
                 <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/a1l_layout"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="8dp"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                    android:visibility="gone">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/inputA1L"
@@ -185,10 +186,12 @@
                 </com.google.android.material.textfield.TextInputLayout>
 
                 <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/b1_layout"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="8dp"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                    android:visibility="gone">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/inputB1"
@@ -198,6 +201,7 @@
                         android:inputType="numberDecimal"/>
                 </com.google.android.material.textfield.TextInputLayout>
 
+                <!-- HANYA TAMPILKAN B3 dan B5 UNTUK HP 2 -->
                 <com.google.android.material.textfield.TextInputLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -228,7 +232,7 @@
 
                 <Button
                     android:id="@+id/btnSubmitThomson"
-                    android:text="Simpan Thomson Weir"
+                    android:text="Simpan Thomson - Stilling Basin"
                     android:layout_width="match_parent"
                     android:layout_height="48dp"
                     android:layout_marginTop="12dp"
@@ -262,7 +266,7 @@
                     android:textSize="16sp"
                     android:layout_marginBottom="12dp" />
 
-                <!-- SR Input Fields (showing first 3 as example) -->
+                <!-- SR Input Fields -->
                 <!-- SR 1 -->
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -394,6 +398,7 @@
                             android:inputType="numberDecimal" />
                     </com.google.android.material.textfield.TextInputLayout>
                 </LinearLayout>
+
                 <!-- SR 68 -->
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -657,6 +662,7 @@
                             android:inputType="numberDecimal" />
                     </com.google.android.material.textfield.TextInputLayout>
                 </LinearLayout>
+
                 <!-- SR 92 -->
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -1009,7 +1015,6 @@
                     </com.google.android.material.textfield.TextInputLayout>
                 </LinearLayout>
 
-
                 <Button
                     android:id="@+id/btnSubmitSR"
                     android:text="Simpan SR"
@@ -1023,12 +1028,14 @@
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
-        <!-- SECTION: Bocoran Baru -->
+        <!-- SECTION: Bocoran Baru - DISEMBUNYIKAN UNTUK HP 2 -->
         <androidx.cardview.widget.CardView
+            android:id="@+id/bocoran_section_card"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             app:cardCornerRadius="8dp"
-            app:cardElevation="4dp">
+            app:cardElevation="4dp"
+            android:visibility="gone">
 
             <LinearLayout
                 android:layout_width="match_parent"

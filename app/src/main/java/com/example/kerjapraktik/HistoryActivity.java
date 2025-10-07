@@ -61,7 +61,7 @@ public class HistoryActivity extends AppCompatActivity {
     private ArrayList<Integer> pengukuranIds = new ArrayList<>();
     private ArrayList<String> pengukuranLabels = new ArrayList<>();
 
-    private static final String BASE_URL = "http://192.168.1.14/API_Android/public/api/rembesan/";
+    private static final String BASE_URL = "http://192.168.1.6/API_Android/public/api/rembesan/";
 
     private DatabaseHelper dbHelper;
 
