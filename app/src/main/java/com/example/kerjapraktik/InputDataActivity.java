@@ -63,7 +63,7 @@ public class InputDataActivity extends AppCompatActivity {
     private SharedPreferences syncPrefs;
 
     // API URL
-    private static final String BASE_URL = "http://192.168.1.6/API_Android/public/rembesan/";
+    private static final String BASE_URL = "http://10.30.52.217/API_Android/public/rembesan/";
     private static final String INSERT_DATA_URL = BASE_URL + "input";
     private static final String CEK_DATA_URL = BASE_URL + "cek-data";
     private static final String GET_PENGUKURAN_URL = BASE_URL + "get_pengukuran";
@@ -700,7 +700,7 @@ public class InputDataActivity extends AppCompatActivity {
 
                         // 🔹 Tentukan notifikasi akhir
                         if ("success".equalsIgnoreCase(status)) {
-                            showCalculationResultDialog("✅ Perhitungan Berhasil",
+                            showCalculationResultDialog(" Perhitungan Berhasil",
                                     "Semua perhitungan berhasil untuk tanggal " + tanggal + lookBurtInfo,
                                     statusKeterangan, tanggal);
                         } else if ("partial_error".equalsIgnoreCase(status)) {

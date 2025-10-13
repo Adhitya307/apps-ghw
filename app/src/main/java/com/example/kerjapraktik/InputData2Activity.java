@@ -7,6 +7,8 @@ import android.graphics.Color;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
+import android.os.Handler;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -18,11 +20,10 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
 import androidx.core.content.ContextCompat;
 
-// TAMBAHKAN IMPORT INI
 import com.google.android.material.textfield.TextInputLayout;
 
-import org.json.JSONObject;
 import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -39,8 +40,8 @@ public class InputData2Activity extends AppCompatActivity {
 
     private static final String TAG = "InputData2Activity";
 
-    // API endpoints (sesuaikan jika perlu)
-    private static final String BASE_URL = "http://192.168.1.6/API_Android/public/rembesan/";
+    // API endpoints
+    private static final String BASE_URL = "http://10.30.52.217/API_Android/public/rembesan/";
     private static final String SERVER_INPUT_URL = BASE_URL + "input";
     private static final String CEK_DATA_URL = BASE_URL + "cek-data";
     private static final String GET_PENGUKURAN_URL = BASE_URL + "get_pengukuran";
@@ -158,7 +159,6 @@ public class InputData2Activity extends AppCompatActivity {
 
         } catch (Exception e) {
             Log.e("InputData2Activity", "hideUnnecessaryFieldsHP2 - Error: " + e.getMessage(), e);
-            // Jangan crash aplikasi, cukup log error-nya
         }
     }
 
@@ -183,6 +183,7 @@ public class InputData2Activity extends AppCompatActivity {
             Log.w("InputData2Activity", "hideIndividualBocoranComponents - Gagal menyembunyikan komponen bocoran: " + e.getMessage());
         }
     }
+
     @Override
     protected void onResume() {
         super.onResume();
@@ -315,9 +316,19 @@ public class InputData2Activity extends AppCompatActivity {
             if (m != null) simpanAtauOffline("thomson", m);
         });
 
+        // 🔥 PERBAIKAN: SR dengan validasi dan konfirmasi
         btnSubmitSR.setOnClickListener(v -> {
-            Map<String,String> m = buildSRData();
-            if (m != null) simpanAtauOffline("sr", m);
+            Map<String,String> srData = buildSRData();
+            if (srData != null) {
+                // Validasi apakah ada data yang diisi
+                if (!validateSRData(srData)) {
+                    showElegantToast("❌ Tidak ada data SR yang diisi", "warning");
+                    return;
+                }
+
+                // Tampilkan konfirmasi dengan daftar field
+                showSRConfirmationDialog(srData);
+            }
         });
 
         btnSubmitBocoran.setOnClickListener(v -> {
@@ -355,6 +366,28 @@ public class InputData2Activity extends AppCompatActivity {
         map.put("b5", safeText(inputB5));
 
         return map;
+    }
+
+    // 🔥 PERBAIKAN: Method validasi SR data
+    private boolean validateSRData(Map<String, String> dataMap) {
+        boolean hasData = false;
+
+        for (int kode : srKodeArray) {
+            String kodeKey = "sr_" + kode + "_kode";
+            String nilaiKey = "sr_" + kode + "_nilai";
+
+            String kodeValue = dataMap.get(kodeKey);
+            String nilaiValue = dataMap.get(nilaiKey);
+
+            // Cek apakah ada data yang diisi
+            if ((kodeValue != null && !kodeValue.isEmpty()) ||
+                    (nilaiValue != null && !nilaiValue.isEmpty())) {
+                hasData = true;
+                break;
+            }
+        }
+
+        return hasData;
     }
 
     private Map<String,String> buildSRData() {
@@ -404,12 +437,140 @@ public class InputData2Activity extends AppCompatActivity {
         return map;
     }
 
+    private void showSRConfirmationDialog(Map<String, String> srData) {
+        try {
+            // Analisis data yang diisi dan kosong
+            List<String> filledFields = new ArrayList<>();
+            List<String> emptyFields = new ArrayList<>();
+
+            for (int kode : srKodeArray) {
+                String kodeKey = "sr_" + kode + "_kode";
+                String nilaiKey = "sr_" + kode + "_nilai";
+
+                String kodeValue = srData.get(kodeKey);
+                String nilaiValue = srData.get(nilaiKey);
+
+                boolean isFilled = false;
+                StringBuilder fieldInfo = new StringBuilder();
+
+                // Cek apakah kode atau nilai diisi
+                if (kodeValue != null && !kodeValue.isEmpty()) {
+                    fieldInfo.append("Kode=").append(kodeValue);
+                    isFilled = true;
+                }
+                if (nilaiValue != null && !nilaiValue.isEmpty()) {
+                    if (fieldInfo.length() > 0) fieldInfo.append(", ");
+                    fieldInfo.append("Nilai=").append(nilaiValue);
+                    isFilled = true;
+                }
+
+                if (isFilled) {
+                    filledFields.add("• SR " + kode + ": " + fieldInfo.toString());
+                } else {
+                    emptyFields.add("• SR " + kode);
+                }
+            }
+
+            // Inflate custom dialog layout
+            LayoutInflater inflater = LayoutInflater.from(this);
+            View dialogView = inflater.inflate(R.layout.dialog_sr_confirmation, null);
+
+            // Initialize views
+            TextView filledFieldsText = dialogView.findViewById(R.id.filled_fields);
+            TextView emptyFieldsText = dialogView.findViewById(R.id.empty_fields);
+            TextView totalFilledText = dialogView.findViewById(R.id.total_filled);
+            TextView totalEmptyText = dialogView.findViewById(R.id.total_empty);
+            Button btnEdit = dialogView.findViewById(R.id.btn_edit);
+            Button btnSave = dialogView.findViewById(R.id.btn_save);
+
+            // Set data
+            if (!filledFields.isEmpty()) {
+                filledFieldsText.setText(TextUtils.join("\n", filledFields));
+            } else {
+                filledFieldsText.setText("Tidak ada data yang terisi");
+            }
+
+            if (!emptyFields.isEmpty()) {
+                // Tampilkan maksimal 8 field kosong
+                int maxShow = 8;
+                List<String> displayEmpty = new ArrayList<>();
+                for (int i = 0; i < Math.min(emptyFields.size(), maxShow); i++) {
+                    displayEmpty.add(emptyFields.get(i));
+                }
+                if (emptyFields.size() > maxShow) {
+                    displayEmpty.add("• ... dan " + (emptyFields.size() - maxShow) + " field lainnya");
+                }
+                emptyFieldsText.setText(TextUtils.join("\n", displayEmpty));
+            } else {
+                emptyFieldsText.setText("Semua field sudah terisi! 🎉");
+            }
+
+            totalFilledText.setText(String.valueOf(filledFields.size()));
+            totalEmptyText.setText(String.valueOf(emptyFields.size()));
+
+            // Create dialog
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setView(dialogView);
+            builder.setCancelable(false);
+
+            final AlertDialog dialog = builder.create();
+
+            // Setup button listeners
+            btnEdit.setOnClickListener(v -> {
+                // Animasi tombol
+                v.animate().scaleX(0.95f).scaleY(0.95f).setDuration(100)
+                        .withEndAction(() -> v.animate().scaleX(1f).scaleY(1f).setDuration(100).start())
+                        .start();
+
+                // Tutup dialog, biarkan user edit
+                dialog.dismiss();
+            });
+
+            btnSave.setOnClickListener(v -> {
+                // Animasi tombol
+                v.animate().scaleX(0.95f).scaleY(0.95f).setDuration(100)
+                        .withEndAction(() -> v.animate().scaleX(1f).scaleY(1f).setDuration(100).start())
+                        .start();
+
+                // Tambahkan animasi loading sementara
+                btnSave.setText("Menyimpan...");
+                btnSave.setEnabled(false);
+
+                // Delay sedikit untuk efek visual
+                new Handler().postDelayed(() -> {
+                    // Tambahkan flag konfirmasi dan simpan
+                    srData.put("confirm", "yes");
+                    simpanAtauOffline("sr", srData);
+                    dialog.dismiss();
+                }, 500);
+            });
+
+            // Tampilkan dialog
+            dialog.show();
+
+            // Animasi masuk
+            dialogView.setAlpha(0f);
+            dialogView.setScaleX(0.8f);
+            dialogView.setScaleY(0.8f);
+            dialogView.animate()
+                    .alpha(1f)
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .setDuration(300)
+                    .start();
+
+        } catch (Exception e) {
+            logError("showSRConfirmationDialog", "Error: " + e.getMessage());
+            // Fallback: simpan langsung tanpa konfirmasi
+            simpanAtauOffline("sr", srData);
+        }
+    }
+
     /* ---------- Save / Offline logic ---------- */
 
     private void simpanAtauOffline(String table, Map<String,String> dataMap) {
         // Ensure pengukuran_id present (except when user creates pengukuran via modal)
         if (!dataMap.containsKey("pengukuran_id") || dataMap.get("pengukuran_id") == null || dataMap.get("pengukuran_id").isEmpty()) {
-            // This should not happen for these flows, but guard anyway
             showElegantToast("Pengukuran ID tidak tersedia. Pilih pengukuran terlebih dahulu.", "error");
             return;
         }
@@ -475,6 +636,13 @@ public class InputData2Activity extends AppCompatActivity {
                         break;
                     case "sr":
                         dataSudahAda = data.optBoolean("sr_ada", false);
+
+                        // 🔥 HANDLE KONFIRMASI DARI SERVER
+                        if (!dataSudahAda && "confirm".equals(data.optString("status"))) {
+                            // Server meminta konfirmasi, tampilkan dialog
+                            runOnUiThread(() -> showServerSRConfirmation(data, dataMap));
+                            return; // Jangan lanjut ke kirim data
+                        }
                         break;
                     case "bocoran":
                         dataSudahAda = data.optBoolean("bocoran_ada", false);
@@ -503,6 +671,98 @@ public class InputData2Activity extends AppCompatActivity {
                 if (conn != null) conn.disconnect();
             }
         }).start();
+    }
+
+    // 🔥 METHOD BARU: Handle konfirmasi dari server
+    private void showServerSRConfirmation(JSONObject serverResponse, Map<String, String> dataMap) {
+        try {
+            JSONArray filledArray = serverResponse.optJSONArray("filled");
+            JSONArray emptyArray = serverResponse.optJSONArray("empty");
+            int totalFilled = serverResponse.optInt("total_filled", 0);
+            int totalEmpty = serverResponse.optInt("total_empty", 0);
+
+            // Inflate custom dialog layout
+            LayoutInflater inflater = LayoutInflater.from(this);
+            View dialogView = inflater.inflate(R.layout.dialog_sr_confirmation, null);
+
+            // Initialize views
+            TextView filledFieldsText = dialogView.findViewById(R.id.filled_fields);
+            TextView emptyFieldsText = dialogView.findViewById(R.id.empty_fields);
+            TextView totalFilledText = dialogView.findViewById(R.id.total_filled);
+            TextView totalEmptyText = dialogView.findViewById(R.id.total_empty);
+            Button btnEdit = dialogView.findViewById(R.id.btn_edit);
+            Button btnSave = dialogView.findViewById(R.id.btn_save);
+
+            // Update title untuk konfirmasi server
+            TextView title = dialogView.findViewById(R.id.dialog_title);
+            title.setText("Konfirmasi dari Server");
+
+            // Set data dari server response
+            List<String> filledList = new ArrayList<>();
+            if (filledArray != null) {
+                for (int i = 0; i < filledArray.length(); i++) {
+                    filledList.add("• " + filledArray.getString(i));
+                }
+            }
+
+            List<String> emptyList = new ArrayList<>();
+            if (emptyArray != null) {
+                for (int i = 0; i < Math.min(emptyArray.length(), 8); i++) {
+                    emptyList.add("• " + emptyArray.getString(i));
+                }
+                if (emptyArray.length() > 8) {
+                    emptyList.add("• ... dan " + (emptyArray.length() - 8) + " field lainnya");
+                }
+            }
+
+            filledFieldsText.setText(TextUtils.join("\n", filledList));
+            emptyFieldsText.setText(TextUtils.join("\n", emptyList));
+            totalFilledText.setText(String.valueOf(totalFilled));
+            totalEmptyText.setText(String.valueOf(totalEmpty));
+
+            // Create dialog
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setView(dialogView);
+            builder.setCancelable(false);
+
+            final AlertDialog dialog = builder.create();
+
+            // Setup button listeners
+            btnEdit.setOnClickListener(v -> {
+                v.animate().scaleX(0.95f).scaleY(0.95f).setDuration(100).start();
+                dialog.dismiss();
+            });
+
+            btnSave.setOnClickListener(v -> {
+                v.animate().scaleX(0.95f).scaleY(0.95f).setDuration(100).start();
+
+                btnSave.setText("Menyimpan...");
+                btnSave.setEnabled(false);
+
+                new Handler().postDelayed(() -> {
+                    dataMap.put("confirm", "yes");
+                    kirimDataKeServer("sr", dataMap, false);
+                    dialog.dismiss();
+                }, 500);
+            });
+
+            dialog.show();
+
+            // Animasi
+            dialogView.setAlpha(0f);
+            dialogView.setScaleX(0.8f);
+            dialogView.setScaleY(0.8f);
+            dialogView.animate()
+                    .alpha(1f)
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .setDuration(300)
+                    .start();
+
+        } catch (Exception e) {
+            logError("showServerSRConfirmation", "Error: " + e.getMessage());
+            kirimDataKeServer("sr", dataMap, false);
+        }
     }
 
     private void kirimDataKeServer(String table, Map<String,String> dataMap, boolean isPengukuran) {
@@ -588,8 +848,6 @@ public class InputData2Activity extends AppCompatActivity {
     /* ---------- Offline sync ---------- */
 
     private void syncAllOfflineData(@Nullable Runnable onComplete) {
-        // Serial sync order similar to server expectation:
-        // pengukuran -> tma updates, then thomson -> sr -> bocoran
         logInfo("syncAllOfflineData", "Starting offline sync sequence...");
         syncDataSerial("pengukuran", () ->
                 syncDataSerial("thomson", () ->
@@ -920,7 +1178,7 @@ public class InputData2Activity extends AppCompatActivity {
 
                         // 🔹 Tentukan notifikasi akhir
                         if ("success".equalsIgnoreCase(status)) {
-                            showCalculationResultDialog("✅ Perhitungan Berhasil",
+                            showCalculationResultDialog(" Perhitungan Berhasil",
                                     "Semua perhitungan berhasil untuk tanggal " + tanggal + lookBurtInfo,
                                     statusKeterangan, tanggal);
                         } else if ("partial_error".equalsIgnoreCase(status)) {
