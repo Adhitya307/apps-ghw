@@ -41,7 +41,7 @@ public class InputData2Activity extends AppCompatActivity {
     private static final String TAG = "InputData2Activity";
 
     // API endpoints
-    private static final String BASE_URL = "http://10.30.52.217/API_Android/public/rembesan/";
+    private static final String BASE_URL = "http://192.168.1.11/API_Android/public/rembesan/";
     private static final String SERVER_INPUT_URL = BASE_URL + "input";
     private static final String CEK_DATA_URL = BASE_URL + "cek-data";
     private static final String GET_PENGUKURAN_URL = BASE_URL + "get_pengukuran";
@@ -85,7 +85,7 @@ public class InputData2Activity extends AppCompatActivity {
         setupSpinners();
         setupClickHandlers();
 
-        // Sembunyikan field yang tidak diperlukan di HP 2
+        // Sembunyikan field yang tidak diperlukan di HP 2 (Gallery)
         hideUnnecessaryFieldsHP2();
 
         // initial load from server or offline master
@@ -98,89 +98,45 @@ public class InputData2Activity extends AppCompatActivity {
         }
     }
 
-    // METHOD BARU YANG DIPERBAIKI: Sembunyikan field yang tidak diperlukan di HP 2
+    // METHOD UNTUK HP 2 (GALLERY): Sembunyikan field yang tidak diperlukan
     private void hideUnnecessaryFieldsHP2() {
         try {
-            Log.i("InputData2Activity", "hideUnnecessaryFieldsHP2 - Memulai penyembunyian field untuk HP 2");
+            Log.i("InputData2Activity", "hideUnnecessaryFieldsHP2 - Memulai penyembunyian field untuk HP 2 (Gallery)");
 
-            // === PERBAIKAN 1: Gunakan ID layout yang sudah ada di XML ===
-            // Sembunyikan A1 R, A1 L, B1 di Thomson Weir (HP 2 hanya butuh B3 dan B5)
-            TextInputLayout a1rLayout = findViewById(R.id.a1r_layout);
-            TextInputLayout a1lLayout = findViewById(R.id.a1l_layout);
-            TextInputLayout b1Layout = findViewById(R.id.b1_layout);
+            // === SEMBUNYIKAN B3 dan B5 (hanya untuk Stilling Basin/HP 1) ===
+            TextInputLayout b3Layout = findViewById(R.id.b3_layout);
+            TextInputLayout b5Layout = findViewById(R.id.b5_layout);
 
-            if (a1rLayout != null) {
-                a1rLayout.setVisibility(View.GONE);
-                Log.i("InputData2Activity", "hideUnnecessaryFieldsHP2 - A1 R layout disembunyikan");
+            if (b3Layout != null) {
+                b3Layout.setVisibility(View.GONE);
+                Log.i("InputData2Activity", "hideUnnecessaryFieldsHP2 - B3 layout disembunyikan");
             } else {
-                Log.w("InputData2Activity", "hideUnnecessaryFieldsHP2 - A1 R layout tidak ditemukan");
+                Log.w("InputData2Activity", "hideUnnecessaryFieldsHP2 - B3 layout tidak ditemukan");
             }
 
-            if (a1lLayout != null) {
-                a1lLayout.setVisibility(View.GONE);
-                Log.i("InputData2Activity", "hideUnnecessaryFieldsHP2 - A1 L layout disembunyikan");
+            if (b5Layout != null) {
+                b5Layout.setVisibility(View.GONE);
+                Log.i("InputData2Activity", "hideUnnecessaryFieldsHP2 - B5 layout disembunyikan");
             } else {
-                Log.w("InputData2Activity", "hideUnnecessaryFieldsHP2 - A1 L layout tidak ditemukan");
+                Log.w("InputData2Activity", "hideUnnecessaryFieldsHP2 - B5 layout tidak ditemukan");
             }
 
-            if (b1Layout != null) {
-                b1Layout.setVisibility(View.GONE);
-                Log.i("InputData2Activity", "hideUnnecessaryFieldsHP2 - B1 layout disembunyikan");
-            } else {
-                Log.w("InputData2Activity", "hideUnnecessaryFieldsHP2 - B1 layout tidak ditemukan");
-            }
-
-            // === PERBAIKAN 2: Sembunyikan seluruh section Bocoran di HP 2 ===
-            CardView bocoranSection = findViewById(R.id.bocoran_section_card);
-            if (bocoranSection != null) {
-                bocoranSection.setVisibility(View.GONE);
-                Log.i("InputData2Activity", "hideUnnecessaryFieldsHP2 - Section bocoran disembunyikan");
-            } else {
-                Log.w("InputData2Activity", "hideUnnecessaryFieldsHP2 - Section bocoran tidak ditemukan");
-
-                // Fallback: sembunyikan komponen individual jika section tidak ditemukan
-                hideIndividualBocoranComponents();
-            }
-
-            // === PERBAIKAN 3: Update judul Thomson untuk HP 2 ===
+            // === UPDATE JUDUL DAN TOMBOL THOMSON UNTUK HP 2 (GALLERY) ===
             TextView thomsonTitle = findViewById(R.id.thomson_title);
             if (thomsonTitle != null) {
-                thomsonTitle.setText("Thomson Weir - STILLING BASIN (B3, B5)");
-                Log.i("InputData2Activity", "hideUnnecessaryFieldsHP2 - Judul Thomson diupdate");
+                thomsonTitle.setText("Thomson Weir - GALLERY (A1 R, A1 L, B1)");
+                Log.i("InputData2Activity", "hideUnnecessaryFieldsHP2 - Judul Thomson diupdate untuk Gallery");
             }
 
-            // === PERBAIKAN 4: Update tombol Thomson untuk HP 2 ===
             if (btnSubmitThomson != null) {
-                btnSubmitThomson.setText("Simpan Thomson - Stilling Basin");
-                Log.i("InputData2Activity", "hideUnnecessaryFieldsHP2 - Tombol Thomson diupdate");
+                btnSubmitThomson.setText("Simpan Thomson - Gallery");
+                Log.i("InputData2Activity", "hideUnnecessaryFieldsHP2 - Tombol Thomson diupdate untuk Gallery");
             }
 
-            Log.i("InputData2Activity", "hideUnnecessaryFieldsHP2 - Penyembunyian field untuk HP 2 selesai");
+            Log.i("InputData2Activity", "hideUnnecessaryFieldsHP2 - Penyembunyian field untuk HP 2 (Gallery) selesai");
 
         } catch (Exception e) {
             Log.e("InputData2Activity", "hideUnnecessaryFieldsHP2 - Error: " + e.getMessage(), e);
-        }
-    }
-
-    // Method fallback untuk menyembunyikan komponen bocoran individual
-    private void hideIndividualBocoranComponents() {
-        try {
-            int[] bocoranComponentIds = {
-                    R.id.inputElv624T1, R.id.inputElv624T1Kode,
-                    R.id.inputElv615T2, R.id.inputElv615T2Kode,
-                    R.id.inputPipaP1, R.id.inputPipaP1Kode,
-                    R.id.btnSubmitBocoran
-            };
-
-            for (int id : bocoranComponentIds) {
-                View view = findViewById(id);
-                if (view != null) {
-                    view.setVisibility(View.GONE);
-                }
-            }
-            Log.i("InputData2Activity", "hideIndividualBocoranComponents - Komponen bocoran individual disembunyikan");
-        } catch (Exception e) {
-            Log.w("InputData2Activity", "hideIndividualBocoranComponents - Gagal menyembunyikan komponen bocoran: " + e.getMessage());
         }
     }
 
@@ -316,20 +272,12 @@ public class InputData2Activity extends AppCompatActivity {
             if (m != null) simpanAtauOffline("thomson", m);
         });
 
-        // 🔥 PERBAIKAN: SR dengan validasi dan konfirmasi
-        btnSubmitSR.setOnClickListener(v -> {
-            Map<String,String> srData = buildSRData();
-            if (srData != null) {
-                // Validasi apakah ada data yang diisi
-                if (!validateSRData(srData)) {
-                    showElegantToast("❌ Tidak ada data SR yang diisi", "warning");
-                    return;
-                }
-
-                // Tampilkan konfirmasi dengan daftar field
-                showSRConfirmationDialog(srData);
-            }
-        });
+        // Tombol SR disembunyikan di HP 2, tapi tetap ada handler untuk safety
+        if (btnSubmitSR != null) {
+            btnSubmitSR.setOnClickListener(v -> {
+                showElegantToast("Fitur SR tidak tersedia di perangkat ini", "info");
+            });
+        }
 
         btnSubmitBocoran.setOnClickListener(v -> {
             Map<String,String> m = buildBocoranData();
@@ -346,7 +294,7 @@ public class InputData2Activity extends AppCompatActivity {
 
     /* ---------- Builders ---------- */
 
-    // METHOD BARU: Build Thomson data khusus untuk HP 2 (hanya B3 dan B5)
+    // METHOD UNTUK HP 2 (GALLERY): Build Thomson data khusus untuk Gallery (hanya A1 R, A1 L, B1)
     private Map<String,String> buildThomsonDataHP2() {
         if (pengukuranId == -1) {
             showElegantToast("Pilih pengukuran terlebih dahulu.", "warning");
@@ -356,41 +304,20 @@ public class InputData2Activity extends AppCompatActivity {
         map.put("mode", "thomson");
         map.put("pengukuran_id", String.valueOf(pengukuranId));
 
-        // A1 R, A1 L, B1 dikosongkan (karena diinput di HP 1)
-        map.put("a1_r", "");
-        map.put("a1_l", "");
-        map.put("b1", "");
+        // KIRIM A1 R, A1 L, B1 yang diinput di HP 2 (Gallery)
+        map.put("a1_r", safeText(inputA1R));
+        map.put("a1_l", safeText(inputA1L));
+        map.put("b1", safeText(inputB1));
 
-        // HANYA kirim B3 dan B5 yang diinput di HP 2
-        map.put("b3", safeText(inputB3));
-        map.put("b5", safeText(inputB5));
+        // B3 dan B5 dikosongkan (karena diinput di HP 1 - Stilling Basin)
+        map.put("b3", "");
+        map.put("b5", "");
 
         return map;
     }
 
-    // 🔥 PERBAIKAN: Method validasi SR data
-    private boolean validateSRData(Map<String, String> dataMap) {
-        boolean hasData = false;
-
-        for (int kode : srKodeArray) {
-            String kodeKey = "sr_" + kode + "_kode";
-            String nilaiKey = "sr_" + kode + "_nilai";
-
-            String kodeValue = dataMap.get(kodeKey);
-            String nilaiValue = dataMap.get(nilaiKey);
-
-            // Cek apakah ada data yang diisi
-            if ((kodeValue != null && !kodeValue.isEmpty()) ||
-                    (nilaiValue != null && !nilaiValue.isEmpty())) {
-                hasData = true;
-                break;
-            }
-        }
-
-        return hasData;
-    }
-
     private Map<String,String> buildSRData() {
+        // Method ini tetap ada tapi tidak digunakan di HP 2
         if (pengukuranId == -1) {
             showElegantToast("Pilih pengukuran terlebih dahulu.", "warning");
             return null;
@@ -435,135 +362,6 @@ public class InputData2Activity extends AppCompatActivity {
         map.put("pengukuran_id", String.valueOf(pengukuranId));
         map.put("tma_waduk", tma);
         return map;
-    }
-
-    private void showSRConfirmationDialog(Map<String, String> srData) {
-        try {
-            // Analisis data yang diisi dan kosong
-            List<String> filledFields = new ArrayList<>();
-            List<String> emptyFields = new ArrayList<>();
-
-            for (int kode : srKodeArray) {
-                String kodeKey = "sr_" + kode + "_kode";
-                String nilaiKey = "sr_" + kode + "_nilai";
-
-                String kodeValue = srData.get(kodeKey);
-                String nilaiValue = srData.get(nilaiKey);
-
-                boolean isFilled = false;
-                StringBuilder fieldInfo = new StringBuilder();
-
-                // Cek apakah kode atau nilai diisi
-                if (kodeValue != null && !kodeValue.isEmpty()) {
-                    fieldInfo.append("Kode=").append(kodeValue);
-                    isFilled = true;
-                }
-                if (nilaiValue != null && !nilaiValue.isEmpty()) {
-                    if (fieldInfo.length() > 0) fieldInfo.append(", ");
-                    fieldInfo.append("Nilai=").append(nilaiValue);
-                    isFilled = true;
-                }
-
-                if (isFilled) {
-                    filledFields.add("• SR " + kode + ": " + fieldInfo.toString());
-                } else {
-                    emptyFields.add("• SR " + kode);
-                }
-            }
-
-            // Inflate custom dialog layout
-            LayoutInflater inflater = LayoutInflater.from(this);
-            View dialogView = inflater.inflate(R.layout.dialog_sr_confirmation, null);
-
-            // Initialize views
-            TextView filledFieldsText = dialogView.findViewById(R.id.filled_fields);
-            TextView emptyFieldsText = dialogView.findViewById(R.id.empty_fields);
-            TextView totalFilledText = dialogView.findViewById(R.id.total_filled);
-            TextView totalEmptyText = dialogView.findViewById(R.id.total_empty);
-            Button btnEdit = dialogView.findViewById(R.id.btn_edit);
-            Button btnSave = dialogView.findViewById(R.id.btn_save);
-
-            // Set data
-            if (!filledFields.isEmpty()) {
-                filledFieldsText.setText(TextUtils.join("\n", filledFields));
-            } else {
-                filledFieldsText.setText("Tidak ada data yang terisi");
-            }
-
-            if (!emptyFields.isEmpty()) {
-                // Tampilkan maksimal 8 field kosong
-                int maxShow = 8;
-                List<String> displayEmpty = new ArrayList<>();
-                for (int i = 0; i < Math.min(emptyFields.size(), maxShow); i++) {
-                    displayEmpty.add(emptyFields.get(i));
-                }
-                if (emptyFields.size() > maxShow) {
-                    displayEmpty.add("• ... dan " + (emptyFields.size() - maxShow) + " field lainnya");
-                }
-                emptyFieldsText.setText(TextUtils.join("\n", displayEmpty));
-            } else {
-                emptyFieldsText.setText("Semua field sudah terisi! 🎉");
-            }
-
-            totalFilledText.setText(String.valueOf(filledFields.size()));
-            totalEmptyText.setText(String.valueOf(emptyFields.size()));
-
-            // Create dialog
-            AlertDialog.Builder builder = new AlertDialog.Builder(this);
-            builder.setView(dialogView);
-            builder.setCancelable(false);
-
-            final AlertDialog dialog = builder.create();
-
-            // Setup button listeners
-            btnEdit.setOnClickListener(v -> {
-                // Animasi tombol
-                v.animate().scaleX(0.95f).scaleY(0.95f).setDuration(100)
-                        .withEndAction(() -> v.animate().scaleX(1f).scaleY(1f).setDuration(100).start())
-                        .start();
-
-                // Tutup dialog, biarkan user edit
-                dialog.dismiss();
-            });
-
-            btnSave.setOnClickListener(v -> {
-                // Animasi tombol
-                v.animate().scaleX(0.95f).scaleY(0.95f).setDuration(100)
-                        .withEndAction(() -> v.animate().scaleX(1f).scaleY(1f).setDuration(100).start())
-                        .start();
-
-                // Tambahkan animasi loading sementara
-                btnSave.setText("Menyimpan...");
-                btnSave.setEnabled(false);
-
-                // Delay sedikit untuk efek visual
-                new Handler().postDelayed(() -> {
-                    // Tambahkan flag konfirmasi dan simpan
-                    srData.put("confirm", "yes");
-                    simpanAtauOffline("sr", srData);
-                    dialog.dismiss();
-                }, 500);
-            });
-
-            // Tampilkan dialog
-            dialog.show();
-
-            // Animasi masuk
-            dialogView.setAlpha(0f);
-            dialogView.setScaleX(0.8f);
-            dialogView.setScaleY(0.8f);
-            dialogView.animate()
-                    .alpha(1f)
-                    .scaleX(1f)
-                    .scaleY(1f)
-                    .setDuration(300)
-                    .start();
-
-        } catch (Exception e) {
-            logError("showSRConfirmationDialog", "Error: " + e.getMessage());
-            // Fallback: simpan langsung tanpa konfirmasi
-            simpanAtauOffline("sr", srData);
-        }
     }
 
     /* ---------- Save / Offline logic ---------- */
@@ -636,13 +434,6 @@ public class InputData2Activity extends AppCompatActivity {
                         break;
                     case "sr":
                         dataSudahAda = data.optBoolean("sr_ada", false);
-
-                        // 🔥 HANDLE KONFIRMASI DARI SERVER
-                        if (!dataSudahAda && "confirm".equals(data.optString("status"))) {
-                            // Server meminta konfirmasi, tampilkan dialog
-                            runOnUiThread(() -> showServerSRConfirmation(data, dataMap));
-                            return; // Jangan lanjut ke kirim data
-                        }
                         break;
                     case "bocoran":
                         dataSudahAda = data.optBoolean("bocoran_ada", false);
@@ -671,98 +462,6 @@ public class InputData2Activity extends AppCompatActivity {
                 if (conn != null) conn.disconnect();
             }
         }).start();
-    }
-
-    // 🔥 METHOD BARU: Handle konfirmasi dari server
-    private void showServerSRConfirmation(JSONObject serverResponse, Map<String, String> dataMap) {
-        try {
-            JSONArray filledArray = serverResponse.optJSONArray("filled");
-            JSONArray emptyArray = serverResponse.optJSONArray("empty");
-            int totalFilled = serverResponse.optInt("total_filled", 0);
-            int totalEmpty = serverResponse.optInt("total_empty", 0);
-
-            // Inflate custom dialog layout
-            LayoutInflater inflater = LayoutInflater.from(this);
-            View dialogView = inflater.inflate(R.layout.dialog_sr_confirmation, null);
-
-            // Initialize views
-            TextView filledFieldsText = dialogView.findViewById(R.id.filled_fields);
-            TextView emptyFieldsText = dialogView.findViewById(R.id.empty_fields);
-            TextView totalFilledText = dialogView.findViewById(R.id.total_filled);
-            TextView totalEmptyText = dialogView.findViewById(R.id.total_empty);
-            Button btnEdit = dialogView.findViewById(R.id.btn_edit);
-            Button btnSave = dialogView.findViewById(R.id.btn_save);
-
-            // Update title untuk konfirmasi server
-            TextView title = dialogView.findViewById(R.id.dialog_title);
-            title.setText("Konfirmasi dari Server");
-
-            // Set data dari server response
-            List<String> filledList = new ArrayList<>();
-            if (filledArray != null) {
-                for (int i = 0; i < filledArray.length(); i++) {
-                    filledList.add("• " + filledArray.getString(i));
-                }
-            }
-
-            List<String> emptyList = new ArrayList<>();
-            if (emptyArray != null) {
-                for (int i = 0; i < Math.min(emptyArray.length(), 8); i++) {
-                    emptyList.add("• " + emptyArray.getString(i));
-                }
-                if (emptyArray.length() > 8) {
-                    emptyList.add("• ... dan " + (emptyArray.length() - 8) + " field lainnya");
-                }
-            }
-
-            filledFieldsText.setText(TextUtils.join("\n", filledList));
-            emptyFieldsText.setText(TextUtils.join("\n", emptyList));
-            totalFilledText.setText(String.valueOf(totalFilled));
-            totalEmptyText.setText(String.valueOf(totalEmpty));
-
-            // Create dialog
-            AlertDialog.Builder builder = new AlertDialog.Builder(this);
-            builder.setView(dialogView);
-            builder.setCancelable(false);
-
-            final AlertDialog dialog = builder.create();
-
-            // Setup button listeners
-            btnEdit.setOnClickListener(v -> {
-                v.animate().scaleX(0.95f).scaleY(0.95f).setDuration(100).start();
-                dialog.dismiss();
-            });
-
-            btnSave.setOnClickListener(v -> {
-                v.animate().scaleX(0.95f).scaleY(0.95f).setDuration(100).start();
-
-                btnSave.setText("Menyimpan...");
-                btnSave.setEnabled(false);
-
-                new Handler().postDelayed(() -> {
-                    dataMap.put("confirm", "yes");
-                    kirimDataKeServer("sr", dataMap, false);
-                    dialog.dismiss();
-                }, 500);
-            });
-
-            dialog.show();
-
-            // Animasi
-            dialogView.setAlpha(0f);
-            dialogView.setScaleX(0.8f);
-            dialogView.setScaleY(0.8f);
-            dialogView.animate()
-                    .alpha(1f)
-                    .scaleX(1f)
-                    .scaleY(1f)
-                    .setDuration(300)
-                    .start();
-
-        } catch (Exception e) {
-            logError("showServerSRConfirmation", "Error: " + e.getMessage());
-            kirimDataKeServer("sr", dataMap, false);
-        }
     }
 
     private void kirimDataKeServer(String table, Map<String,String> dataMap, boolean isPengukuran) {
@@ -820,7 +519,21 @@ public class InputData2Activity extends AppCompatActivity {
                         }
                     }
 
-                    runOnUiThread(() -> showElegantToast("✅ Data berhasil dikirim ke server", "success"));
+                    // ⬇️⬇️⬇️ PERBAIKAN: Toast yang lebih spesifik ⬇️⬇️⬇️
+                    final String successMessage;
+                    if ("thomson".equals(table)) {
+                        successMessage = "✅ Data Thomson Weir berhasil disimpan";
+                    } else if ("bocoran".equals(table)) {
+                        successMessage = "✅ Data Bocoran berhasil disimpan";
+                    } else if ("pengukuran".equals(table)) {
+                        successMessage = "✅ Data TMA Waduk berhasil disimpan";
+                    } else {
+                        successMessage = "✅ Data berhasil disimpan";
+                    }
+
+                    runOnUiThread(() -> showElegantToast(successMessage, "success"));
+                    // ⬆️⬆️⬆️ AKHIR PERBAIKAN ⬆️⬆️⬆️
+
                 } else if ("idle".equalsIgnoreCase(status)) {
                     // server returns idle when no data in request (not fatal)
                     logInfo("kirimDataKeServer", "Server returned IDLE: " + message);
@@ -832,9 +545,28 @@ public class InputData2Activity extends AppCompatActivity {
 
             } catch (Exception e) {
                 logError("kirimDataKeServer", "Exception while sending: " + e.getMessage());
-                // On network error -> save offline
+                // On network error -> save offline dengan pesan spesifik
                 try {
-                    saveOffline(table, dataMap);
+                    // ⬇️⬇️⬇️ PERBAIKAN: Pesan offline yang lebih spesifik ⬇️⬇️⬇️
+                    final String offlineMessage;
+                    if ("thomson".equals(table)) {
+                        offlineMessage = "📱 Data Thomson Weir (Gallery) disimpan offline";
+                    } else if ("bocoran".equals(table)) {
+                        offlineMessage = "📱 Data Bocoran disimpan offline";
+                    } else if ("pengukuran".equals(table)) {
+                        offlineMessage = "📱 Data TMA Waduk disimpan offline";
+                    } else {
+                        offlineMessage = "📱 Data disimpan offline";
+                    }
+
+                    // Simpan offline dengan pesan khusus
+                    JSONObject json = new JSONObject(dataMap);
+                    String tempId = "local_" + System.currentTimeMillis();
+                    offlineDb.insertData(table, tempId, json.toString());
+                    logInfo("kirimDataKeServer", "Disimpan offline ke tabel " + table + " tempId=" + tempId);
+                    runOnUiThread(() -> showElegantToast(offlineMessage, "warning"));
+                    // ⬆️⬆️⬆️ AKHIR PERBAIKAN ⬆️⬆️⬆️
+
                 } catch (Exception ex) {
                     logError("kirimDataKeServer", "Also failed to save offline: " + ex.getMessage());
                     runOnUiThread(() -> showElegantToast("❌ Gagal kirim & gagal simpan offline: " + ex.getMessage(), "error"));
@@ -1232,28 +964,28 @@ public class InputData2Activity extends AppCompatActivity {
         tanggalText.setText("📅 Tanggal: " + tanggal);
         iconView.setImageResource(iconRes);
 
-        // 🔥 PERBAIKAN UI: Gradient background untuk header
+        // Gradient background untuk header
         headerLayout.setBackgroundColor(ContextCompat.getColor(this, colorRes));
 
-        // 🔥 PERBAIKAN UI: Tambahkan elevation/shadow
+        // Tambahkan elevation/shadow
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
             headerLayout.setElevation(8f);
             okButton.setElevation(4f);
         }
 
-        // 🔥 PERBAIKAN UI: Animasi icon
+        // Animasi icon
         iconView.setAlpha(0f);
         iconView.animate().alpha(1f).setDuration(500).start();
 
-        // 🔥 PERBAIKAN UI: Style button dengan ripple effect
+        // Style button dengan ripple effect
         okButton.setBackgroundColor(ContextCompat.getColor(this, colorRes));
         okButton.setTextColor(Color.WHITE);
 
-        // 🔥 PERBAIKAN UI: Format message dengan styling
+        // Format message dengan styling
         String formattedMessage = formatMessageWithIcons(message);
         messageText.setText(formattedMessage);
 
-        // 🔥 PERBAIKAN UI: Animasi dialog masuk
+        // Animasi dialog masuk
         dialogView.setAlpha(0f);
         dialogView.setScaleX(0.8f);
         dialogView.setScaleY(0.8f);
@@ -1273,12 +1005,12 @@ public class InputData2Activity extends AppCompatActivity {
                 .start();
 
         okButton.setOnClickListener(v -> {
-            // 🔥 PERBAIKAN UI: Animasi tombol ketika ditekan
+            // Animasi tombol ketika ditekan
             v.animate().scaleX(0.95f).scaleY(0.95f).setDuration(100).withEndAction(() -> {
                 v.animate().scaleX(1f).scaleY(1f).setDuration(100).start();
             }).start();
 
-            // 🔥 PERBAIKAN UI: Animasi dialog keluar
+            // Animasi dialog keluar
             dialogView.animate()
                     .alpha(0f)
                     .scaleX(0.8f)
@@ -1289,7 +1021,7 @@ public class InputData2Activity extends AppCompatActivity {
         });
     }
 
-    // 🔥 METHOD BARU: Format pesan dengan icon dan styling
+    // METHOD: Format pesan dengan icon dan styling
     private String formatMessageWithIcons(String message) {
         // Ganti keyword dengan icon
         String formatted = message
@@ -1317,7 +1049,7 @@ public class InputData2Activity extends AppCompatActivity {
             ImageView icon = layout.findViewById(R.id.custom_toast_icon);
             CardView card = layout.findViewById(R.id.custom_toast_card);
 
-            // 🔥 PERBAIKAN: Format pesan toast
+            // Format pesan toast
             String formattedMessage = formatMessageWithIcons(message);
             text.setText(formattedMessage);
 
@@ -1328,7 +1060,7 @@ public class InputData2Activity extends AppCompatActivity {
             card.setCardBackgroundColor(ContextCompat.getColor(this, colorRes));
             icon.setImageResource(iconRes);
 
-            // 🔥 PERBAIKAN: Animasi toast
+            // Animasi toast
             card.setAlpha(0f);
             card.setScaleX(0.8f);
             card.setScaleY(0.8f);

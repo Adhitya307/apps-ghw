@@ -138,7 +138,7 @@
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 
-    <!-- ScrollView untuk konten utama (akan dimatikan saat modal muncul) -->
+    <!-- ScrollView untuk konten utama -->
     <ScrollView
         android:id="@+id/mainContent"
         android:layout_width="match_parent"
@@ -168,9 +168,9 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="PT.PLN INDONESIA POWER UNIT BISNIS PEMBANGKITAN (UBP) SAGULING"
+                    android:text="PT.PLN INDONESIA POWER UNIT BISNIS PEMBANGKITAN (UBP) SAGULING - HP 1"
                     android:textColor="#0054A6"
-                    android:textSize="20sp"
+                    android:textSize="18sp"
                     android:textStyle="bold"/>
             </LinearLayout>
 
@@ -273,7 +273,7 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- SECTION: t_thomson_weir - GALLERY -->
+            <!-- SECTION: Thomson Weir - STILLING BASIN (HP 1) -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -291,63 +291,18 @@
                         android:id="@+id/thomson_title"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Thomson Weir - GALLERY (A1 R, A1 L, B1)"
+                        android:text="Thomson Weir - STILLING BASIN (B3, B5)"
                         android:textColor="#0054A6"
                         android:textStyle="bold"
                         android:textSize="16sp"
                         android:layout_marginBottom="12dp" />
 
-                    <!-- HANYA TAMPILKAN FIELD INI UNTUK HP 1 -->
+                    <!-- HANYA B3 dan B5 UNTUK HP 1 -->
                     <com.google.android.material.textfield.TextInputLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="8dp"
                         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/inputA1R"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:hint="A1 R (Gallery)"
-                            android:inputType="numberDecimal"/>
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="8dp"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/inputA1L"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:hint="A1 L (Gallery)"
-                            android:inputType="numberDecimal"/>
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="8dp"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/inputB1"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:hint="B1 (Gallery)"
-                            android:inputType="numberDecimal"/>
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <!-- B3 dan B5 DISEMBUNYIKAN UNTUK HP 1 -->
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/b3_layout"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="8dp"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                        android:visibility="gone">
 
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/inputB3"
@@ -358,12 +313,10 @@
                     </com.google.android.material.textfield.TextInputLayout>
 
                     <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/b5_layout"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="8dp"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                        android:visibility="gone">
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
 
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/inputB5"
@@ -375,7 +328,7 @@
 
                     <Button
                         android:id="@+id/btnSubmitThomson"
-                        android:text="Simpan Thomson - Gallery"
+                        android:text="Simpan Thomson - Stilling Basin"
                         android:layout_width="match_parent"
                         android:layout_height="48dp"
                         android:layout_marginTop="12dp"
@@ -386,15 +339,13 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- SECTION: t_sr - DISEMBUNYIKAN UNTUK HP 1 -->
+            <!-- SECTION: SR Data -->
             <androidx.cardview.widget.CardView
-                android:id="@+id/sr_section_card"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
                 app:cardCornerRadius="8dp"
-                app:cardElevation="4dp"
-                android:visibility="gone">
+                app:cardElevation="4dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -410,15 +361,8 @@
                         android:textStyle="bold"
                         android:textSize="16sp"
                         android:layout_marginBottom="12dp" />
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="UKURAN"
-                        android:textColor="#0054A6"
-                        android:textStyle="bold"
-                        android:textSize="14sp"
-                        android:layout_marginBottom="8dp" />
 
+                    <!-- SR Input Fields -->
                     <!-- SR 1 -->
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -426,11 +370,11 @@
                         android:orientation="horizontal"
                         android:layout_marginBottom="8dp">
 
-                        <com.google.android.material.textfield.TextInputLayout
+                        <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                            android:orientation="vertical">
 
                             <TextView
                                 android:layout_width="match_parent"
@@ -443,10 +387,9 @@
                                 android:id="@+id/sr_1_kode"
                                 android:layout_width="match_parent"
                                 android:layout_height="48dp"
-                                android:entries="@array/kode_options"
                                 android:background="@drawable/spinner_background"
                                 android:popupBackground="@drawable/spinner_dropdown_background"/>
-                        </com.google.android.material.textfield.TextInputLayout>
+                        </LinearLayout>
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:layout_width="0dp"
@@ -471,11 +414,11 @@
                         android:orientation="horizontal"
                         android:layout_marginBottom="8dp">
 
-                        <com.google.android.material.textfield.TextInputLayout
+                        <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                            android:orientation="vertical">
 
                             <TextView
                                 android:layout_width="match_parent"
@@ -487,11 +430,10 @@
                             <Spinner
                                 android:id="@+id/sr_40_kode"
                                 android:layout_width="match_parent"
-                                android:entries="@array/kode_options"
                                 android:layout_height="48dp"
                                 android:background="@drawable/spinner_background"
                                 android:popupBackground="@drawable/spinner_dropdown_background"/>
-                        </com.google.android.material.textfield.TextInputLayout>
+                        </LinearLayout>
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:layout_width="0dp"
@@ -516,11 +458,11 @@
                         android:orientation="horizontal"
                         android:layout_marginBottom="8dp">
 
-                        <com.google.android.material.textfield.TextInputLayout
+                        <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                            android:orientation="vertical">
 
                             <TextView
                                 android:layout_width="match_parent"
@@ -532,11 +474,10 @@
                             <Spinner
                                 android:id="@+id/sr_66_kode"
                                 android:layout_width="match_parent"
-                                android:entries="@array/kode_options"
                                 android:layout_height="48dp"
                                 android:background="@drawable/spinner_background"
                                 android:popupBackground="@drawable/spinner_dropdown_background"/>
-                        </com.google.android.material.textfield.TextInputLayout>
+                        </LinearLayout>
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:layout_width="0dp"
@@ -561,11 +502,11 @@
                         android:orientation="horizontal"
                         android:layout_marginBottom="8dp">
 
-                        <com.google.android.material.textfield.TextInputLayout
+                        <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                            android:orientation="vertical">
 
                             <TextView
                                 android:layout_width="match_parent"
@@ -577,11 +518,10 @@
                             <Spinner
                                 android:id="@+id/sr_68_kode"
                                 android:layout_width="match_parent"
-                                android:entries="@array/kode_options"
                                 android:layout_height="48dp"
                                 android:background="@drawable/spinner_background"
                                 android:popupBackground="@drawable/spinner_dropdown_background"/>
-                        </com.google.android.material.textfield.TextInputLayout>
+                        </LinearLayout>
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:layout_width="0dp"
@@ -606,11 +546,12 @@
                         android:orientation="horizontal"
                         android:layout_marginBottom="8dp">
 
-                        <com.google.android.material.textfield.TextInputLayout
+                        <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                            android:orientation="vertical">
+
                             <TextView
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
@@ -621,11 +562,10 @@
                             <Spinner
                                 android:id="@+id/sr_70_kode"
                                 android:layout_width="match_parent"
-                                android:entries="@array/kode_options"
                                 android:layout_height="48dp"
                                 android:background="@drawable/spinner_background"
                                 android:popupBackground="@drawable/spinner_dropdown_background"/>
-                        </com.google.android.material.textfield.TextInputLayout>
+                        </LinearLayout>
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:layout_width="0dp"
@@ -650,11 +590,12 @@
                         android:orientation="horizontal"
                         android:layout_marginBottom="8dp">
 
-                        <com.google.android.material.textfield.TextInputLayout
+                        <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                            android:orientation="vertical">
+
                             <TextView
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
@@ -665,11 +606,10 @@
                             <Spinner
                                 android:id="@+id/sr_79_kode"
                                 android:layout_width="match_parent"
-                                android:entries="@array/kode_options"
                                 android:layout_height="48dp"
                                 android:background="@drawable/spinner_background"
                                 android:popupBackground="@drawable/spinner_dropdown_background"/>
-                        </com.google.android.material.textfield.TextInputLayout>
+                        </LinearLayout>
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:layout_width="0dp"
@@ -694,11 +634,12 @@
                         android:orientation="horizontal"
                         android:layout_marginBottom="8dp">
 
-                        <com.google.android.material.textfield.TextInputLayout
+                        <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                            android:orientation="vertical">
+
                             <TextView
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
@@ -709,11 +650,10 @@
                             <Spinner
                                 android:id="@+id/sr_81_kode"
                                 android:layout_width="match_parent"
-                                android:entries="@array/kode_options"
                                 android:layout_height="48dp"
                                 android:background="@drawable/spinner_background"
                                 android:popupBackground="@drawable/spinner_dropdown_background"/>
-                        </com.google.android.material.textfield.TextInputLayout>
+                        </LinearLayout>
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:layout_width="0dp"
@@ -738,11 +678,12 @@
                         android:orientation="horizontal"
                         android:layout_marginBottom="8dp">
 
-                        <com.google.android.material.textfield.TextInputLayout
+                        <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                            android:orientation="vertical">
+
                             <TextView
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
@@ -753,11 +694,10 @@
                             <Spinner
                                 android:id="@+id/sr_83_kode"
                                 android:layout_width="match_parent"
-                                android:entries="@array/kode_options"
                                 android:layout_height="48dp"
                                 android:background="@drawable/spinner_background"
                                 android:popupBackground="@drawable/spinner_dropdown_background"/>
-                        </com.google.android.material.textfield.TextInputLayout>
+                        </LinearLayout>
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:layout_width="0dp"
@@ -782,11 +722,12 @@
                         android:orientation="horizontal"
                         android:layout_marginBottom="8dp">
 
-                        <com.google.android.material.textfield.TextInputLayout
+                        <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                            android:orientation="vertical">
+
                             <TextView
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
@@ -797,11 +738,10 @@
                             <Spinner
                                 android:id="@+id/sr_85_kode"
                                 android:layout_width="match_parent"
-                                android:entries="@array/kode_options"
                                 android:layout_height="48dp"
                                 android:background="@drawable/spinner_background"
                                 android:popupBackground="@drawable/spinner_dropdown_background"/>
-                        </com.google.android.material.textfield.TextInputLayout>
+                        </LinearLayout>
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:layout_width="0dp"
@@ -826,11 +766,12 @@
                         android:orientation="horizontal"
                         android:layout_marginBottom="8dp">
 
-                        <com.google.android.material.textfield.TextInputLayout
+                        <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                            android:orientation="vertical">
+
                             <TextView
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
@@ -841,11 +782,10 @@
                             <Spinner
                                 android:id="@+id/sr_92_kode"
                                 android:layout_width="match_parent"
-                                android:entries="@array/kode_options"
                                 android:layout_height="48dp"
                                 android:background="@drawable/spinner_background"
                                 android:popupBackground="@drawable/spinner_dropdown_background"/>
-                        </com.google.android.material.textfield.TextInputLayout>
+                        </LinearLayout>
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:layout_width="0dp"
@@ -870,11 +810,12 @@
                         android:orientation="horizontal"
                         android:layout_marginBottom="8dp">
 
-                        <com.google.android.material.textfield.TextInputLayout
+                        <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                            android:orientation="vertical">
+
                             <TextView
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
@@ -885,11 +826,10 @@
                             <Spinner
                                 android:id="@+id/sr_94_kode"
                                 android:layout_width="match_parent"
-                                android:entries="@array/kode_options"
                                 android:layout_height="48dp"
                                 android:background="@drawable/spinner_background"
                                 android:popupBackground="@drawable/spinner_dropdown_background"/>
-                        </com.google.android.material.textfield.TextInputLayout>
+                        </LinearLayout>
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:layout_width="0dp"
@@ -914,11 +854,12 @@
                         android:orientation="horizontal"
                         android:layout_marginBottom="8dp">
 
-                        <com.google.android.material.textfield.TextInputLayout
+                        <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                            android:orientation="vertical">
+
                             <TextView
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
@@ -929,11 +870,10 @@
                             <Spinner
                                 android:id="@+id/sr_96_kode"
                                 android:layout_width="match_parent"
-                                android:entries="@array/kode_options"
                                 android:layout_height="48dp"
                                 android:background="@drawable/spinner_background"
                                 android:popupBackground="@drawable/spinner_dropdown_background"/>
-                        </com.google.android.material.textfield.TextInputLayout>
+                        </LinearLayout>
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:layout_width="0dp"
@@ -958,11 +898,12 @@
                         android:orientation="horizontal"
                         android:layout_marginBottom="8dp">
 
-                        <com.google.android.material.textfield.TextInputLayout
+                        <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                            android:orientation="vertical">
+
                             <TextView
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
@@ -973,11 +914,10 @@
                             <Spinner
                                 android:id="@+id/sr_98_kode"
                                 android:layout_width="match_parent"
-                                android:entries="@array/kode_options"
                                 android:layout_height="48dp"
                                 android:background="@drawable/spinner_background"
                                 android:popupBackground="@drawable/spinner_dropdown_background"/>
-                        </com.google.android.material.textfield.TextInputLayout>
+                        </LinearLayout>
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:layout_width="0dp"
@@ -1002,11 +942,12 @@
                         android:orientation="horizontal"
                         android:layout_marginBottom="8dp">
 
-                        <com.google.android.material.textfield.TextInputLayout
+                        <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                            android:orientation="vertical">
+
                             <TextView
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
@@ -1017,11 +958,10 @@
                             <Spinner
                                 android:id="@+id/sr_100_kode"
                                 android:layout_width="match_parent"
-                                android:entries="@array/kode_options"
                                 android:layout_height="48dp"
                                 android:background="@drawable/spinner_background"
                                 android:popupBackground="@drawable/spinner_dropdown_background"/>
-                        </com.google.android.material.textfield.TextInputLayout>
+                        </LinearLayout>
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:layout_width="0dp"
@@ -1046,11 +986,12 @@
                         android:orientation="horizontal"
                         android:layout_marginBottom="8dp">
 
-                        <com.google.android.material.textfield.TextInputLayout
+                        <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                            android:orientation="vertical">
+
                             <TextView
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
@@ -1061,11 +1002,10 @@
                             <Spinner
                                 android:id="@+id/sr_102_kode"
                                 android:layout_width="match_parent"
-                                android:entries="@array/kode_options"
                                 android:layout_height="48dp"
                                 android:background="@drawable/spinner_background"
                                 android:popupBackground="@drawable/spinner_dropdown_background"/>
-                        </com.google.android.material.textfield.TextInputLayout>
+                        </LinearLayout>
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:layout_width="0dp"
@@ -1090,11 +1030,12 @@
                         android:orientation="horizontal"
                         android:layout_marginBottom="8dp">
 
-                        <com.google.android.material.textfield.TextInputLayout
+                        <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                            android:orientation="vertical">
+
                             <TextView
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
@@ -1105,11 +1046,10 @@
                             <Spinner
                                 android:id="@+id/sr_104_kode"
                                 android:layout_width="match_parent"
-                                android:entries="@array/kode_options"
                                 android:layout_height="48dp"
                                 android:background="@drawable/spinner_background"
                                 android:popupBackground="@drawable/spinner_dropdown_background"/>
-                        </com.google.android.material.textfield.TextInputLayout>
+                        </LinearLayout>
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:layout_width="0dp"
@@ -1134,11 +1074,12 @@
                         android:orientation="horizontal"
                         android:layout_marginBottom="16dp">
 
-                        <com.google.android.material.textfield.TextInputLayout
+                        <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                            android:orientation="vertical">
+
                             <TextView
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
@@ -1149,11 +1090,10 @@
                             <Spinner
                                 android:id="@+id/sr_106_kode"
                                 android:layout_width="match_parent"
-                                android:entries="@array/kode_options"
                                 android:layout_height="48dp"
                                 android:background="@drawable/spinner_background"
                                 android:popupBackground="@drawable/spinner_dropdown_background"/>
-                        </com.google.android.material.textfield.TextInputLayout>
+                        </LinearLayout>
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:layout_width="0dp"
@@ -1177,173 +1117,6 @@
                         android:layout_width="match_parent"
                         android:layout_height="48dp"
                         android:layout_marginTop="12dp"
-                        android:backgroundTint="#0054A6"
-                        android:textColor="#FFFFFF"
-                        android:textAllCaps="false"
-                        style="@style/Widget.MaterialComponents.Button"/>
-                </LinearLayout>
-            </androidx.cardview.widget.CardView>
-
-            <!-- SECTION: t_bocoran_baru -->
-            <androidx.cardview.widget.CardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                app:cardCornerRadius="8dp"
-                app:cardElevation="4dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="16dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Bocoran Baru"
-                        android:textColor="#0054A6"
-                        android:textStyle="bold"
-                        android:textSize="16sp"
-                        android:layout_marginBottom="12dp" />
-
-                    <!-- ELV 624 T1 -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:layout_marginBottom="8dp">
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
-                            <TextView
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:text="Kode ELV 624 T1"
-                                android:textSize="12sp"
-                                android:layout_marginBottom="4dp"/>
-
-                            <Spinner
-                                android:id="@+id/elv_624_t1_kode"
-                                android:layout_width="match_parent"
-                                android:entries="@array/kode_options"
-                                android:layout_height="48dp"
-                                android:background="@drawable/spinner_background"
-                                android:popupBackground="@drawable/spinner_dropdown_background"/>
-                        </com.google.android.material.textfield.TextInputLayout>
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="2"
-                            android:layout_marginStart="8dp"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/inputElv624T1"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:hint="ELV 624 T1"
-                                android:inputType="numberDecimal" />
-                        </com.google.android.material.textfield.TextInputLayout>
-                    </LinearLayout>
-
-                    <!-- ELV 615 T2 -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:layout_marginBottom="8dp">
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
-                            <TextView
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:text="Kode ELV 615 T2"
-                                android:textSize="12sp"
-                                android:layout_marginBottom="4dp"/>
-
-                            <Spinner
-                                android:id="@+id/elv_615_t2_kode"
-                                android:layout_width="match_parent"
-                                android:entries="@array/kode_options"
-                                android:layout_height="48dp"
-                                android:background="@drawable/spinner_background"
-                                android:popupBackground="@drawable/spinner_dropdown_background"/>
-                        </com.google.android.material.textfield.TextInputLayout>
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="2"
-                            android:layout_marginStart="8dp"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/inputElv615T2"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:hint="ELV 615 T2"
-                                android:inputType="numberDecimal" />
-                        </com.google.android.material.textfield.TextInputLayout>
-                    </LinearLayout>
-
-                    <!-- PIPA P1 -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:layout_marginBottom="8dp">
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
-                            <TextView
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:text="Kode PIPA P1"
-                                android:textSize="12sp"
-                                android:layout_marginBottom="4dp"/>
-
-                            <Spinner
-                                android:id="@+id/pipa_p1_kode"
-                                android:layout_width="match_parent"
-                                android:entries="@array/kode_options"
-                                android:layout_height="48dp"
-                                android:background="@drawable/spinner_background"
-                                android:popupBackground="@drawable/spinner_dropdown_background"/>
-                        </com.google.android.material.textfield.TextInputLayout>
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="2"
-                            android:layout_marginStart="8dp"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/inputPipaP1"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:hint="PIPA P1"
-                                android:inputType="numberDecimal" />
-                        </com.google.android.material.textfield.TextInputLayout>
-                    </LinearLayout>
-
-                    <Button
-                        android:id="@+id/btnSubmitBocoran"
-                        android:layout_width="match_parent"
-                        android:layout_height="48dp"
-                        android:layout_marginTop="12dp"
-                        android:text="Simpan Bocoran Baru"
                         android:backgroundTint="#0054A6"
                         android:textColor="#FFFFFF"
                         android:textAllCaps="false"

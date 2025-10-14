@@ -1,5 +1,13 @@
 package com.example.kerjapraktik;
 
+import android.util.Log;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.AutoCompleteTextView;
+import android.widget.ImageButton;
+import android.widget.ScrollView;
+import androidx.cardview.widget.CardView;
 import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.app.ProgressDialog;
@@ -9,13 +17,10 @@ import android.graphics.Color;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
-import android.view.View;
 import android.widget.*;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.cardview.widget.CardView;
 import androidx.core.content.ContextCompat;
 
 import com.google.android.material.textfield.TextInputLayout;
@@ -44,13 +49,8 @@ public class InputDataActivity extends AppCompatActivity {
 
     // Form utama
     private Spinner spinnerPengukuran;
-    private Button btnPilihPengukuran, btnSubmitTmaWaduk, btnSubmitThomson, btnSubmitSR, btnSubmitBocoran;
-    private EditText inputTmaWaduk, inputA1R, inputA1L, inputB1, inputB3, inputB5;
-    private EditText inputElv624T1, inputElv615T2, inputPipaP1;
-    private Spinner elv624T1Kode, elv615T2Kode, pipaP1Kode;
-
-    // Tombol Hitung Semua Data
-    private Button btnHitungSemua;
+    private Button btnPilihPengukuran, btnSubmitTmaWaduk, btnSubmitThomson, btnSubmitSR, btnHitungSemua;
+    private EditText inputTmaWaduk, inputB3, inputB5;
 
     private Calendar calendar;
     private String tempId = null;
@@ -63,7 +63,7 @@ public class InputDataActivity extends AppCompatActivity {
     private SharedPreferences syncPrefs;
 
     // API URL
-    private static final String BASE_URL = "http://10.30.52.217/API_Android/public/rembesan/";
+    private static final String BASE_URL = "http://192.168.1.11/API_Android/public/rembesan/";
     private static final String INSERT_DATA_URL = BASE_URL + "input";
     private static final String CEK_DATA_URL = BASE_URL + "cek-data";
     private static final String GET_PENGUKURAN_URL = BASE_URL + "get_pengukuran";
@@ -96,9 +96,6 @@ public class InputDataActivity extends AppCompatActivity {
         setupModalDropdowns();
         setupModalCalendar();
 
-        // Sembunyikan field yang tidak diperlukan di HP 1
-        hideUnnecessaryFieldsHP1();
-
         // Siapkan adapter spinner (awal kosong, nanti diisi saat load)
         pengukuranAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, tanggalList);
         pengukuranAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -110,14 +107,17 @@ public class InputDataActivity extends AppCompatActivity {
 
         // set listener spinner
         spinnerPengukuran.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 String selected = position >= 0 && position < tanggalList.size() ? tanggalList.get(position) : null;
                 if (selected != null && pengukuranMap.containsKey(selected)) {
                     pengukuranId = pengukuranMap.get(selected);
                     getSharedPreferences("pengukuran", MODE_PRIVATE).edit().putInt("pengukuran_id", pengukuranId).apply();
                 }
             }
-            @Override public void onNothingSelected(AdapterView<?> parent) {}
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
         });
 
         // sekarang sinkron pengukuran master (dipanggil setelah adapter ready & UI inisialisasi)
@@ -150,31 +150,11 @@ public class InputDataActivity extends AppCompatActivity {
         if (btnSubmitTmaWaduk != null) btnSubmitTmaWaduk.setOnClickListener(v -> handleTmaWaduk());
         if (btnSubmitThomson != null) btnSubmitThomson.setOnClickListener(v -> handleThomsonHP1());
         if (btnSubmitSR != null) btnSubmitSR.setOnClickListener(v -> handleSR());
-        if (btnSubmitBocoran != null) btnSubmitBocoran.setOnClickListener(v -> handleBocoran());
         if (btnHitungSemua != null) btnHitungSemua.setOnClickListener(v -> handleHitungSemua());
 
         // tampilkan modal jika komponen ada
         if (modalPengukuran != null && modalOverlay != null && mainContent != null) {
             showModal();
-        }
-    }
-
-    // METHOD BARU: Sembunyikan field yang tidak diperlukan di HP 1 (SIMPLE VERSION)
-    private void hideUnnecessaryFieldsHP1() {
-        // Sembunyikan B3 dan B5
-        if (inputB3 != null) inputB3.setVisibility(View.GONE);
-        if (inputB5 != null) inputB5.setVisibility(View.GONE);
-
-        // Sembunyikan tombol SR
-        if (btnSubmitSR != null) btnSubmitSR.setVisibility(View.GONE);
-
-        // Update judul dan tombol Thomson
-        if (findViewById(R.id.thomson_title) != null) {
-            TextView thomsonTitle = findViewById(R.id.thomson_title);
-            thomsonTitle.setText("Thomson Weir - GALLERY (A1 R, A1 L, B1)");
-        }
-        if (btnSubmitThomson != null) {
-            btnSubmitThomson.setText("Simpan Thomson - Gallery");
         }
     }
 
@@ -231,25 +211,13 @@ public class InputDataActivity extends AppCompatActivity {
 
     private void initFormComponents() {
         inputTmaWaduk = findViewById(R.id.inputTmaWaduk);
-        inputA1R = findViewById(R.id.inputA1R);
-        inputA1L = findViewById(R.id.inputA1L);
-        inputB1 = findViewById(R.id.inputB1);
         inputB3 = findViewById(R.id.inputB3);
         inputB5 = findViewById(R.id.inputB5);
-        inputElv624T1 = findViewById(R.id.inputElv624T1);
-        inputElv615T2 = findViewById(R.id.inputElv615T2);
-        inputPipaP1 = findViewById(R.id.inputPipaP1);
 
         btnSubmitTmaWaduk = findViewById(R.id.btnSubmitTmaWaduk);
         btnSubmitThomson = findViewById(R.id.btnSubmitThomson);
         btnSubmitSR = findViewById(R.id.btnSubmitSR);
-        btnSubmitBocoran = findViewById(R.id.btnSubmitBocoran);
-
         btnHitungSemua = findViewById(R.id.btnHitungSemua);
-
-        elv624T1Kode = findViewById(R.id.elv_624_t1_kode);
-        elv615T2Kode = findViewById(R.id.elv_615_t2_kode);
-        pipaP1Kode = findViewById(R.id.pipa_p1_kode);
 
         // inisialisasi SR spinners secara defensif
         for (int kode : srKodeArray) {
@@ -279,10 +247,6 @@ public class InputDataActivity extends AppCompatActivity {
             Spinner s = srKodeSpinners.get(kode);
             if (s != null) s.setAdapter(adapter);
         }
-
-        if (elv624T1Kode != null) elv624T1Kode.setAdapter(adapter);
-        if (elv615T2Kode != null) elv615T2Kode.setAdapter(adapter);
-        if (pipaP1Kode != null) pipaP1Kode.setAdapter(adapter);
     }
 
     private void setupModalDropdowns() {
@@ -311,6 +275,7 @@ public class InputDataActivity extends AppCompatActivity {
             try {
                 TextInputLayout tanggalLayout = (TextInputLayout) modalInputTanggal.getParent().getParent();
                 if (tanggalLayout != null) {
+                    tanggalLayout.setEndIconDrawable(R.drawable.ic_calendar);
                     tanggalLayout.setEndIconOnClickListener(v -> showModalDatePickerDialog());
                 }
             } catch (Exception ignored) {}
@@ -359,7 +324,7 @@ public class InputDataActivity extends AppCompatActivity {
                         // setText dengan filter = false agar tidak memicu filtering dropdown
                         try {
                             // AutoCompleteTextView punya setText(CharSequence, boolean)
-                            ((android.widget.AutoCompleteTextView) modalInputPeriode).setText(triwulan, false);
+                            modalInputPeriode.setText(triwulan, false);
                         } catch (Exception e) {
                             // fallback ke setText biasa
                             modalInputPeriode.setText(triwulan);
@@ -509,19 +474,19 @@ public class InputDataActivity extends AppCompatActivity {
         }
     }
 
-    // METHOD BARU: Handle Thomson khusus untuk HP 1 (hanya A1 R, A1 L, B1)
+    // METHOD BARU: Handle Thomson khusus untuk HP 1 (hanya B3, B5)
     private void handleThomsonHP1() {
         Map<String, String> data = new HashMap<>();
         data.put("mode", "thomson");
 
-        // HP 1 hanya mengirim A1 R, A1 L, B1
-        data.put("a1_r", inputA1R != null ? inputA1R.getText().toString().trim() : "");
-        data.put("a1_l", inputA1L != null ? inputA1L.getText().toString().trim() : "");
-        data.put("b1", inputB1 != null ? inputB1.getText().toString().trim() : "");
+        // HP 1 hanya mengirim B3 dan B5 (Stilling Basin)
+        data.put("b3", inputB3 != null ? inputB3.getText().toString().trim() : "");
+        data.put("b5", inputB5 != null ? inputB5.getText().toString().trim() : "");
 
-        // B3 dan B5 dikosongkan (akan diisi oleh HP 2)
-        data.put("b3", "");
-        data.put("b5", "");
+        // A1 R, A1 L, B1 dikosongkan (akan diisi oleh HP 2/Gallery)
+        data.put("a1_r", "");
+        data.put("a1_l", "");
+        data.put("b1", "");
 
         String selected = spinnerPengukuran != null && spinnerPengukuran.getSelectedItem() != null
                 ? spinnerPengukuran.getSelectedItem().toString() : null;
@@ -573,33 +538,6 @@ public class InputDataActivity extends AppCompatActivity {
         else saveOffline("sr", data.getOrDefault("temp_id", "local_" + System.currentTimeMillis()), data);
     }
 
-    private void handleBocoran() {
-        Map<String, String> data = new HashMap<>();
-        data.put("mode", "bocoran");
-        data.put("elv_624_t1", inputElv624T1 != null ? inputElv624T1.getText().toString().trim() : "");
-        data.put("elv_624_t1_kode", (elv624T1Kode != null && elv624T1Kode.getSelectedItem() != null) ? elv624T1Kode.getSelectedItem().toString() : "");
-        data.put("elv_615_t2", inputElv615T2 != null ? inputElv615T2.getText().toString().trim() : "");
-        data.put("elv_615_t2_kode", (elv615T2Kode != null && elv615T2Kode.getSelectedItem() != null) ? elv615T2Kode.getSelectedItem().toString() : "");
-        data.put("pipa_p1", inputPipaP1 != null ? inputPipaP1.getText().toString().trim() : "");
-        data.put("pipa_p1_kode", (pipaP1Kode != null && pipaP1Kode.getSelectedItem() != null) ? pipaP1Kode.getSelectedItem().toString() : "");
-
-        String selected = spinnerPengukuran != null && spinnerPengukuran.getSelectedItem() != null
-                ? spinnerPengukuran.getSelectedItem().toString() : null;
-        if (selected != null && pengukuranMap.containsKey(selected)) {
-            data.put("pengukuran_id", String.valueOf(pengukuranMap.get(selected)));
-        } else {
-            int prefId = getSharedPreferences("pengukuran", MODE_PRIVATE).getInt("pengukuran_id", -1);
-            if (prefId != -1) data.put("pengukuran_id", String.valueOf(prefId));
-            else {
-                if (tempId == null) tempId = "local_" + System.currentTimeMillis();
-                data.put("temp_id", tempId);
-            }
-        }
-
-        if (isInternetAvailable() && data.containsKey("pengukuran_id")) cekDanSimpanData("bocoran", data, false);
-        else saveOffline("bocoran", data.getOrDefault("temp_id", "local_" + System.currentTimeMillis()), data);
-    }
-
     /* ---------- Hitung semua ---------- */
 
     private void handleHitungSemua() {
@@ -635,8 +573,8 @@ public class InputDataActivity extends AppCompatActivity {
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setDoOutput(true);
-                conn.setConnectTimeout(300_000);
-                conn.setReadTimeout(300_000);
+                conn.setConnectTimeout(300000);
+                conn.setReadTimeout(300000);
                 conn.setRequestProperty("Content-Type", "application/json");
                 conn.setRequestProperty("Accept", "application/json");
 
@@ -665,7 +603,7 @@ public class InputDataActivity extends AppCompatActivity {
                         JSONObject data = resp.optJSONObject("data");
                         String tanggal = resp.optString("tanggal", "-");
 
-                        // 🔹 Ringkasan pesan perhitungan
+                        // Ringkasan pesan perhitungan
                         StringBuilder msgBuilder = new StringBuilder();
                         if (messages != null) {
                             Iterator<String> keys = messages.keys();
@@ -676,7 +614,7 @@ public class InputDataActivity extends AppCompatActivity {
                             }
                         }
 
-                        // 🔹 Hasil Look Burt
+                        // Hasil Look Burt
                         String lookBurtInfo = "";
                         String statusKeterangan = "aman"; // default
                         if (data != null) {
@@ -698,7 +636,7 @@ public class InputDataActivity extends AppCompatActivity {
                             }
                         }
 
-                        // 🔹 Tentukan notifikasi akhir
+                        // Tentukan notifikasi akhir
                         if ("success".equalsIgnoreCase(status)) {
                             showCalculationResultDialog(" Perhitungan Berhasil",
                                     "Semua perhitungan berhasil untuk tanggal " + tanggal + lookBurtInfo,
@@ -754,28 +692,28 @@ public class InputDataActivity extends AppCompatActivity {
         tanggalText.setText("📅 Tanggal: " + tanggal);
         iconView.setImageResource(iconRes);
 
-        // 🔥 PERBAIKAN UI: Gradient background untuk header
+        // PERBAIKAN UI: Gradient background untuk header
         headerLayout.setBackgroundColor(ContextCompat.getColor(this, colorRes));
 
-        // 🔥 PERBAIKAN UI: Tambahkan elevation/shadow
+        // PERBAIKAN UI: Tambahkan elevation/shadow
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
             headerLayout.setElevation(8f);
             okButton.setElevation(4f);
         }
 
-        // 🔥 PERBAIKAN UI: Animasi icon
+        // PERBAIKAN UI: Animasi icon
         iconView.setAlpha(0f);
         iconView.animate().alpha(1f).setDuration(500).start();
 
-        // 🔥 PERBAIKAN UI: Style button dengan ripple effect
+        // PERBAIKAN UI: Style button dengan ripple effect
         okButton.setBackgroundColor(ContextCompat.getColor(this, colorRes));
         okButton.setTextColor(Color.WHITE);
 
-        // 🔥 PERBAIKAN UI: Format message dengan styling
+        // PERBAIKAN UI: Format message dengan styling
         String formattedMessage = formatMessageWithIcons(message);
         messageText.setText(formattedMessage);
 
-        // 🔥 PERBAIKAN UI: Animasi dialog masuk
+        // PERBAIKAN UI: Animasi dialog masuk
         dialogView.setAlpha(0f);
         dialogView.setScaleX(0.8f);
         dialogView.setScaleY(0.8f);
@@ -795,12 +733,12 @@ public class InputDataActivity extends AppCompatActivity {
                 .start();
 
         okButton.setOnClickListener(v -> {
-            // 🔥 PERBAIKAN UI: Animasi tombol ketika ditekan
+            // PERBAIKAN UI: Animasi tombol ketika ditekan
             v.animate().scaleX(0.95f).scaleY(0.95f).setDuration(100).withEndAction(() -> {
                 v.animate().scaleX(1f).scaleY(1f).setDuration(100).start();
             }).start();
 
-            // 🔥 PERBAIKAN UI: Animasi dialog keluar
+            // PERBAIKAN UI: Animasi dialog keluar
             dialogView.animate()
                     .alpha(0f)
                     .scaleX(0.8f)
@@ -811,7 +749,7 @@ public class InputDataActivity extends AppCompatActivity {
         });
     }
 
-    // 🔥 METHOD BARU: Format pesan dengan icon dan styling
+    // METHOD BARU: Format pesan dengan icon dan styling
     private String formatMessageWithIcons(String message) {
         // Ganti keyword dengan icon
         String formatted = message
@@ -833,13 +771,13 @@ public class InputDataActivity extends AppCompatActivity {
         runOnUiThread(() -> {
             LayoutInflater inflater = getLayoutInflater();
             View layout = inflater.inflate(R.layout.toast_custom,
-                    (android.view.ViewGroup) findViewById(R.id.custom_toast_container));
+                    findViewById(R.id.custom_toast_container));
 
             TextView text = layout.findViewById(R.id.custom_toast_text);
             ImageView icon = layout.findViewById(R.id.custom_toast_icon);
             CardView card = layout.findViewById(R.id.custom_toast_card);
 
-            // 🔥 PERBAIKAN: Format pesan toast
+            // PERBAIKAN: Format pesan toast
             String formattedMessage = formatMessageWithIcons(message);
             text.setText(formattedMessage);
 
@@ -850,7 +788,7 @@ public class InputDataActivity extends AppCompatActivity {
             card.setCardBackgroundColor(ContextCompat.getColor(this, colorRes));
             icon.setImageResource(iconRes);
 
-            // 🔥 PERBAIKAN: Animasi toast
+            // PERBAIKAN: Animasi toast
             card.setAlpha(0f);
             card.setScaleX(0.8f);
             card.setScaleY(0.8f);
@@ -959,9 +897,6 @@ public class InputDataActivity extends AppCompatActivity {
                     case "sr":
                         dataSudahAda = data.optBoolean("sr_ada", false);
                         break;
-                    case "bocoran":
-                        dataSudahAda = data.optBoolean("bocoran_ada", false);
-                        break;
                 }
 
                 if (dataSudahAda) {
@@ -997,9 +932,7 @@ public class InputDataActivity extends AppCompatActivity {
         syncDataSerial("pengukuran", () ->
                 syncDataSerial("tma_waduk", () ->
                         syncDataSerial("thomson", () ->
-                                syncDataSerial("sr", () ->
-                                        syncDataSerial("bocoran", onComplete)
-                                )
+                                syncDataSerial("sr", onComplete)
                         )
                 )
         );
