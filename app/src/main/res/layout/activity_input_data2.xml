@@ -451,6 +451,16 @@
                     android:gravity="center"
                     android:layout_marginTop="8dp"
                     android:paddingHorizontal="8dp"/>
+
+                <TextView
+                    android:id="@+id/sync_status"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_margin="8dp"
+                    android:text="✅ Semua data tersinkronisasi"
+                    android:textColor="@color/green_primary"
+                    android:textSize="14sp" />
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
