@@ -39,4 +39,22 @@
     <color name="orange_light">#FFF3E0</color>
 
     <color name="gray_light">#F5F5F5</color>
+
+    <!-- Background -->
+    <color name="background_light">#FAFAFA</color>
+
+    <color name="white_alpha_80">#CCFFFFFF</color>
+
+    <!-- Success colors -->
+    <color name="success_green">#4CAF50</color>
+    <color name="success_dark_green">#388E3C</color>
+    <color name="success_light_green">#E8F5E8</color>
+
+    <!-- Warning colors -->
+    <color name="warning_orange">#FF9800</color>
+    <color name="warning_dark_orange">#F57C00</color>
+    <color name="warning_light_orange">#FFF3E0</color>
+
+    <!-- Gray colors -->
+    <color name="gray_medium">#9E9E9E</color>
 </resources>

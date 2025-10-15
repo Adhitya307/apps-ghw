@@ -13,4 +13,8 @@
         <item name="colorPrimaryDark">@color/pln_primary_dark</item>
         <item name="colorAccent">@color/pln_primary</item>
     </style>
+
+    <style name="CustomAlertDialog" parent="ThemeOverlay.MaterialComponents.MaterialAlertDialog">
+        <item name="android:background">@drawable/dialog_bg</item>
+    </style>
 </resources>

@@ -5,251 +5,280 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    app:cardCornerRadius="12dp"
-    app:cardElevation="4dp"
-    android:background="@android:color/transparent"
-    tools:ignore="MissingConstraints">
+    android:layout_marginHorizontal="24dp"
+    android:layout_marginVertical="40dp"
+    app:cardCornerRadius="24dp"
+    app:cardElevation="12dp"
+    app:cardBackgroundColor="@color/white"
+    android:background="@android:color/transparent">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:background="@drawable/dialog_background"
-        android:padding="0dp">
+        android:background="@drawable/dialog_background_modern">
 
-        <!-- Header dengan gradient -->
+        <!-- Header -->
         <LinearLayout
             android:id="@+id/dialog_header"
             android:layout_width="match_parent"
-            android:layout_height="120dp"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:background="@drawable/header_gradient"
-            android:padding="16dp">
+            android:layout_height="100dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/header_gradient_modern"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp"
+            android:paddingTop="16dp"
+            android:paddingBottom="16dp"
+            android:layout_margin="0dp">
 
             <ImageView
                 android:id="@+id/dialog_icon"
-                android:layout_width="60dp"
-                android:layout_height="60dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:src="@drawable/ic_sr_confirmation"
-                android:layout_marginBottom="8dp" />
+                android:layout_marginEnd="16dp"
+                android:tint="@color/white" />
 
-            <TextView
-                android:id="@+id/dialog_title"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:text="Konfirmasi Data SR"
-                android:textColor="@color/white"
-                android:textSize="20sp"
-                android:textStyle="bold" />
+                android:layout_weight="1"
+                android:orientation="vertical">
 
+                <TextView
+                    android:id="@+id/dialog_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Konfirmasi Data SR"
+                    android:textColor="@color/white"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:fontFamily="sans-serif-medium" />
+
+                <TextView
+                    android:id="@+id/dialog_subtitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Review data sebelum disimpan"
+                    android:textColor="@color/white_alpha_80"
+                    android:textSize="14sp"
+                    android:layout_marginTop="4dp" />
+
+            </LinearLayout>
         </LinearLayout>
 
-        <!-- Content Area -->
+        <!-- Konten Scrollable -->
         <ScrollView
             android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:padding="20dp"
-            android:background="@color/white">
+            android:layout_height="wrap_content"
+            android:maxHeight="400dp"
+            android:padding="0dp"
+            android:background="@color/background_light"
+            android:layout_margin="0dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
+                android:orientation="vertical"
+                android:padding="24dp"
+                android:layout_margin="0dp">
 
-                <!-- Section Data Terisi -->
+                <!-- Data Terisi -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:layout_marginBottom="16dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="✅ Data yang akan disimpan"
-                        android:textColor="@color/green_dark"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
-                        android:layout_marginBottom="8dp" />
-
-                    <androidx.cardview.widget.CardView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="8dp"
-                        app:cardCornerRadius="8dp"
-                        app:cardElevation="2dp"
-                        app:cardBackgroundColor="@color/green_light">
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="vertical"
-                            android:padding="12dp">
-
-                            <TextView
-                                android:id="@+id/filled_fields"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:textColor="@color/green_dark"
-                                android:textSize="14sp"
-                                android:lineSpacingExtra="4dp" />
-
-                        </LinearLayout>
-                    </androidx.cardview.widget.CardView>
-
-                </LinearLayout>
-
-                <!-- Section Data Kosong -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:layout_marginBottom="16dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="⚠️ Data yang belum diisi"
-                        android:textColor="@color/orange_dark"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
-                        android:layout_marginBottom="8dp" />
-
-                    <androidx.cardview.widget.CardView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="8dp"
-                        app:cardCornerRadius="8dp"
-                        app:cardElevation="2dp"
-                        app:cardBackgroundColor="@color/orange_light">
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="vertical"
-                            android:padding="12dp">
-
-                            <TextView
-                                android:id="@+id/empty_fields"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:textColor="@color/orange_dark"
-                                android:textSize="14sp"
-                                android:lineSpacingExtra="4dp" />
-
-                        </LinearLayout>
-                    </androidx.cardview.widget.CardView>
-
-                </LinearLayout>
-
-                <!-- Ringkasan Stats -->
-                <androidx.cardview.widget.CardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    app:cardCornerRadius="12dp"
-                    app:cardElevation="4dp"
-                    app:cardBackgroundColor="@color/blue_light">
+                    android:layout_marginBottom="20dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
-                        android:gravity="center"
-                        android:padding="16dp">
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="12dp">
 
-                        <LinearLayout
-                            android:layout_width="0dp"
+                        <ImageView
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@drawable/ic_check_circle"
+                            android:tint="@color/success_green"
+                            android:layout_marginEnd="8dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical"
-                            android:gravity="center">
-
-                            <TextView
-                                android:id="@+id/total_filled"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="5"
-                                android:textColor="@color/green_dark"
-                                android:textSize="24sp"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Terisi"
-                                android:textColor="@color/green_dark"
-                                android:textSize="12sp" />
-
-                        </LinearLayout>
+                            android:text="Data Terisi"
+                            android:textColor="@color/text_primary"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:fontFamily="sans-serif-medium" />
 
                         <View
-                            android:layout_width="1dp"
-                            android:layout_height="30dp"
+                            android:layout_width="0dp"
+                            android:layout_height="1dp"
+                            android:layout_weight="1"
+                            android:layout_marginStart="12dp"
                             android:background="@color/gray_light" />
 
-                        <LinearLayout
-                            android:layout_width="0dp"
+                        <TextView
+                            android:id="@+id/filled_count"
+                            android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical"
-                            android:gravity="center">
-
-                            <TextView
-                                android:id="@+id/total_empty"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="12"
-                                android:textColor="@color/orange_dark"
-                                android:textSize="24sp"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Kosong"
-                                android:textColor="@color/orange_dark"
-                                android:textSize="12sp" />
-
-                        </LinearLayout>
+                            android:text="0"
+                            android:textColor="@color/success_green"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:background="@drawable/badge_background_green"
+                            android:paddingHorizontal="8dp"
+                            android:paddingVertical="4dp" />
 
                     </LinearLayout>
-                </androidx.cardview.widget.CardView>
 
+                    <androidx.cardview.widget.CardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="2dp"
+                        app:cardBackgroundColor="@color/success_light_green">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="16dp">
+
+                            <TextView
+                                android:id="@+id/filled_fields"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:textColor="@color/success_dark_green"
+                                android:textSize="14sp"
+                                android:lineSpacingExtra="6dp"
+                                android:text="Tidak ada data yang diisi" />
+
+                        </LinearLayout>
+                    </androidx.cardview.widget.CardView>
+                </LinearLayout>
+
+                <!-- Data Kosong -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="12dp">
+
+                        <ImageView
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@drawable/ic_warning"
+                            android:tint="@color/warning_orange"
+                            android:layout_marginEnd="8dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Data Kosong"
+                            android:textColor="@color/text_primary"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:fontFamily="sans-serif-medium" />
+
+                        <View
+                            android:layout_width="0dp"
+                            android:layout_height="1dp"
+                            android:layout_weight="1"
+                            android:layout_marginStart="12dp"
+                            android:background="@color/gray_light" />
+
+                        <TextView
+                            android:id="@+id/empty_count"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="0"
+                            android:textColor="@color/warning_orange"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:background="@drawable/badge_background_orange"
+                            android:paddingHorizontal="8dp"
+                            android:paddingVertical="4dp" />
+
+                    </LinearLayout>
+
+                    <androidx.cardview.widget.CardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="2dp"
+                        app:cardBackgroundColor="@color/warning_light_orange">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="16dp">
+
+                            <TextView
+                                android:id="@+id/empty_fields"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:textColor="@color/warning_dark_orange"
+                                android:textSize="14sp"
+                                android:lineSpacingExtra="6dp"
+                                android:text="Semua data telah diisi" />
+
+                        </LinearLayout>
+                    </androidx.cardview.widget.CardView>
+                </LinearLayout>
             </LinearLayout>
         </ScrollView>
 
-        <!-- Footer Buttons -->
+        <!-- Divider -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/gray_light" />
+
+        <!-- Tombol -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:background="@color/gray_light"
-            android:padding="16dp">
+            android:padding="20dp"
+            android:gravity="center_vertical">
 
             <Button
-                android:id="@+id/btn_edit"
+                android:id="@+id/btn_no"
                 android:layout_width="0dp"
-                android:layout_height="48dp"
+                android:layout_height="52dp"
                 android:layout_weight="1"
-                android:layout_marginEnd="8dp"
-                android:text="✏️ Edit Lagi"
-                android:textColor="@color/blue_dark"
-                android:background="@drawable/button_outline"
-                android:textStyle="bold" />
+                android:layout_marginEnd="12dp"
+                android:text="Batal"
+                android:textColor="@color/text_secondary"
+                android:background="@drawable/button_outline_modern"
+                android:textSize="16sp"
+                android:fontFamily="sans-serif-medium" />
 
             <Button
-                android:id="@+id/btn_save"
+                android:id="@+id/btn_yes"
                 android:layout_width="0dp"
-                android:layout_height="48dp"
+                android:layout_height="52dp"
                 android:layout_weight="1.5"
-                android:layout_marginStart="8dp"
-                android:text="✅ Lanjut Simpan"
+                android:layout_marginStart="12dp"
+                android:text="Simpan Data"
                 android:textColor="@color/white"
-                android:background="@drawable/button_gradient"
+                android:background="@drawable/button_gradient_modern"
+                android:textSize="16sp"
                 android:textStyle="bold"
-                android:textSize="14sp" />
+                android:fontFamily="sans-serif-medium"
+                android:drawableStart="@drawable/ic_save"
+                android:drawablePadding="8dp" />
 
         </LinearLayout>
 

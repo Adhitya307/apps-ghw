@@ -1,7 +1,10 @@
 package com.example.kerjapraktik;
 
+import android.graphics.drawable.ColorDrawable;
 import android.util.Log;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.Window;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.AutoCompleteTextView;
@@ -17,6 +20,7 @@ import android.graphics.Color;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
+import android.os.Handler;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.widget.*;
@@ -76,6 +80,12 @@ public class InputDataActivity extends AppCompatActivity {
     private final List<String> tanggalList = new ArrayList<>();
     private ArrayAdapter<String> pengukuranAdapter;
 
+    // ✅ AUTO SYNC VARIABLES
+    private boolean isSyncInProgress = false;
+    private Handler networkCheckHandler = new Handler();
+    private Runnable networkCheckRunnable;
+    private boolean lastOnlineStatus = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -120,6 +130,10 @@ public class InputDataActivity extends AppCompatActivity {
             public void onNothingSelected(AdapterView<?> parent) {}
         });
 
+        // ✅ AUTO SYNC: Cek status internet dan mulai monitoring
+        checkInternetAndShowToast();
+        startNetworkMonitoring();
+
         // sekarang sinkron pengukuran master (dipanggil setelah adapter ready & UI inisialisasi)
         syncPengukuranMaster();
 
@@ -161,6 +175,9 @@ public class InputDataActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        // ✅ AUTO SYNC: Cek status internet setiap resume
+        checkInternetAndShowToast();
+
         // jalankan sinkronisasi offline -> online saat internet tersedia
         if (isInternetAvailable()) {
             if (offlineDb.hasUnsyncedData()) {
@@ -175,6 +192,199 @@ public class InputDataActivity extends AppCompatActivity {
                 syncPengukuranMaster();
             }
         }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        // ✅ AUTO SYNC: Hentikan monitoring saat pause
+        stopNetworkMonitoring();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // ✅ AUTO SYNC: Hentikan monitoring saat destroy
+        stopNetworkMonitoring();
+        logInfo("onDestroy", "Activity destroyed");
+    }
+
+    // ✅ AUTO SYNC METHODS
+    private void startNetworkMonitoring() {
+        networkCheckRunnable = new Runnable() {
+            @Override
+            public void run() {
+                checkInternetAndShowToast();
+                networkCheckHandler.postDelayed(this, 5000); // Cek setiap 5 detik
+            }
+        };
+        networkCheckHandler.postDelayed(networkCheckRunnable, 5000);
+    }
+
+    private void stopNetworkMonitoring() {
+        if (networkCheckHandler != null && networkCheckRunnable != null) {
+            networkCheckHandler.removeCallbacks(networkCheckRunnable);
+        }
+    }
+
+    private void checkInternetAndShowToast() {
+        boolean isOnline = isInternetAvailable();
+        if (isOnline != lastOnlineStatus) {
+            if (isOnline) {
+                showElegantToast("✅ Online - Koneksi tersedia", "success");
+                startAutoSyncWhenOnline();
+            } else {
+                showElegantToast("📱 Offline - Data disimpan lokal", "warning");
+            }
+            lastOnlineStatus = isOnline;
+        }
+    }
+
+    private void startAutoSyncWhenOnline() {
+        if (isSyncInProgress || !isInternetAvailable()) {
+            return;
+        }
+
+        int offlineCount = getOfflineDataCount();
+        if (offlineCount > 0) {
+            logInfo("AutoSync", "Found " + offlineCount + " offline data, starting auto-sync");
+            triggerAutoSync();
+        }
+    }
+
+    private int getOfflineDataCount() {
+        int count = 0;
+        try {
+            count += offlineDb.getUnsyncedData("pengukuran").size();
+            count += offlineDb.getUnsyncedData("thomson").size();
+            count += offlineDb.getUnsyncedData("sr").size();
+            count += offlineDb.getUnsyncedData("bocoran").size();
+        } catch (Exception e) {
+            logWarn("getOfflineDataCount", "Error counting offline data: " + e.getMessage());
+        }
+        return count;
+    }
+
+    private void triggerAutoSync() {
+        if (isSyncInProgress) {
+            return;
+        }
+
+        logInfo("AutoSync", "Triggering auto-sync for offline data");
+        isSyncInProgress = true;
+
+        showElegantToast("🔄 Auto-sync data offline...", "info");
+
+        syncPengukuranMaster(() -> {
+            syncAllOfflineDataAuto(() -> {
+                isSyncInProgress = false;
+                logInfo("AutoSync", "Auto-sync completed");
+                runOnUiThread(this::loadTanggalOffline);
+            });
+        });
+    }
+
+    private void syncAllOfflineDataAuto(Runnable onComplete) {
+        logInfo("syncAllOfflineDataAuto", "Starting auto offline sync...");
+
+        int offlineCount = getOfflineDataCount();
+        if (offlineCount == 0) {
+            logInfo("syncAllOfflineDataAuto", "No offline data to sync");
+            if (onComplete != null) onComplete.run();
+            return;
+        }
+
+        logInfo("syncAllOfflineDataAuto", "Auto-syncing " + offlineCount + " offline rows");
+
+        syncDataSerialAuto("pengukuran", () ->
+                syncDataSerialAuto("thomson", () ->
+                        syncDataSerialAuto("sr", () ->
+                                syncDataSerialAuto("bocoran", () -> {
+                                    logInfo("syncAllOfflineDataAuto", "All auto sync completed");
+                                    showElegantToast("✅ " + offlineCount + " data terkirim", "success");
+                                    if (onComplete != null) onComplete.run();
+                                }))));
+    }
+
+    private void syncDataSerialAuto(String tableName, Runnable next) {
+        List<Map<String,String>> list;
+        try {
+            list = offlineDb.getUnsyncedData(tableName);
+        } catch (Exception e) {
+            logError("syncDataSerialAuto", "Failed to read unsynced data for " + tableName + ": " + e.getMessage());
+            if (next != null) next.run();
+            return;
+        }
+
+        if (list == null || list.isEmpty()) {
+            logInfo("syncDataSerialAuto", "No unsynced rows for " + tableName);
+            if (next != null) next.run();
+            return;
+        }
+
+        logInfo("syncDataSerialAuto", "Auto-syncing " + list.size() + " rows for " + tableName);
+        syncDataItemAuto(tableName, list, 0, next);
+    }
+
+    private void syncDataItemAuto(String tableName, List<Map<String,String>> dataList, int index, Runnable onFinish) {
+        if (index >= dataList.size()) {
+            if (onFinish != null) onFinish.run();
+            return;
+        }
+
+        Map<String,String> item = dataList.get(index);
+        String tempId = item.get("temp_id");
+        String jsonStr = item.get("json");
+
+        if (jsonStr == null || jsonStr.isEmpty()) {
+            offlineDb.deleteByTempId(tableName, tempId);
+            syncDataItemAuto(tableName, dataList, index + 1, onFinish);
+            return;
+        }
+
+        new Thread(() -> {
+            try {
+                JSONObject json = new JSONObject(jsonStr);
+                Map<String,String> dataMap = new HashMap<>();
+                Iterator<String> it = json.keys();
+                while (it.hasNext()) {
+                    String k = it.next();
+                    dataMap.put(k, json.optString(k, ""));
+                }
+
+                HttpURLConnection conn = null;
+                try {
+                    URL url = new URL(INSERT_DATA_URL);
+                    conn = (HttpURLConnection) url.openConnection();
+                    conn.setRequestMethod("POST");
+                    conn.setDoOutput(true);
+                    conn.setConnectTimeout(8_000);
+                    conn.setReadTimeout(8_000);
+                    conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+                    conn.setRequestProperty("Accept", "application/json");
+
+                    OutputStream os = conn.getOutputStream();
+                    os.write(json.toString().getBytes("UTF-8"));
+                    os.flush();
+                    os.close();
+
+                    int code = conn.getResponseCode();
+                    if (code == 200) {
+                        offlineDb.deleteByTempId(tableName, tempId);
+                        logInfo("syncDataItemAuto", "Synced " + tableName + " tempId=" + tempId);
+                    }
+                } catch (Exception e) {
+                    logError("syncDataItemAuto", "Failed to sync tempId=" + tempId + ": " + e.getMessage());
+                } finally {
+                    if (conn != null) conn.disconnect();
+                }
+            } catch (Exception e) {
+                logError("syncDataItemAuto", "JSON parse failed for tempId=" + tempId + ": " + e.getMessage());
+                offlineDb.deleteByTempId(tableName, tempId);
+            }
+
+            runOnUiThread(() -> syncDataItemAuto(tableName, dataList, index + 1, onFinish));
+        }).start();
     }
 
     /** Cek apakah sudah pernah sinkron hari ini */
@@ -506,18 +716,37 @@ public class InputDataActivity extends AppCompatActivity {
         else saveOffline("thomson", data.getOrDefault("temp_id", "local_" + System.currentTimeMillis()), data);
     }
 
+    // METHOD YANG DIPERBAIKI: Handle SR dengan dialog konfirmasi
     private void handleSR() {
         Map<String, String> data = new HashMap<>();
         data.put("mode", "sr");
 
+        // Kumpulkan data SR dan identifikasi yang terisi/kosong
+        List<String> filledFields = new ArrayList<>();
+        List<String> emptyFields = new ArrayList<>();
+
         for (int kode : srKodeArray) {
             Spinner spinner = srKodeSpinners.get(kode);
-            if (spinner != null && spinner.getSelectedItem() != null) {
-                data.put("sr_" + kode + "_kode", spinner.getSelectedItem().toString());
+            String kodeValue = (spinner != null && spinner.getSelectedItem() != null) ?
+                    spinner.getSelectedItem().toString() : "";
+            String nilaiValue = getTextFromId("sr_" + kode + "_nilai");
+
+            data.put("sr_" + kode + "_kode", kodeValue);
+            data.put("sr_" + kode + "_nilai", nilaiValue);
+
+            // Cek apakah field terisi
+            boolean isKodeFilled = !kodeValue.isEmpty() && !kodeValue.equals("Pilih Kode");
+            boolean isNilaiFilled = !nilaiValue.isEmpty();
+
+            if (isKodeFilled || isNilaiFilled) {
+                StringBuilder fieldInfo = new StringBuilder("SR " + kode + ": ");
+                if (isKodeFilled) fieldInfo.append("Kode=").append(kodeValue);
+                if (isKodeFilled && isNilaiFilled) fieldInfo.append(", ");
+                if (isNilaiFilled) fieldInfo.append("Nilai=").append(nilaiValue);
+                filledFields.add(fieldInfo.toString());
             } else {
-                data.put("sr_" + kode + "_kode", "");
+                emptyFields.add("SR " + kode + " (Kode & Nilai)");
             }
-            data.put("sr_" + kode + "_nilai", getTextFromId("sr_" + kode + "_nilai"));
         }
 
         String selected = spinnerPengukuran != null && spinnerPengukuran.getSelectedItem() != null
@@ -534,8 +763,186 @@ public class InputDataActivity extends AppCompatActivity {
             }
         }
 
-        if (isInternetAvailable() && data.containsKey("pengukuran_id")) cekDanSimpanData("sr", data, false);
-        else saveOffline("sr", data.getOrDefault("temp_id", "local_" + System.currentTimeMillis()), data);
+        // Tampilkan dialog konfirmasi sebelum kirim
+        showSRConfirmationDialog(filledFields, emptyFields, data);
+    }
+
+    // METHOD BARU: Dialog konfirmasi SR yang diperbaiki
+    private void showSRConfirmationDialog(List<String> filledFields, List<String> emptyFields, Map<String, String> data) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.CustomAlertDialog);
+        View view = getLayoutInflater().inflate(R.layout.dialog_sr_confirmation, null);
+
+        TextView filledTextView = view.findViewById(R.id.filled_fields);
+        TextView emptyTextView = view.findViewById(R.id.empty_fields);
+        TextView filledCount = view.findViewById(R.id.filled_count);
+        TextView emptyCount = view.findViewById(R.id.empty_count);
+        Button btnYes = view.findViewById(R.id.btn_yes);
+        Button btnNo = view.findViewById(R.id.btn_no);
+
+        // Set counter
+        filledCount.setText(String.valueOf(filledFields.size()));
+        emptyCount.setText(String.valueOf(emptyFields.size()));
+
+        // Format text untuk field yang terisi
+        if (filledFields.isEmpty()) {
+            filledTextView.setText("Tidak ada data yang diisi");
+        } else {
+            StringBuilder filledText = new StringBuilder();
+            for (String field : filledFields) {
+                filledText.append("• ").append(field).append("\n");
+            }
+            filledTextView.setText(filledText.toString());
+        }
+
+        // Format text untuk field yang kosong
+        if (emptyFields.isEmpty()) {
+            emptyTextView.setText("Semua data telah diisi");
+        } else {
+            StringBuilder emptyText = new StringBuilder();
+            for (String field : emptyFields) {
+                emptyText.append("• ").append(field).append("\n");
+            }
+            emptyTextView.setText(emptyText.toString());
+        }
+
+        AlertDialog dialog = builder.setView(view).create();
+        dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        dialog.setCancelable(true);
+        dialog.show();
+
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            window.setGravity(Gravity.CENTER);
+        }
+
+        btnYes.setOnClickListener(v -> {
+            dialog.dismiss();
+            // Kirim data ke server
+            if (isInternetAvailable() && data.containsKey("pengukuran_id")) {
+                sendToServerWithSRConfirm(data, "sr", false);
+            } else {
+                saveOffline("sr", data.getOrDefault("temp_id", "local_" + System.currentTimeMillis()), data);
+            }
+        });
+
+        btnNo.setOnClickListener(v -> dialog.dismiss());
+    }
+
+    // METHOD BARU: Send to server dengan handle konfirmasi SR
+    private void sendToServerWithSRConfirm(Map<String, String> dataMap, String table, boolean isPengukuran) {
+        new Thread(() -> {
+            HttpURLConnection conn = null;
+            try {
+                URL url = new URL(INSERT_DATA_URL);
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setDoOutput(true);
+                conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+                conn.setRequestProperty("Accept", "application/json");
+                conn.setConnectTimeout(9000);
+                conn.setReadTimeout(9000);
+
+                JSONObject jsonData = new JSONObject();
+                for (Map.Entry<String, String> entry : dataMap.entrySet()) {
+                    jsonData.put(entry.getKey(), entry.getValue());
+                }
+
+                OutputStream os = conn.getOutputStream();
+                os.write(jsonData.toString().getBytes("UTF-8"));
+                os.flush();
+                os.close();
+
+                int responseCode = conn.getResponseCode();
+                InputStream is = (responseCode == 200) ? conn.getInputStream() : conn.getErrorStream();
+                BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) sb.append(line);
+                reader.close();
+
+                JSONObject response = new JSONObject(sb.toString());
+                String status = response.optString("status", "");
+                String message = response.optString("message", "");
+
+                // Handle khusus untuk konfirmasi SR dari server
+                if ("sr".equals(table) && "confirm".equals(status)) {
+                    JSONArray filledArray = response.optJSONArray("filled");
+                    JSONArray emptyArray = response.optJSONArray("empty");
+
+                    List<String> filledFields = new ArrayList<>();
+                    List<String> emptyFields = new ArrayList<>();
+
+                    if (filledArray != null) {
+                        for (int i = 0; i < filledArray.length(); i++) {
+                            filledFields.add(filledArray.getString(i));
+                        }
+                    }
+
+                    if (emptyArray != null) {
+                        for (int i = 0; i < emptyArray.length(); i++) {
+                            emptyFields.add(emptyArray.getString(i));
+                        }
+                    }
+
+                    runOnUiThread(() -> showSRConfirmationDialog(filledFields, emptyFields, dataMap));
+                    return;
+                }
+
+                if (isPengukuran && response.has("pengukuran_id")) {
+                    pengukuranId = response.optInt("pengukuran_id", -1);
+                    SharedPreferences prefs = getSharedPreferences("pengukuran", MODE_PRIVATE);
+                    prefs.edit().putInt("pengukuran_id", pengukuranId).apply();
+                    tempId = null;
+                }
+
+                runOnUiThread(() -> {
+                    switch (status.toLowerCase()) {
+                        case "success":
+                            showElegantToast(message, "success");
+                            if (isPengukuran) {
+                                hideModal();
+                                refreshPengukuranList();
+                            }
+                            break;
+
+                        case "confirm":
+                            // Handle konfirmasi umum (bukan SR)
+                            new AlertDialog.Builder(InputDataActivity.this)
+                                    .setTitle("Konfirmasi Penyimpanan")
+                                    .setMessage(message)
+                                    .setPositiveButton("Ya", (dialog, which) -> {
+                                        dataMap.put("confirm", "yes");
+                                        sendToServerWithSRConfirm(dataMap, table, isPengukuran);
+                                    })
+                                    .setNegativeButton("Batal", null)
+                                    .show();
+                            break;
+
+                        case "warning":
+                            showElegantToast(message, "warning");
+                            break;
+
+                        case "error":
+                        default:
+                            showElegantToast("Error: " + message, "error");
+                            break;
+                    }
+                });
+
+            } catch (Exception e) {
+                Log.e("SEND", "error", e);
+                runOnUiThread(() -> showElegantToast("Gagal kirim: " + e.getMessage() + ". Data akan disimpan offline.", "warning"));
+                try {
+                    if (tempId == null) tempId = "local_" + System.currentTimeMillis();
+                    saveOffline(table, tempId, dataMap);
+                } catch (Exception ex) {
+                    Log.e("SEND_SAVE_OFFLINE", "Gagal simpan offline", ex);
+                }
+            } finally {
+                if (conn != null) conn.disconnect();
+            }
+        }).start();
     }
 
     /* ---------- Hitung semua ---------- */
@@ -794,7 +1201,7 @@ public class InputDataActivity extends AppCompatActivity {
             card.setScaleY(0.8f);
 
             Toast toast = new Toast(getApplicationContext());
-            toast.setDuration(Toast.LENGTH_LONG);
+            toast.setDuration(Toast.LENGTH_SHORT);
             toast.setView(layout);
             toast.setGravity(Gravity.TOP | Gravity.CENTER_HORIZONTAL, 0, 150);
 
@@ -850,7 +1257,7 @@ public class InputDataActivity extends AppCompatActivity {
 
     private void cekDanSimpanData(String table, Map<String, String> dataMap, boolean isPengukuran) {
         if (isPengukuran) {
-            sendToServer(dataMap, table, isPengukuran);
+            sendToServerWithSRConfirm(dataMap, table, isPengukuran);
             return;
         }
 
@@ -860,7 +1267,7 @@ public class InputDataActivity extends AppCompatActivity {
                 String pengukuranIdParam = dataMap.get("pengukuran_id");
                 if (pengukuranIdParam == null) {
                     // langsung simpan jika tidak ada pengukuran_id (mungkin offline)
-                    sendToServer(dataMap, table, isPengukuran);
+                    sendToServerWithSRConfirm(dataMap, table, isPengukuran);
                     return;
                 }
 
@@ -901,19 +1308,19 @@ public class InputDataActivity extends AppCompatActivity {
 
                 if (dataSudahAda) {
                     if ("thomson".equals(table) && !dataLengkap) {
-                        sendToServer(dataMap, table, isPengukuran);
+                        sendToServerWithSRConfirm(dataMap, table, isPengukuran);
                     } else {
                         runOnUiThread(() -> showElegantToast("Data " + table + " sudah lengkap untuk pengukuran ini!", "info"));
                     }
                     return;
                 }
 
-                sendToServer(dataMap, table, isPengukuran);
+                sendToServerWithSRConfirm(dataMap, table, isPengukuran);
 
             } catch (Exception e) {
                 Log.e("CEK_SAVE", "error", e);
                 runOnUiThread(() -> showElegantToast("Gagal cek data, mencoba simpan langsung...", "warning"));
-                sendToServer(dataMap, table, isPengukuran);
+                sendToServerWithSRConfirm(dataMap, table, isPengukuran);
             } finally {
                 if (connCek != null) connCek.disconnect();
             }
@@ -1014,74 +1421,7 @@ public class InputDataActivity extends AppCompatActivity {
     }
 
     private void sendToServer(Map<String, String> dataMap, String table, boolean isPengukuran) {
-        new Thread(() -> {
-            HttpURLConnection conn = null;
-            try {
-                URL url = new URL(INSERT_DATA_URL);
-                conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setDoOutput(true);
-                conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-                conn.setRequestProperty("Accept", "application/json");
-                conn.setConnectTimeout(9000);
-                conn.setReadTimeout(9000);
-
-                JSONObject jsonData = new JSONObject();
-                for (Map.Entry<String, String> entry : dataMap.entrySet()) {
-                    jsonData.put(entry.getKey(), entry.getValue());
-                }
-
-                OutputStream os = conn.getOutputStream();
-                os.write(jsonData.toString().getBytes("UTF-8"));
-                os.flush();
-                os.close();
-
-                int responseCode = conn.getResponseCode();
-                InputStream is = (responseCode == 200) ? conn.getInputStream() : conn.getErrorStream();
-                BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-                StringBuilder sb = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) sb.append(line);
-                reader.close();
-
-                JSONObject response = new JSONObject(sb.toString());
-                String status = response.optString("status", "");
-                String message = response.optString("message", "");
-
-                if (isPengukuran && response.has("pengukuran_id")) {
-                    pengukuranId = response.optInt("pengukuran_id", -1);
-                    SharedPreferences prefs = getSharedPreferences("pengukuran", MODE_PRIVATE);
-                    prefs.edit().putInt("pengukuran_id", pengukuranId).apply();
-                    tempId = null;
-                }
-
-                runOnUiThread(() -> {
-                    if ("success".equalsIgnoreCase(status)) {
-                        showElegantToast(message, "success");
-                        if (isPengukuran) {
-                            hideModal();
-                            refreshPengukuranList();
-                        }
-                    } else {
-                        showElegantToast("Error: " + message, "error");
-                    }
-                });
-
-            } catch (Exception e) {
-                Log.e("SEND", "error", e);
-                // jika gagal dikarenakan koneksi atau server, simpan offline agar aman
-                runOnUiThread(() -> showElegantToast("Gagal kirim: " + e.getMessage() + ". Data akan disimpan offline.", "warning"));
-                try {
-                    // buat tempId jika belum ada
-                    if (tempId == null) tempId = "local_" + System.currentTimeMillis();
-                    saveOffline(table, tempId, dataMap);
-                } catch (Exception ex) {
-                    Log.e("SEND_SAVE_OFFLINE", "Gagal simpan offline", ex);
-                }
-            } finally {
-                if (conn != null) conn.disconnect();
-            }
-        }).start();
+        sendToServerWithSRConfirm(dataMap, table, isPengukuran);
     }
 
     private void saveOffline(String table, String tempId, Map<String, String> data) {
@@ -1123,8 +1463,13 @@ public class InputDataActivity extends AppCompatActivity {
     }
 
     private void syncPengukuranMaster() {
+        syncPengukuranMaster(null);
+    }
+
+    private void syncPengukuranMaster(Runnable onDone) {
         if (!isInternetAvailable()) {
             showElegantToast("Tidak ada koneksi internet. Sinkronisasi gagal.", "warning");
+            if (onDone != null) onDone.run();
             return;
         }
 
@@ -1187,14 +1532,64 @@ public class InputDataActivity extends AppCompatActivity {
                         getSharedPreferences("pengukuran", MODE_PRIVATE)
                                 .edit().putInt("pengukuran_id", pengukuranId).apply();
                     }
+                    if (onDone != null) onDone.run();
                 });
 
             } catch (Exception e) {
                 Log.e("SYNC_MASTER", "Error syncPengukuranMaster", e);
-                runOnUiThread(() -> showElegantToast("Sinkronisasi gagal: " + e.getMessage(), "error"));
+                runOnUiThread(() -> {
+                    showElegantToast("Sinkronisasi gagal: " + e.getMessage(), "error");
+                    if (onDone != null) onDone.run();
+                });
             } finally {
                 if (conn != null) conn.disconnect();
             }
         }).start();
+    }
+
+    private void loadTanggalOffline() {
+        try {
+            OfflineDataHelper db = new OfflineDataHelper(this);
+            List<Map<String,String>> rows = db.getPengukuranMaster();
+            List<String> list = new ArrayList<>();
+            pengukuranMap.clear();
+            if (rows != null && !rows.isEmpty()) {
+                for (Map<String,String> r : rows) {
+                    String tanggal = r.get("tanggal");
+                    String idStr = r.get("id");
+                    if (tanggal != null && idStr != null) {
+                        list.add(tanggal);
+                        try {
+                            pengukuranMap.put(tanggal, Integer.parseInt(idStr));
+                        } catch (Exception ignored) {}
+                    }
+                }
+            } else {
+                list.add("Belum ada pengukuran (offline)");
+            }
+            ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, list);
+            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            spinnerPengukuran.setAdapter(adapter);
+            spinnerPengukuran.setSelection(0);
+        } catch (Exception e) {
+            logError("loadTanggalOffline", "Error load offline master: " + e.getMessage());
+        }
+    }
+
+    // ✅ LOGGING METHODS
+    private void logInfo(String where, String msg) {
+        Log.i("InputDataActivity", "[INFO][" + where + "] " + msg);
+    }
+    private void logWarn(String where, String msg) {
+        Log.w("InputDataActivity", "[WARN][" + where + "] " + msg);
+    }
+    private void logError(String where, String msg) {
+        Log.e("InputDataActivity", "[ERROR][" + where + "] " + msg);
+    }
+
+    // METHOD LAMA (untuk kompatibilitas)
+    private void showSRConfirmationDialog(Runnable onConfirm) {
+        // Method ini tetap dipertahankan untuk kompatibilitas
+        if (onConfirm != null) onConfirm.run();
     }
 }
