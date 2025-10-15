@@ -12,10 +12,10 @@ import com.android.volley.BuildConfig;
 public class DatabaseHelper extends SQLiteOpenHelper {
 
     public static final String DB_NAME = "db_saguling.db";
-    public static final int DB_VERSION = 13; // naikin versi biar drop & create ulang
+    public static final int DB_VERSION = 13;
     private static final String TAG = "DBHelper";
 
-    private static SQLiteDatabase instance; // cache connection
+    private static SQLiteDatabase instance;
 
     public DatabaseHelper(Context context) {
         super(context, DB_NAME, null, DB_VERSION);
@@ -61,7 +61,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 "sr_106_kode TEXT, sr_106_nilai REAL, " +
                 "is_synced INTEGER DEFAULT 0)");
 
-        // === Tabel Bocoran Baru (pakai nilai + kode) ===
+        // === Tabel Bocoran Baru ===
         db.execSQL("CREATE TABLE IF NOT EXISTS t_bocoran_baru (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "pengukuran_id INTEGER, " +
@@ -71,17 +71,14 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 "is_synced INTEGER DEFAULT 0)");
 
         // ========== TABEL BARU ==========
-
-        // Tabel p_batasmaksimal
         db.execSQL("CREATE TABLE IF NOT EXISTS p_batasmaksimal (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "pengukuran_id INTEGER, " +
                 "batas_maksimal REAL, " +
                 "is_synced INTEGER DEFAULT 0)");
 
-        // Tabel p_bocoran_baru
         db.execSQL("CREATE TABLE IF NOT EXISTS p_bocoran_baru (" +
-                "id INTEGER PRIMARY KEY, " + // Perhatikan: ini bukan AUTOINCREMENT
+                "id INTEGER PRIMARY KEY, " +
                 "pengukuran_id INTEGER, " +
                 "talang1 REAL DEFAULT 0, " +
                 "talang2 REAL DEFAULT 0, " +
@@ -90,7 +87,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 "updated_at TEXT, " +
                 "is_synced INTEGER DEFAULT 0)");
 
-        // Tabel p_intigalery
         db.execSQL("CREATE TABLE IF NOT EXISTS p_intigalery (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "pengukuran_id INTEGER, " +
@@ -100,7 +96,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 "updated_at TEXT, " +
                 "is_synced INTEGER DEFAULT 0)");
 
-        // Tabel p_spillway
         db.execSQL("CREATE TABLE IF NOT EXISTS p_spillway (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "pengukuran_id INTEGER, " +
@@ -110,7 +105,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 "updated_at TEXT, " +
                 "is_synced INTEGER DEFAULT 0)");
 
-        // Tabel p_sr
         db.execSQL("CREATE TABLE IF NOT EXISTS p_sr (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "pengukuran_id INTEGER, " +
@@ -135,7 +129,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 "updated_at TEXT, " +
                 "is_synced INTEGER DEFAULT 0)");
 
-        // Tabel p_tebingkanan
         db.execSQL("CREATE TABLE IF NOT EXISTS p_tebingkanan (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "pengukuran_id INTEGER, " +
@@ -146,7 +139,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 "b5 REAL, " +
                 "is_synced INTEGER DEFAULT 0)");
 
-        // Tabel p_thomson_weir
         db.execSQL("CREATE TABLE IF NOT EXISTS p_thomson_weir (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "a1_r REAL, " +
@@ -157,7 +149,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 "pengukuran_id INTEGER, " +
                 "is_synced INTEGER DEFAULT 0)");
 
-        // Tabel p_totalbocoran
         db.execSQL("CREATE TABLE IF NOT EXISTS p_totalbocoran (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "pengukuran_id INTEGER, " +
@@ -166,25 +157,22 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 "updated_at TEXT, " +
                 "is_synced INTEGER DEFAULT 0)");
 
-// Tabel analisa_look_burt
         db.execSQL("CREATE TABLE IF NOT EXISTS analisa_look_burt (" +
-                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +          // id otomatis bertambah
-                "pengukuran_id INTEGER UNIQUE, " +                  // unik supaya bisa update berdasarkan pengukuran_id
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "pengukuran_id INTEGER UNIQUE, " +
                 "rembesan_bendungan REAL, " +
                 "panjang_bendungan REAL, " +
                 "rembesan_per_m REAL, " +
                 "nilai_ambang_ok REAL DEFAULT 0.28, " +
                 "nilai_ambang_notok REAL DEFAULT 0.56, " +
                 "keterangan TEXT, " +
-                "is_synced INTEGER DEFAULT 0, " +                  // 0 = belum sinkron, 1 = sudah sinkron
+                "is_synced INTEGER DEFAULT 0, " +
                 "FOREIGN KEY (pengukuran_id) REFERENCES t_data_pengukuran(id) ON DELETE CASCADE" +
                 ")");
-
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        // Hapus semua tabel
         db.execSQL("DROP TABLE IF EXISTS t_data_pengukuran");
         db.execSQL("DROP TABLE IF EXISTS t_thomson_weir");
         db.execSQL("DROP TABLE IF EXISTS t_sr");
@@ -198,7 +186,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.execSQL("DROP TABLE IF EXISTS p_thomson_weir");
         db.execSQL("DROP TABLE IF EXISTS p_totalbocoran");
         db.execSQL("DROP TABLE IF EXISTS analisa_look_burt");
-
         onCreate(db);
     }
 
@@ -215,7 +202,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     @Override
     public void close() {
         if (BuildConfig.DEBUG) {
-            // Jangan tutup saat debug
             Log.w(TAG, "close() diabaikan karena DEBUG mode -> DB tetap terbuka");
         } else {
             super.close();
@@ -235,16 +221,20 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     }
 
     // =======================================
+    // INSERT OR UPDATE METHODS
+    // =======================================
+
+    // =======================================
     // Insert / Update Pengukuran
     // =======================================
-    public void insertPengukuran(int id,
-                                 String tahun,
-                                 String bulan,
-                                 String periode,
-                                 String tanggal,
-                                 Double tma_waduk,
-                                 Double curah_hujan,
-                                 String temp_id) {
+    public void insertOrUpdatePengukuran(int id,
+                                         String tahun,
+                                         String bulan,
+                                         String periode,
+                                         String tanggal,
+                                         Double tma_waduk,
+                                         Double curah_hujan,
+                                         String temp_id) {
         SQLiteDatabase db = getDB();
 
         ContentValues values = new ContentValues();
@@ -258,64 +248,61 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         if (temp_id != null) values.put("temp_id", temp_id);
         values.put("is_synced", 1);
 
-        Cursor cursor = db.rawQuery("SELECT id FROM t_data_pengukuran WHERE id = ?", new String[]{String.valueOf(id)});
-        boolean exists = cursor.moveToFirst();
-        cursor.close();
-
-        if (exists) {
-            db.update("t_data_pengukuran", values, "id = ?", new String[]{String.valueOf(id)});
-            Log.i(TAG, "✅ Update Pengukuran | ID=" + id + ", Tanggal=" + tanggal);
+        // INSERT OR REPLACE
+        long result = db.insertWithOnConflict("t_data_pengukuran", null, values, SQLiteDatabase.CONFLICT_REPLACE);
+        if (result != -1) {
+            Log.i(TAG, "✅ Insert/Update Pengukuran | ID=" + id + ", Tanggal=" + tanggal);
         } else {
-            db.insert("t_data_pengukuran", null, values);
-            Log.i(TAG, "✅ Insert Pengukuran | ID=" + id + ", Tanggal=" + tanggal);
+            Log.e(TAG, "❌ Gagal Insert/Update Pengukuran | ID=" + id);
         }
     }
 
     // =======================================
-    // Insert Thomson
+    // Insert / Update Thomson Weir
     // =======================================
-    public void insertThomsonWeir(int pengukuranId, Double a1r, Double a1l,
-                                  Double b1, Double b3, Double b5) {
+    public void insertOrUpdateThomsonWeir(int pengukuranId, Double a1r, Double a1l,
+                                          Double b1, Double b3, Double b5) {
         SQLiteDatabase db = getDB();
 
-        if (!isThomsonWeirExist(db, pengukuranId)) {
-            ContentValues values = new ContentValues();
-            values.put("pengukuran_id", pengukuranId);
-            if (a1r != null) values.put("a1_r", a1r);
-            if (a1l != null) values.put("a1_l", a1l);
-            if (b1 != null) values.put("b1", b1);
-            if (b3 != null) values.put("b3", b3);
-            if (b5 != null) values.put("b5", b5);
-            values.put("is_synced", 1);
+        ContentValues values = new ContentValues();
+        values.put("pengukuran_id", pengukuranId);
+        if (a1r != null) values.put("a1_r", a1r);
+        if (a1l != null) values.put("a1_l", a1l);
+        if (b1 != null) values.put("b1", b1);
+        if (b3 != null) values.put("b3", b3);
+        if (b5 != null) values.put("b5", b5);
+        values.put("is_synced", 1);
 
-            db.insert("t_thomson_weir", null, values);
-            Log.d(TAG, "✅ Insert Thomson OK | pengukuranId=" + pengukuranId);
+        // INSERT OR REPLACE
+        long result = db.insertWithOnConflict("t_thomson_weir", null, values, SQLiteDatabase.CONFLICT_REPLACE);
+        if (result != -1) {
+            Log.d(TAG, "✅ Insert/Update Thomson | pengukuranId=" + pengukuranId);
         } else {
-            Log.w(TAG, "⚠️ Thomson sudah ada, skip | pengukuranId=" + pengukuranId);
+            Log.e(TAG, "❌ Gagal Insert/Update Thomson | pengukuranId=" + pengukuranId);
         }
     }
 
     // =======================================
-    // Insert SR
+    // Insert / Update SR
     // =======================================
-    public void insertSRFull(int pengukuranId,
-                             String sr1Kode, Double sr1Nilai,
-                             String sr40Kode, Double sr40Nilai,
-                             String sr66Kode, Double sr66Nilai,
-                             String sr68Kode, Double sr68Nilai,
-                             String sr70Kode, Double sr70Nilai,
-                             String sr79Kode, Double sr79Nilai,
-                             String sr81Kode, Double sr81Nilai,
-                             String sr83Kode, Double sr83Nilai,
-                             String sr85Kode, Double sr85Nilai,
-                             String sr92Kode, Double sr92Nilai,
-                             String sr94Kode, Double sr94Nilai,
-                             String sr96Kode, Double sr96Nilai,
-                             String sr98Kode, Double sr98Nilai,
-                             String sr100Kode, Double sr100Nilai,
-                             String sr102Kode, Double sr102Nilai,
-                             String sr104Kode, Double sr104Nilai,
-                             String sr106Kode, Double sr106Nilai) {
+    public void insertOrUpdateSRFull(int pengukuranId,
+                                     String sr1Kode, Double sr1Nilai,
+                                     String sr40Kode, Double sr40Nilai,
+                                     String sr66Kode, Double sr66Nilai,
+                                     String sr68Kode, Double sr68Nilai,
+                                     String sr70Kode, Double sr70Nilai,
+                                     String sr79Kode, Double sr79Nilai,
+                                     String sr81Kode, Double sr81Nilai,
+                                     String sr83Kode, Double sr83Nilai,
+                                     String sr85Kode, Double sr85Nilai,
+                                     String sr92Kode, Double sr92Nilai,
+                                     String sr94Kode, Double sr94Nilai,
+                                     String sr96Kode, Double sr96Nilai,
+                                     String sr98Kode, Double sr98Nilai,
+                                     String sr100Kode, Double sr100Nilai,
+                                     String sr102Kode, Double sr102Nilai,
+                                     String sr104Kode, Double sr104Nilai,
+                                     String sr106Kode, Double sr106Nilai) {
 
         SQLiteDatabase db = getDB();
         ContentValues values = new ContentValues();
@@ -358,26 +345,22 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         values.put("is_synced", 1);
 
-        Cursor c = db.rawQuery("SELECT id FROM t_sr WHERE pengukuran_id = ?", new String[]{String.valueOf(pengukuranId)});
-        boolean exists = c.moveToFirst();
-        c.close();
-
-        if (exists) {
-            db.update("t_sr", values, "pengukuran_id = ?", new String[]{String.valueOf(pengukuranId)});
-            Log.d(TAG, "✅ Update SR | pengukuranId=" + pengukuranId);
+        // INSERT OR REPLACE
+        long result = db.insertWithOnConflict("t_sr", null, values, SQLiteDatabase.CONFLICT_REPLACE);
+        if (result != -1) {
+            Log.d(TAG, "✅ Insert/Update SR | pengukuranId=" + pengukuranId);
         } else {
-            db.insert("t_sr", null, values);
-            Log.d(TAG, "✅ Insert SR | pengukuranId=" + pengukuranId);
+            Log.e(TAG, "❌ Gagal Insert/Update SR | pengukuranId=" + pengukuranId);
         }
     }
 
     // =======================================
-    // Insert Bocoran
+    // Insert / Update Bocoran
     // =======================================
-    public void insertBocoranFull(int pengukuranId,
-                                  Double elv624, String elv624Kode,
-                                  Double elv615, String elv615Kode,
-                                  Double pipa, String pipaKode) {
+    public void insertOrUpdateBocoranFull(int pengukuranId,
+                                          Double elv624, String elv624Kode,
+                                          Double elv615, String elv615Kode,
+                                          Double pipa, String pipaKode) {
         SQLiteDatabase db = getDB();
 
         ContentValues values = new ContentValues();
@@ -390,23 +373,19 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         if (pipaKode != null) values.put("pipa_p1_kode", pipaKode);
         values.put("is_synced", 1);
 
-        Cursor c = db.rawQuery("SELECT id FROM t_bocoran_baru WHERE pengukuran_id = ?", new String[]{String.valueOf(pengukuranId)});
-        boolean exists = c.moveToFirst();
-        c.close();
-
-        if (exists) {
-            db.update("t_bocoran_baru", values, "pengukuran_id = ?", new String[]{String.valueOf(pengukuranId)});
-            Log.d(TAG, "✅ Update Bocoran | pengukuranId=" + pengukuranId);
+        // INSERT OR REPLACE
+        long result = db.insertWithOnConflict("t_bocoran_baru", null, values, SQLiteDatabase.CONFLICT_REPLACE);
+        if (result != -1) {
+            Log.d(TAG, "✅ Insert/Update Bocoran | pengukuranId=" + pengukuranId);
         } else {
-            db.insert("t_bocoran_baru", null, values);
-            Log.d(TAG, "✅ Insert Bocoran | pengukuranId=" + pengukuranId);
+            Log.e(TAG, "❌ Gagal Insert/Update Bocoran | pengukuranId=" + pengukuranId);
         }
     }
 
     // =======================================
-    // Method untuk p_batasmaksimal
+    // Insert / Update p_batasmaksimal
     // =======================================
-    public void insertPBatasMaksimal(int pengukuranId, Double batasMaksimal) {
+    public void insertOrUpdatePBatasMaksimal(int pengukuranId, Double batasMaksimal) {
         SQLiteDatabase db = getDB();
 
         ContentValues values = new ContentValues();
@@ -414,26 +393,21 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         if (batasMaksimal != null) values.put("batas_maksimal", batasMaksimal);
         values.put("is_synced", 1);
 
-        Cursor cursor = db.rawQuery("SELECT id FROM p_batasmaksimal WHERE pengukuran_id = ?",
-                new String[]{String.valueOf(pengukuranId)});
-
-        if (cursor.moveToFirst()) {
-            db.update("p_batasmaksimal", values, "pengukuran_id = ?",
-                    new String[]{String.valueOf(pengukuranId)});
-            Log.d(TAG, "✅ Update p_batasmaksimal | pengukuranId=" + pengukuranId);
+        // INSERT OR REPLACE
+        long result = db.insertWithOnConflict("p_batasmaksimal", null, values, SQLiteDatabase.CONFLICT_REPLACE);
+        if (result != -1) {
+            Log.d(TAG, "✅ Insert/Update p_batasmaksimal | pengukuranId=" + pengukuranId);
         } else {
-            db.insert("p_batasmaksimal", null, values);
-            Log.d(TAG, "✅ Insert p_batasmaksimal | pengukuranId=" + pengukuranId);
+            Log.e(TAG, "❌ Gagal Insert/Update p_batasmaksimal | pengukuranId=" + pengukuranId);
         }
-        cursor.close();
     }
 
     // =======================================
-    // Method untuk p_bocoran_baru
+    // Insert / Update p_bocoran_baru
     // =======================================
-    public void insertPBocoranBaru(int id, int pengukuranId, Double talang1,
-                                   Double talang2, Double pipa,
-                                   String createdAt, String updatedAt) {
+    public void insertOrUpdatePBocoranBaru(int id, int pengukuranId, Double talang1,
+                                           Double talang2, Double pipa,
+                                           String createdAt, String updatedAt) {
         SQLiteDatabase db = getDB();
 
         ContentValues values = new ContentValues();
@@ -446,25 +420,20 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         if (updatedAt != null) values.put("updated_at", updatedAt);
         values.put("is_synced", 1);
 
-        Cursor cursor = db.rawQuery("SELECT id FROM p_bocoran_baru WHERE id = ?",
-                new String[]{String.valueOf(id)});
-
-        if (cursor.moveToFirst()) {
-            db.update("p_bocoran_baru", values, "id = ?",
-                    new String[]{String.valueOf(id)});
-            Log.d(TAG, "✅ Update p_bocoran_baru | id=" + id);
+        // INSERT OR REPLACE
+        long result = db.insertWithOnConflict("p_bocoran_baru", null, values, SQLiteDatabase.CONFLICT_REPLACE);
+        if (result != -1) {
+            Log.d(TAG, "✅ Insert/Update p_bocoran_baru | id=" + id);
         } else {
-            db.insert("p_bocoran_baru", null, values);
-            Log.d(TAG, "✅ Insert p_bocoran_baru | id=" + id);
+            Log.e(TAG, "❌ Gagal Insert/Update p_bocoran_baru | id=" + id);
         }
-        cursor.close();
     }
 
     // =======================================
-    // Method untuk p_intigalery
+    // Insert / Update p_intigalery
     // =======================================
-    public void insertPIntiGallery(int pengukuranId, Double a1, Double ambangA1,
-                                   String createdAt, String updatedAt) {
+    public void insertOrUpdatePIntiGallery(int pengukuranId, Double a1, Double ambangA1,
+                                           String createdAt, String updatedAt) {
         SQLiteDatabase db = getDB();
 
         ContentValues values = new ContentValues();
@@ -475,25 +444,20 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         if (updatedAt != null) values.put("updated_at", updatedAt);
         values.put("is_synced", 1);
 
-        Cursor cursor = db.rawQuery("SELECT id FROM p_intigalery WHERE pengukuran_id = ?",
-                new String[]{String.valueOf(pengukuranId)});
-
-        if (cursor.moveToFirst()) {
-            db.update("p_intigalery", values, "pengukuran_id = ?",
-                    new String[]{String.valueOf(pengukuranId)});
-            Log.d(TAG, "✅ Update p_intigalery | pengukuranId=" + pengukuranId);
+        // INSERT OR REPLACE
+        long result = db.insertWithOnConflict("p_intigalery", null, values, SQLiteDatabase.CONFLICT_REPLACE);
+        if (result != -1) {
+            Log.d(TAG, "✅ Insert/Update p_intigalery | pengukuranId=" + pengukuranId);
         } else {
-            db.insert("p_intigalery", null, values);
-            Log.d(TAG, "✅ Insert p_intigalery | pengukuranId=" + pengukuranId);
+            Log.e(TAG, "❌ Gagal Insert/Update p_intigalery | pengukuranId=" + pengukuranId);
         }
-        cursor.close();
     }
 
     // =======================================
-    // Method untuk p_spillway
+    // Insert / Update p_spillway
     // =======================================
-    public void insertPSpillway(int pengukuranId, Double b3, Double ambang,
-                                String createdAt, String updatedAt) {
+    public void insertOrUpdatePSpillway(int pengukuranId, Double b3, Double ambang,
+                                        String createdAt, String updatedAt) {
         SQLiteDatabase db = getDB();
 
         ContentValues values = new ContentValues();
@@ -504,29 +468,24 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         if (updatedAt != null) values.put("updated_at", updatedAt);
         values.put("is_synced", 1);
 
-        Cursor cursor = db.rawQuery("SELECT id FROM p_spillway WHERE pengukuran_id = ?",
-                new String[]{String.valueOf(pengukuranId)});
-
-        if (cursor.moveToFirst()) {
-            db.update("p_spillway", values, "pengukuran_id = ?",
-                    new String[]{String.valueOf(pengukuranId)});
-            Log.d(TAG, "✅ Update p_spillway | pengukuranId=" + pengukuranId);
+        // INSERT OR REPLACE
+        long result = db.insertWithOnConflict("p_spillway", null, values, SQLiteDatabase.CONFLICT_REPLACE);
+        if (result != -1) {
+            Log.d(TAG, "✅ Insert/Update p_spillway | pengukuranId=" + pengukuranId);
         } else {
-            db.insert("p_spillway", null, values);
-            Log.d(TAG, "✅ Insert p_spillway | pengukuranId=" + pengukuranId);
+            Log.e(TAG, "❌ Gagal Insert/Update p_spillway | pengukuranId=" + pengukuranId);
         }
-        cursor.close();
     }
 
     // =======================================
-    // Method untuk p_sr (yang hasil perhitungan)
+    // Insert / Update p_sr
     // =======================================
-    public void insertPSr(int pengukuranId,
-                          Double sr1q, Double sr40q, Double sr66q, Double sr68q,
-                          Double sr70q, Double sr79q, Double sr81q, Double sr83q,
-                          Double sr85q, Double sr92q, Double sr94q, Double sr96q,
-                          Double sr98q, Double sr100q, Double sr102q, Double sr104q,
-                          Double sr106q, String createdAt, String updatedAt) {
+    public void insertOrUpdatePSr(int pengukuranId,
+                                  Double sr1q, Double sr40q, Double sr66q, Double sr68q,
+                                  Double sr70q, Double sr79q, Double sr81q, Double sr83q,
+                                  Double sr85q, Double sr92q, Double sr94q, Double sr96q,
+                                  Double sr98q, Double sr100q, Double sr102q, Double sr104q,
+                                  Double sr106q, String createdAt, String updatedAt) {
         SQLiteDatabase db = getDB();
 
         ContentValues values = new ContentValues();
@@ -552,25 +511,20 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         if (updatedAt != null) values.put("updated_at", updatedAt);
         values.put("is_synced", 1);
 
-        Cursor cursor = db.rawQuery("SELECT id FROM p_sr WHERE pengukuran_id = ?",
-                new String[]{String.valueOf(pengukuranId)});
-
-        if (cursor.moveToFirst()) {
-            db.update("p_sr", values, "pengukuran_id = ?",
-                    new String[]{String.valueOf(pengukuranId)});
-            Log.d(TAG, "✅ Update p_sr | pengukuranId=" + pengukuranId);
+        // INSERT OR REPLACE
+        long result = db.insertWithOnConflict("p_sr", null, values, SQLiteDatabase.CONFLICT_REPLACE);
+        if (result != -1) {
+            Log.d(TAG, "✅ Insert/Update p_sr | pengukuranId=" + pengukuranId);
         } else {
-            db.insert("p_sr", null, values);
-            Log.d(TAG, "✅ Insert p_sr | pengukuranId=" + pengukuranId);
+            Log.e(TAG, "❌ Gagal Insert/Update p_sr | pengukuranId=" + pengukuranId);
         }
-        cursor.close();
     }
 
     // =======================================
-    // Method untuk p_tebingkanan
+    // Insert / Update p_tebingkanan
     // =======================================
-    public void insertPTebingKanan(int pengukuranId, Double sr, Double ambang,
-                                   Double b5, String createdAt, String updatedAt) {
+    public void insertOrUpdatePTebingKanan(int pengukuranId, Double sr, Double ambang,
+                                           Double b5, String createdAt, String updatedAt) {
         SQLiteDatabase db = getDB();
 
         ContentValues values = new ContentValues();
@@ -582,25 +536,20 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         if (updatedAt != null) values.put("updated_at", updatedAt);
         values.put("is_synced", 1);
 
-        Cursor cursor = db.rawQuery("SELECT id FROM p_tebingkanan WHERE pengukuran_id = ?",
-                new String[]{String.valueOf(pengukuranId)});
-
-        if (cursor.moveToFirst()) {
-            db.update("p_tebingkanan", values, "pengukuran_id = ?",
-                    new String[]{String.valueOf(pengukuranId)});
-            Log.d(TAG, "✅ Update p_tebingkanan | pengukuranId=" + pengukuranId);
+        // INSERT OR REPLACE
+        long result = db.insertWithOnConflict("p_tebingkanan", null, values, SQLiteDatabase.CONFLICT_REPLACE);
+        if (result != -1) {
+            Log.d(TAG, "✅ Insert/Update p_tebingkanan | pengukuranId=" + pengukuranId);
         } else {
-            db.insert("p_tebingkanan", null, values);
-            Log.d(TAG, "✅ Insert p_tebingkanan | pengukuranId=" + pengukuranId);
+            Log.e(TAG, "❌ Gagal Insert/Update p_tebingkanan | pengukuranId=" + pengukuranId);
         }
-        cursor.close();
     }
 
     // =======================================
-    // Method untuk p_thomson_weir (hasil)
+    // Insert / Update p_thomson_weir
     // =======================================
-    public void insertPThomsonWeir(int pengukuranId, Double a1r, Double a1l,
-                                   Double b1, Double b3, Double b5) {
+    public void insertOrUpdatePThomsonWeir(int pengukuranId, Double a1r, Double a1l,
+                                           Double b1, Double b3, Double b5) {
         SQLiteDatabase db = getDB();
 
         ContentValues values = new ContentValues();
@@ -612,25 +561,20 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         if (b5 != null) values.put("b5", b5);
         values.put("is_synced", 1);
 
-        Cursor cursor = db.rawQuery("SELECT id FROM p_thomson_weir WHERE pengukuran_id = ?",
-                new String[]{String.valueOf(pengukuranId)});
-
-        if (cursor.moveToFirst()) {
-            db.update("p_thomson_weir", values, "pengukuran_id = ?",
-                    new String[]{String.valueOf(pengukuranId)});
-            Log.d(TAG, "✅ Update p_thomson_weir | pengukuranId=" + pengukuranId);
+        // INSERT OR REPLACE
+        long result = db.insertWithOnConflict("p_thomson_weir", null, values, SQLiteDatabase.CONFLICT_REPLACE);
+        if (result != -1) {
+            Log.d(TAG, "✅ Insert/Update p_thomson_weir | pengukuranId=" + pengukuranId);
         } else {
-            db.insert("p_thomson_weir", null, values);
-            Log.d(TAG, "✅ Insert p_thomson_weir | pengukuranId=" + pengukuranId);
+            Log.e(TAG, "❌ Gagal Insert/Update p_thomson_weir | pengukuranId=" + pengukuranId);
         }
-        cursor.close();
     }
 
     // =======================================
-    // Method untuk p_totalbocoran
+    // Insert / Update p_totalbocoran
     // =======================================
-    public void insertPTotalBocoran(int pengukuranId, Double r1,
-                                    String createdAt, String updatedAt) {
+    public void insertOrUpdatePTotalBocoran(int pengukuranId, Double r1,
+                                            String createdAt, String updatedAt) {
         SQLiteDatabase db = getDB();
 
         ContentValues values = new ContentValues();
@@ -640,23 +584,42 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         if (updatedAt != null) values.put("updated_at", updatedAt);
         values.put("is_synced", 1);
 
-        Cursor cursor = db.rawQuery("SELECT id FROM p_totalbocoran WHERE pengukuran_id = ?",
-                new String[]{String.valueOf(pengukuranId)});
-
-        if (cursor.moveToFirst()) {
-            db.update("p_totalbocoran", values, "pengukuran_id = ?",
-                    new String[]{String.valueOf(pengukuranId)});
-            Log.d(TAG, "✅ Update p_totalbocoran | pengukuranId=" + pengukuranId);
+        // INSERT OR REPLACE
+        long result = db.insertWithOnConflict("p_totalbocoran", null, values, SQLiteDatabase.CONFLICT_REPLACE);
+        if (result != -1) {
+            Log.d(TAG, "✅ Insert/Update p_totalbocoran | pengukuranId=" + pengukuranId);
         } else {
-            db.insert("p_totalbocoran", null, values);
-            Log.d(TAG, "✅ Insert p_totalbocoran | pengukuranId=" + pengukuranId);
+            Log.e(TAG, "❌ Gagal Insert/Update p_totalbocoran | pengukuranId=" + pengukuranId);
         }
-        cursor.close();
     }
 
+    // =======================================
+    // Insert / Update AnalisaLookBurt
+    // =======================================
+    public void insertOrUpdateAnalisaLookBurt(AnalisaLookBurtModel model) {
+        SQLiteDatabase db = getDB();
+        ContentValues values = new ContentValues();
+
+        values.put("pengukuran_id", model.getPengukuranId());
+        values.put("rembesan_bendungan", model.getRembesanBendungan() != null ? model.getRembesanBendungan() : 0.0);
+        values.put("panjang_bendungan", model.getPanjangBendungan() != null ? model.getPanjangBendungan() : 0.0);
+        values.put("rembesan_per_m", model.getRembesanPerM() != null ? model.getRembesanPerM() : 0.0);
+        values.put("nilai_ambang_ok", model.getNilaiAmbangOk() != null ? model.getNilaiAmbangOk() : 0.28);
+        values.put("nilai_ambang_notok", model.getNilaiAmbangNotok() != null ? model.getNilaiAmbangNotok() : 0.56);
+        values.put("keterangan", model.getKeterangan() != null ? model.getKeterangan() : "");
+        values.put("is_synced", 1);
+
+        // INSERT OR REPLACE
+        long result = db.insertWithOnConflict("analisa_look_burt", null, values, SQLiteDatabase.CONFLICT_REPLACE);
+        if (result != -1) {
+            Log.d(TAG, "✅ Insert/Update analisa_look_burt | pengukuran_id=" + model.getPengukuranId());
+        } else {
+            Log.e(TAG, "❌ Gagal Insert/Update analisa_look_burt | pengukuran_id=" + model.getPengukuranId());
+        }
+    }
 
     // ============================================
-    // ======= CEK DUPLIKASI ======================
+    // ======= CEK DUPLIKASI (KEEP EXISTING) =====
     // ============================================
     public boolean isThomsonWeirExist(SQLiteDatabase db, int pengukuranId) {
         Cursor cursor = db.rawQuery(
@@ -676,29 +639,85 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return exists;
     }
 
-    // ===== Insert atau Update AnalisaLookBurt =====
+    // =======================================
+    // ORIGINAL METHODS (KEEP FOR BACKWARD COMPATIBILITY)
+    // =======================================
+
+    public void insertPengukuran(int id, String tahun, String bulan, String periode,
+                                 String tanggal, Double tma_waduk, Double curah_hujan, String temp_id) {
+        insertOrUpdatePengukuran(id, tahun, bulan, periode, tanggal, tma_waduk, curah_hujan, temp_id);
+    }
+
+    public void insertThomsonWeir(int pengukuranId, Double a1r, Double a1l,
+                                  Double b1, Double b3, Double b5) {
+        insertOrUpdateThomsonWeir(pengukuranId, a1r, a1l, b1, b3, b5);
+    }
+
+    public void insertSRFull(int pengukuranId, String sr1Kode, Double sr1Nilai,
+                             String sr40Kode, Double sr40Nilai, String sr66Kode, Double sr66Nilai,
+                             String sr68Kode, Double sr68Nilai, String sr70Kode, Double sr70Nilai,
+                             String sr79Kode, Double sr79Nilai, String sr81Kode, Double sr81Nilai,
+                             String sr83Kode, Double sr83Nilai, String sr85Kode, Double sr85Nilai,
+                             String sr92Kode, Double sr92Nilai, String sr94Kode, Double sr94Nilai,
+                             String sr96Kode, Double sr96Nilai, String sr98Kode, Double sr98Nilai,
+                             String sr100Kode, Double sr100Nilai, String sr102Kode, Double sr102Nilai,
+                             String sr104Kode, Double sr104Nilai, String sr106Kode, Double sr106Nilai) {
+        insertOrUpdateSRFull(pengukuranId, sr1Kode, sr1Nilai, sr40Kode, sr40Nilai, sr66Kode, sr66Nilai,
+                sr68Kode, sr68Nilai, sr70Kode, sr70Nilai, sr79Kode, sr79Nilai, sr81Kode, sr81Nilai,
+                sr83Kode, sr83Nilai, sr85Kode, sr85Nilai, sr92Kode, sr92Nilai, sr94Kode, sr94Nilai,
+                sr96Kode, sr96Nilai, sr98Kode, sr98Nilai, sr100Kode, sr100Nilai, sr102Kode, sr102Nilai,
+                sr104Kode, sr104Nilai, sr106Kode, sr106Nilai);
+    }
+
+    public void insertBocoranFull(int pengukuranId, Double elv624, String elv624Kode,
+                                  Double elv615, String elv615Kode, Double pipa, String pipaKode) {
+        insertOrUpdateBocoranFull(pengukuranId, elv624, elv624Kode, elv615, elv615Kode, pipa, pipaKode);
+    }
+
+    public void insertPBatasMaksimal(int pengukuranId, Double batasMaksimal) {
+        insertOrUpdatePBatasMaksimal(pengukuranId, batasMaksimal);
+    }
+
+    public void insertPBocoranBaru(int id, int pengukuranId, Double talang1, Double talang2,
+                                   Double pipa, String createdAt, String updatedAt) {
+        insertOrUpdatePBocoranBaru(id, pengukuranId, talang1, talang2, pipa, createdAt, updatedAt);
+    }
+
+    public void insertPIntiGallery(int pengukuranId, Double a1, Double ambangA1,
+                                   String createdAt, String updatedAt) {
+        insertOrUpdatePIntiGallery(pengukuranId, a1, ambangA1, createdAt, updatedAt);
+    }
+
+    public void insertPSpillway(int pengukuranId, Double b3, Double ambang,
+                                String createdAt, String updatedAt) {
+        insertOrUpdatePSpillway(pengukuranId, b3, ambang, createdAt, updatedAt);
+    }
+
+    public void insertPSr(int pengukuranId, Double sr1q, Double sr40q, Double sr66q, Double sr68q,
+                          Double sr70q, Double sr79q, Double sr81q, Double sr83q, Double sr85q,
+                          Double sr92q, Double sr94q, Double sr96q, Double sr98q, Double sr100q,
+                          Double sr102q, Double sr104q, Double sr106q, String createdAt, String updatedAt) {
+        insertOrUpdatePSr(pengukuranId, sr1q, sr40q, sr66q, sr68q, sr70q, sr79q, sr81q, sr83q, sr85q,
+                sr92q, sr94q, sr96q, sr98q, sr100q, sr102q, sr104q, sr106q, createdAt, updatedAt);
+    }
+
+    public void insertPTebingKanan(int pengukuranId, Double sr, Double ambang,
+                                   Double b5, String createdAt, String updatedAt) {
+        insertOrUpdatePTebingKanan(pengukuranId, sr, ambang, b5, createdAt, updatedAt);
+    }
+
+    public void insertPThomsonWeir(int pengukuranId, Double a1r, Double a1l,
+                                   Double b1, Double b3, Double b5) {
+        insertOrUpdatePThomsonWeir(pengukuranId, a1r, a1l, b1, b3, b5);
+    }
+
+    public void insertPTotalBocoran(int pengukuranId, Double r1,
+                                    String createdAt, String updatedAt) {
+        insertOrUpdatePTotalBocoran(pengukuranId, r1, createdAt, updatedAt);
+    }
+
     public void insertAnalisaLookBurt(AnalisaLookBurtModel model) {
-        SQLiteDatabase db = this.getWritableDatabase();
-        ContentValues values = new ContentValues();
-
-        values.put("pengukuran_id", model.getPengukuranId());
-        values.put("rembesan_bendungan", model.getRembesanBendungan() != null ? model.getRembesanBendungan() : 0.0);
-        values.put("panjang_bendungan", model.getPanjangBendungan() != null ? model.getPanjangBendungan() : 0.0);
-        values.put("rembesan_per_m", model.getRembesanPerM() != null ? model.getRembesanPerM() : 0.0);
-        values.put("nilai_ambang_ok", model.getNilaiAmbangOk() != null ? model.getNilaiAmbangOk() : 0.28);
-        values.put("nilai_ambang_notok", model.getNilaiAmbangNotok() != null ? model.getNilaiAmbangNotok() : 0.56);
-        values.put("keterangan", model.getKeterangan() != null ? model.getKeterangan() : "");
-        values.put("is_synced", 1); // tandai sudah sinkron
-
-        // Gunakan INSERT OR REPLACE agar update otomatis jika pengukuran_id sudah ada
-        db.insertWithOnConflict(
-                "analisa_look_burt",
-                null,
-                values,
-                SQLiteDatabase.CONFLICT_REPLACE
-        );
-
-        Log.d("DatabaseHelper", "✅ Insert/Update analisa_look_burt | pengukuran_id=" + model.getPengukuranId());
+        insertOrUpdateAnalisaLookBurt(model);
     }
 
     // ===== Ambil AnalisaLookBurt by pengukuranId =====
@@ -733,5 +752,4 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         return model;
     }
-
 }

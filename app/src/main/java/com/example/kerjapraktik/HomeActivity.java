@@ -18,8 +18,6 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-
-
 public class HomeActivity extends AppCompatActivity {
 
     private LinearLayout btnInput, btnInputHP2, btnHistory;
@@ -61,7 +59,6 @@ public class HomeActivity extends AppCompatActivity {
             Intent intent = new Intent(HomeActivity.this, HistoryActivity.class);
             startActivity(intent);
         });
-
     }
 
     private boolean isOnline() {
@@ -70,7 +67,7 @@ public class HomeActivity extends AppCompatActivity {
         return netInfo != null && netInfo.isConnected();
     }
 
-    private <T> void syncListData(List<T> list, Consumer<T> insertFunc, String label) {
+    private <T> void syncListData(List<T> list, Consumer<T> insertOrUpdateFunc, String label) {
         if (list == null || list.isEmpty()) {
             Log.w(TAG, label + ": list kosong");
             return;
@@ -81,7 +78,7 @@ public class HomeActivity extends AppCompatActivity {
 
         for (T item : list) {
             try {
-                insertFunc.accept(item);
+                insertOrUpdateFunc.accept(item);
                 successCount++;
             } catch (Exception e) {
                 Log.e(TAG, "Gagal simpan " + label, e);
@@ -90,7 +87,9 @@ public class HomeActivity extends AppCompatActivity {
 
         String message = label + ": " + successCount + "/" + totalCount + " data tersinkron";
         Log.i(TAG, message);
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+        if (successCount > 0) {
+            runOnUiThread(() -> Toast.makeText(this, message, Toast.LENGTH_SHORT).show());
+        }
     }
 
     private void syncDataFromServer() {
@@ -102,7 +101,7 @@ public class HomeActivity extends AppCompatActivity {
             public void onResponse(Call<PengukuranResponse> call, Response<PengukuranResponse> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     List<PengukuranModel> pengukuranList = response.body().getData();
-                    syncListData(pengukuranList, p -> dbHelper.insertPengukuran(
+                    syncListData(pengukuranList, p -> dbHelper.insertOrUpdatePengukuran(
                             p.getId(),
                             p.getTahun(),
                             p.getBulan(),
@@ -127,7 +126,7 @@ public class HomeActivity extends AppCompatActivity {
             public void onResponse(Call<ThomsonResponse> call, Response<ThomsonResponse> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     List<ThomsonWeirModel> thomsonList = response.body().getData();
-                    syncListData(thomsonList, t -> dbHelper.insertThomsonWeir(
+                    syncListData(thomsonList, t -> dbHelper.insertOrUpdateThomsonWeir(
                             t.getPengukuran_id(),
                             t.getA1_r(),
                             t.getA1_l(),
@@ -150,7 +149,7 @@ public class HomeActivity extends AppCompatActivity {
             public void onResponse(Call<SRResponse> call, Response<SRResponse> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     List<SRModel> srList = response.body().getData();
-                    syncListData(srList, s -> dbHelper.insertSRFull(
+                    syncListData(srList, s -> dbHelper.insertOrUpdateSRFull(
                             s.getPengukuranId(),
                             s.getSr1Kode(), s.getSr1Nilai(),
                             s.getSr40Kode(), s.getSr40Nilai(),
@@ -185,7 +184,7 @@ public class HomeActivity extends AppCompatActivity {
             public void onResponse(Call<BocoranResponse> call, Response<BocoranResponse> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     List<BocoranBaruModel> bocoranList = response.body().getData();
-                    syncListData(bocoranList, b -> dbHelper.insertBocoranFull(
+                    syncListData(bocoranList, b -> dbHelper.insertOrUpdateBocoranFull(
                             b.getPengukuran_id(),
                             b.getElv_624_t1(), b.getElv_624_t1_kode(),
                             b.getElv_615_t2(), b.getElv_615_t2_kode(),
@@ -206,7 +205,7 @@ public class HomeActivity extends AppCompatActivity {
             public void onResponse(Call<BatasMaksimalResponse> call, Response<BatasMaksimalResponse> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     List<BatasMaksimalModel> batasList = response.body().getData();
-                    syncListData(batasList, b -> dbHelper.insertPBatasMaksimal(
+                    syncListData(batasList, b -> dbHelper.insertOrUpdatePBatasMaksimal(
                             b.getPengukuran_id(),
                             b.getBatas_maksimal()
                     ), "Batas Maksimal");
@@ -225,7 +224,7 @@ public class HomeActivity extends AppCompatActivity {
             public void onResponse(Call<PBocoranBaruResponse> call, Response<PBocoranBaruResponse> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     List<PBocoranBaruModel> bocoranList = response.body().getData();
-                    syncListData(bocoranList, b -> dbHelper.insertPBocoranBaru(
+                    syncListData(bocoranList, b -> dbHelper.insertOrUpdatePBocoranBaru(
                             b.getId(),
                             b.getPengukuran_id(),
                             b.getTalang1(),
@@ -249,7 +248,7 @@ public class HomeActivity extends AppCompatActivity {
             public void onResponse(Call<PIntiGalleryResponse> call, Response<PIntiGalleryResponse> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     List<PIntiGalleryModel> intiList = response.body().getData();
-                    syncListData(intiList, i -> dbHelper.insertPIntiGallery(
+                    syncListData(intiList, i -> dbHelper.insertOrUpdatePIntiGallery(
                             i.getPengukuran_id(),
                             i.getA1(),
                             i.getAmbang_a1(),
@@ -271,7 +270,7 @@ public class HomeActivity extends AppCompatActivity {
             public void onResponse(Call<PSpillwayResponse> call, Response<PSpillwayResponse> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     List<PSpillwayModel> spillwayList = response.body().getData();
-                    syncListData(spillwayList, s -> dbHelper.insertPSpillway(
+                    syncListData(spillwayList, s -> dbHelper.insertOrUpdatePSpillway(
                             s.getPengukuran_id(),
                             s.getB3(),
                             s.getAmbang(),
@@ -293,7 +292,7 @@ public class HomeActivity extends AppCompatActivity {
             public void onResponse(Call<PSRResponse> call, Response<PSRResponse> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     List<PSRModel> psrList = response.body().getData();
-                    syncListData(psrList, p -> dbHelper.insertPSr(
+                    syncListData(psrList, p -> dbHelper.insertOrUpdatePSr(
                             p.getPengukuran_id(),
                             p.getSr_1_q(), p.getSr_40_q(), p.getSr_66_q(), p.getSr_68_q(),
                             p.getSr_70_q(), p.getSr_79_q(), p.getSr_81_q(), p.getSr_83_q(),
@@ -316,7 +315,7 @@ public class HomeActivity extends AppCompatActivity {
             public void onResponse(Call<PTebingKananResponse> call, Response<PTebingKananResponse> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     List<PTebingKananModel> tebingList = response.body().getData();
-                    syncListData(tebingList, t -> dbHelper.insertPTebingKanan(
+                    syncListData(tebingList, t -> dbHelper.insertOrUpdatePTebingKanan(
                             t.getPengukuran_id(),
                             t.getSr(),
                             t.getAmbang(),
@@ -339,7 +338,7 @@ public class HomeActivity extends AppCompatActivity {
             public void onResponse(Call<PThomsonWeirResponse> call, Response<PThomsonWeirResponse> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     List<PThomsonWeirModel> thomsonList = response.body().getData();
-                    syncListData(thomsonList, t -> dbHelper.insertPThomsonWeir(
+                    syncListData(thomsonList, t -> dbHelper.insertOrUpdatePThomsonWeir(
                             t.getPengukuran_id(),
                             t.getA1_r(),
                             t.getA1_l(),
@@ -362,7 +361,7 @@ public class HomeActivity extends AppCompatActivity {
             public void onResponse(Call<PTotalBocoranResponse> call, Response<PTotalBocoranResponse> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     List<PTotalBocoranModel> totalBocoranList = response.body().getData();
-                    syncListData(totalBocoranList, t -> dbHelper.insertPTotalBocoran(
+                    syncListData(totalBocoranList, t -> dbHelper.insertOrUpdatePTotalBocoran(
                             t.getPengukuran_id(),
                             t.getR1(),
                             t.getCreated_at(),
@@ -377,21 +376,28 @@ public class HomeActivity extends AppCompatActivity {
             }
         });
 
-// === 13. Data Analisa Look Burt ===
+        // === 13. Data Analisa Look Burt ===
         api.getAnalisaLookBurt().enqueue(new Callback<AnalisaLookBurtResponse>() {
             @Override
             public void onResponse(Call<AnalisaLookBurtResponse> call, Response<AnalisaLookBurtResponse> response) {
+                // Buat final variable untuk menyimpan message
+                final String errorMessage;
+                String errorMessage1;
 
-                // Log errorBody jika ada, tapi jangan crash
                 if (!response.isSuccessful() && response.errorBody() != null) {
                     try {
-                        Log.e(TAG, "Error body Analisa Look Burt: " + response.errorBody().string());
+                        String errorBody = response.errorBody().string();
+                        Log.e(TAG, "Error body Analisa Look Burt: " + errorBody);
+                        errorMessage1 = "Sinkron Analisa Look Burt gagal: " + errorBody;
                     } catch (Exception e) {
                         Log.e(TAG, "Gagal membaca error body", e);
+                        errorMessage1 = "Sinkron Analisa Look Burt gagal: Error membaca response";
                     }
+                } else {
+                    errorMessage1 = null;
                 }
 
-                // Ambil body, jika null buat fallback object
+                errorMessage = errorMessage1;
                 AnalisaLookBurtResponse body = response.body();
                 if (body == null) {
                     Log.w(TAG, "Body Analisa Look Burt kosong, membuat object kosong");
@@ -401,35 +407,32 @@ public class HomeActivity extends AppCompatActivity {
                     body.setMessage("Body null dari server");
                 }
 
-                // Ambil list data, aman jika null
                 List<AnalisaLookBurtModel> list = body.getData() != null ? body.getData() : Collections.emptyList();
 
                 if (!list.isEmpty()) {
-                    // Tandai semua data sebagai sudah sinkron jika ada methodnya
-                    if (body instanceof AnalisaLookBurtResponse) {
-                        try {
-                            body.markAllAsSynced(); // jika method ini ada
-                        } catch (Exception ignored) {}
-                    }
-
-                    // Masukkan ke database
-                    syncListData(list, a -> dbHelper.insertAnalisaLookBurt(a), "Analisa Look Burt");
+                    syncListData(list, a -> dbHelper.insertOrUpdateAnalisaLookBurt(a), "Analisa Look Burt");
                 } else {
                     Log.w(TAG, "⚠️ List Analisa Look Burt kosong");
                 }
 
-                // Jika status bukan success, tampilkan toast
+                // Gunakan final variable di lambda
                 if (!body.isSuccess()) {
-                    Toast.makeText(HomeActivity.this, "Sinkron Analisa Look Burt gagal: " + body.getMessage(), Toast.LENGTH_SHORT).show();
+                    final String finalMessage = body.getMessage() != null ?
+                            "Sinkron Analisa Look Burt gagal: " + body.getMessage() :
+                            "Sinkron Analisa Look Burt gagal";
+
+                    runOnUiThread(() -> Toast.makeText(HomeActivity.this, finalMessage, Toast.LENGTH_SHORT).show());
+                } else if (errorMessage != null) {
+                    runOnUiThread(() -> Toast.makeText(HomeActivity.this, errorMessage, Toast.LENGTH_SHORT).show());
                 }
             }
 
             @Override
             public void onFailure(Call<AnalisaLookBurtResponse> call, Throwable t) {
                 Log.e(TAG, "❌ Error sinkron Analisa Look Burt: " + t.getMessage(), t);
-                Toast.makeText(HomeActivity.this, "Error sinkron Analisa Look Burt", Toast.LENGTH_SHORT).show();
+                final String errorMessage = "Error sinkron Analisa Look Burt: " + t.getMessage();
+                runOnUiThread(() -> Toast.makeText(HomeActivity.this, errorMessage, Toast.LENGTH_SHORT).show());
             }
         });
-
     }
 }
