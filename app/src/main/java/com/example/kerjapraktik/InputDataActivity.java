@@ -5,6 +5,7 @@ import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.AutoCompleteTextView;
@@ -164,7 +165,7 @@ public class InputDataActivity extends AppCompatActivity {
         if (btnSubmitTmaWaduk != null) btnSubmitTmaWaduk.setOnClickListener(v -> handleTmaWaduk());
         if (btnSubmitThomson != null) btnSubmitThomson.setOnClickListener(v -> handleThomsonHP1());
         if (btnSubmitSR != null) btnSubmitSR.setOnClickListener(v -> handleSR());
-        if (btnHitungSemua != null) btnHitungSemua.setOnClickListener(v -> handleHitungSemua());
+
 
         // tampilkan modal jika komponen ada
         if (modalPengukuran != null && modalOverlay != null && mainContent != null) {
@@ -811,20 +812,23 @@ public class InputDataActivity extends AppCompatActivity {
         dialog.show();
 
         Window window = dialog.getWindow();
-        if (window != null) {
-            window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            window.setGravity(Gravity.CENTER);
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            dialog.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND); // opsional: hilangkan efek gelap belakang
         }
+
 
         btnYes.setOnClickListener(v -> {
             dialog.dismiss();
-            // Kirim data ke server
+            data.put("confirm", "yes"); // ✅ tambahkan ini agar server tahu user sudah setuju
+
             if (isInternetAvailable() && data.containsKey("pengukuran_id")) {
                 sendToServerWithSRConfirm(data, "sr", false);
             } else {
                 saveOffline("sr", data.getOrDefault("temp_id", "local_" + System.currentTimeMillis()), data);
             }
         });
+
 
         btnNo.setOnClickListener(v -> dialog.dismiss());
     }
@@ -944,218 +948,6 @@ public class InputDataActivity extends AppCompatActivity {
             }
         }).start();
     }
-
-    /* ---------- Hitung semua ---------- */
-
-    private void handleHitungSemua() {
-        if (!isInternetAvailable()) {
-            showElegantToast("Tidak ada koneksi internet. Tidak dapat menghitung data.", "error");
-            return;
-        }
-
-        String sel = spinnerPengukuran.getSelectedItem() != null ? spinnerPengukuran.getSelectedItem().toString() : null;
-        int id = -1;
-        if (sel != null && pengukuranMap.containsKey(sel)) {
-            id = pengukuranMap.get(sel);
-        } else {
-            SharedPreferences prefs = getSharedPreferences("pengukuran", MODE_PRIVATE);
-            id = prefs.getInt("pengukuran_id", -1);
-        }
-
-        if (id == -1) {
-            showElegantToast("Pilih data pengukuran terlebih dahulu!", "warning");
-            return;
-        }
-
-        final int finalId = id;
-        ProgressDialog pd = new ProgressDialog(this);
-        pd.setMessage("Menghitung data...");
-        pd.setCancelable(false);
-        pd.show();
-
-        new Thread(() -> {
-            HttpURLConnection conn = null;
-            try {
-                URL url = new URL(HITUNG_SEMUA_URL);
-                conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setDoOutput(true);
-                conn.setConnectTimeout(300000);
-                conn.setReadTimeout(300000);
-                conn.setRequestProperty("Content-Type", "application/json");
-                conn.setRequestProperty("Accept", "application/json");
-
-                JSONObject json = new JSONObject();
-                json.put("pengukuran_id", finalId);
-
-                OutputStream os = conn.getOutputStream();
-                os.write(json.toString().getBytes("UTF-8"));
-                os.flush();
-                os.close();
-
-                int code = conn.getResponseCode();
-                InputStream is = (code == 200) ? conn.getInputStream() : conn.getErrorStream();
-                BufferedReader br = new BufferedReader(new InputStreamReader(is));
-                StringBuilder sb = new StringBuilder();
-                String line;
-                while ((line = br.readLine()) != null) sb.append(line);
-                br.close();
-
-                JSONObject resp = new JSONObject(sb.toString());
-                runOnUiThread(() -> {
-                    pd.dismiss();
-                    try {
-                        String status = resp.optString("status", "");
-                        JSONObject messages = resp.optJSONObject("messages");
-                        JSONObject data = resp.optJSONObject("data");
-                        String tanggal = resp.optString("tanggal", "-");
-
-                        // Ringkasan pesan perhitungan
-                        StringBuilder msgBuilder = new StringBuilder();
-                        if (messages != null) {
-                            Iterator<String> keys = messages.keys();
-                            while (keys.hasNext()) {
-                                String key = keys.next();
-                                String value = messages.optString(key, "");
-                                msgBuilder.append("• ").append(key).append(": ").append(value).append("\n");
-                            }
-                        }
-
-                        // Hasil Look Burt
-                        String lookBurtInfo = "";
-                        String statusKeterangan = "aman"; // default
-                        if (data != null) {
-                            String rembBendungan = data.optString("rembesan_bendungan", "-");
-                            String rembPerM = data.optString("rembesan_per_m", "-");
-                            String ket = data.optString("keterangan", "-");
-                            lookBurtInfo = "\n💧 Analisa Look Burt:\n"
-                                    + "  - Rembesan Bendungan: " + rembBendungan + "\n"
-                                    + "  - Rembesan per M: " + rembPerM + "\n"
-                                    + "  - Keterangan: " + ket;
-
-                            // Tentukan status berdasarkan keterangan
-                            if (ket.toLowerCase().contains("bahaya")) {
-                                statusKeterangan = "danger";
-                            } else if (ket.toLowerCase().contains("peringatan") || ket.toLowerCase().contains("waspada")) {
-                                statusKeterangan = "warning";
-                            } else {
-                                statusKeterangan = "success";
-                            }
-                        }
-
-                        // Tentukan notifikasi akhir
-                        if ("success".equalsIgnoreCase(status)) {
-                            showCalculationResultDialog(" Perhitungan Berhasil",
-                                    "Semua perhitungan berhasil untuk tanggal " + tanggal + lookBurtInfo,
-                                    statusKeterangan, tanggal);
-                        } else if ("partial_error".equalsIgnoreCase(status)) {
-                            showCalculationResultDialog("⚠️ Perhitungan Sebagian Berhasil",
-                                    "Beberapa perhitungan gagal:\n\n" + msgBuilder.toString() + lookBurtInfo,
-                                    "warning", tanggal);
-                        } else if ("error".equalsIgnoreCase(status)) {
-                            showElegantToast("❌ Gagal menghitung: " + resp.optString("message", "Terjadi kesalahan"), "error");
-                        } else {
-                            showElegantToast("ℹ️ Respon tidak dikenal dari server", "info");
-                        }
-
-                    } catch (Exception e) {
-                        showElegantToast("Error parsing hasil: " + e.getMessage(), "error");
-                    }
-                });
-
-            } catch (Exception e) {
-                runOnUiThread(() -> {
-                    pd.dismiss();
-                    showElegantToast("Error saat menghitung: " + e.getMessage(), "error");
-                });
-            } finally {
-                if (conn != null) conn.disconnect();
-            }
-        }).start();
-    }
-
-    private void showCalculationResultDialog(String title, String message, String status, String tanggal) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-
-        // Inflate custom layout
-        LayoutInflater inflater = LayoutInflater.from(this);
-        View dialogView = inflater.inflate(R.layout.dialog_calculation_result, null);
-        builder.setView(dialogView);
-
-        // Initialize views
-        TextView titleText = dialogView.findViewById(R.id.dialog_title);
-        TextView messageText = dialogView.findViewById(R.id.dialog_message);
-        TextView tanggalText = dialogView.findViewById(R.id.dialog_tanggal);
-        ImageView iconView = dialogView.findViewById(R.id.dialog_icon);
-        Button okButton = dialogView.findViewById(R.id.dialog_button_ok);
-        LinearLayout headerLayout = dialogView.findViewById(R.id.dialog_header);
-
-        // Set data berdasarkan status
-        int colorRes = getColorForStatus(status);
-        int iconRes = getIconForStatus(status);
-
-        titleText.setText(title);
-        messageText.setText(message);
-        tanggalText.setText("📅 Tanggal: " + tanggal);
-        iconView.setImageResource(iconRes);
-
-        // PERBAIKAN UI: Gradient background untuk header
-        headerLayout.setBackgroundColor(ContextCompat.getColor(this, colorRes));
-
-        // PERBAIKAN UI: Tambahkan elevation/shadow
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-            headerLayout.setElevation(8f);
-            okButton.setElevation(4f);
-        }
-
-        // PERBAIKAN UI: Animasi icon
-        iconView.setAlpha(0f);
-        iconView.animate().alpha(1f).setDuration(500).start();
-
-        // PERBAIKAN UI: Style button dengan ripple effect
-        okButton.setBackgroundColor(ContextCompat.getColor(this, colorRes));
-        okButton.setTextColor(Color.WHITE);
-
-        // PERBAIKAN UI: Format message dengan styling
-        String formattedMessage = formatMessageWithIcons(message);
-        messageText.setText(formattedMessage);
-
-        // PERBAIKAN UI: Animasi dialog masuk
-        dialogView.setAlpha(0f);
-        dialogView.setScaleX(0.8f);
-        dialogView.setScaleY(0.8f);
-
-        final AlertDialog dialog = builder.create();
-        dialog.setCancelable(false);
-
-        // Tampilkan dialog dulu baru animasi
-        dialog.show();
-
-        // Animasi dialog masuk
-        dialogView.animate()
-                .alpha(1f)
-                .scaleX(1f)
-                .scaleY(1f)
-                .setDuration(300)
-                .start();
-
-        okButton.setOnClickListener(v -> {
-            // PERBAIKAN UI: Animasi tombol ketika ditekan
-            v.animate().scaleX(0.95f).scaleY(0.95f).setDuration(100).withEndAction(() -> {
-                v.animate().scaleX(1f).scaleY(1f).setDuration(100).start();
-            }).start();
-
-            // PERBAIKAN UI: Animasi dialog keluar
-            dialogView.animate()
-                    .alpha(0f)
-                    .scaleX(0.8f)
-                    .scaleY(0.8f)
-                    .setDuration(200)
-                    .withEndAction(dialog::dismiss)
-                    .start();
-        });
-    }
-
     // METHOD BARU: Format pesan dengan icon dan styling
     private String formatMessageWithIcons(String message) {
         // Ganti keyword dengan icon
