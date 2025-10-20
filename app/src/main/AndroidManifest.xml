@@ -1,14 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    package="com.example.kerjapraktik">
-    <!-- PERMISSION: harus di luar <application> -->
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- PERMISSIONS -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
-
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
 
     <application
         android:allowBackup="true"
@@ -22,27 +21,28 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.KERJAPRAKTIK"
         tools:targetApi="31">
+
+        <!-- Semua activity rembesan -->
+        <activity android:name="com.apps.ghw.rembesan.HistoryActivity" android:exported="false" />
+        <activity android:name="com.apps.ghw.rembesan.InputData2Activity" android:exported="false" />
+        <activity android:name="com.apps.ghw.rembesan.HomeActivity" android:exported="false" />
+        <activity android:name="com.apps.ghw.rembesan.InputDataActivity" android:exported="false" />
+
+        <!-- ✅ Tambahkan ini (karena WelcomeActivity di luar folder rembesan) -->
         <activity
-            android:name=".HistoryActivity"
+            android:name="com.apps.ghw.WelcomeActivity"
             android:exported="false" />
+
+        <!-- Activity utama (launcher) -->
         <activity
-            android:name=".InputData2Activity"
-            android:exported="false" /> <!-- Splash screen -->
-        <activity
-            android:name=".MainActivity"
+            android:name="com.apps.ghw.rembesan.MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity> <!-- Halaman utama -->
-        <activity
-            android:name=".HomeActivity"
-            android:exported="false" /> <!-- Halaman form -->
-        <activity
-            android:name=".InputDataActivity"
-            android:exported="false" />
+        </activity>
+
     </application>
 
 </manifest>

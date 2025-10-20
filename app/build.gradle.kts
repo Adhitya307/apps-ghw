@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.kerjapraktik"
+    namespace = "com.apps.ghw"        // ✅ Ganti ini, jangan pakai .rembesan
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.example.kerjapraktik"
+        applicationId = "com.apps.ghw" // ✅ Harus sama
         minSdk = 24
         targetSdk = 35
         versionCode = 1
@@ -25,6 +25,7 @@ android {
             )
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -38,12 +39,12 @@ dependencies {
     implementation(libs.constraintlayout)
     implementation(libs.volley)
 
+    // Retrofit (API communication)
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+
     // Unit testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
-
-    // Retrofit
-    implementation("com.squareup.retrofit2:retrofit:2.9.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
 }
