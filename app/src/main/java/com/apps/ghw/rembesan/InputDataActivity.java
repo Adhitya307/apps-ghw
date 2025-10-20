@@ -68,7 +68,7 @@ public class InputDataActivity extends AppCompatActivity {
     private SharedPreferences syncPrefs;
 
     // API URL
-    private static final String BASE_URL = "http://192.168.1.12/API_Android/public/rembesan/";
+    private static final String BASE_URL = "http://192.168.1.12/GHW/api-apps/public/rembesan/";
     private static final String INSERT_DATA_URL = BASE_URL + "input";
     private static final String CEK_DATA_URL = BASE_URL + "cek-data";
     private static final String GET_PENGUKURAN_URL = BASE_URL + "get_pengukuran";
