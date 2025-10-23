@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.example.app_dambody">
+
+    <!-- Hanya deklarasikan activity / komponen milik DamBody -->
+
+    <application>
+        <activity
+            android:name=".DamBodyHomeActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".InputdataElv625"
+            android:exported="false" />
+
+        <activity
+            android:name=".InputdataElv600"
+            android:exported="false" />
+    </application>
+
+</manifest>
