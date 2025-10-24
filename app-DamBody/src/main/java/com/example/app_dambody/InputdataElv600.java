@@ -1,5 +1,12 @@
 package com.example.app_dambody;
 
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.VolleyError;
+import java.util.Iterator;
+
+
 import android.app.DatePickerDialog;
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -12,6 +19,8 @@ import android.view.View;
 import android.widget.*;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
+
+import com.android.volley.toolbox.Volley;
 import com.google.android.material.textfield.TextInputLayout;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -37,7 +46,7 @@ public class InputdataElv600 extends AppCompatActivity {
 
     // Form utama
     private EditText inputDMA, inputHV1, inputHV2, inputHV3, inputHV4, inputHV5;
-    private Button btnSubmitDMA, btnSubmitHV1, btnSubmitHV2, btnSubmitHV3, btnSubmitHV4, btnSubmitHV5;
+    private Button btnSubmitDMA, btnSubmitHVAll, btnHitung;
     private Spinner spinnerPengukuran;
     private Button btnPilihPengukuran;
 
@@ -96,11 +105,8 @@ public class InputdataElv600 extends AppCompatActivity {
 
         // Set click listeners untuk tombol form
         btnSubmitDMA.setOnClickListener(v -> handleDMA());
-        btnSubmitHV1.setOnClickListener(v -> handleHV1());
-        btnSubmitHV2.setOnClickListener(v -> handleHV2());
-        btnSubmitHV3.setOnClickListener(v -> handleHV3());
-        btnSubmitHV4.setOnClickListener(v -> handleHV4());
-        btnSubmitHV5.setOnClickListener(v -> handleHV5());
+        btnSubmitHVAll.setOnClickListener(v -> handleHVAll());
+        btnHitung.setOnClickListener(v -> handleHitung());
     }
 
     @Override
@@ -109,7 +115,6 @@ public class InputdataElv600 extends AppCompatActivity {
         checkInternetAndShowToast();
 
         if (isInternetAvailable()) {
-            // ✅ PERBAIKAN: Gunakan method ELV600
             if (offlineDb.hasUnsyncedDataELV600()) {
                 syncAllOfflineData(() -> {
                     if (!isAlreadySynced()) {
@@ -172,7 +177,6 @@ public class InputdataElv600 extends AppCompatActivity {
     private void startAutoSyncWhenOnline() {
         if (isSyncInProgress || !isInternetAvailable()) return;
 
-        // ✅ PERBAIKAN: Gunakan method ELV600
         int offlineCount = offlineDb.getOfflineDataCountELV600();
         if (offlineCount > 0) {
             Log.d("ELV600_AutoSync", "Found " + offlineCount + " offline data, starting auto-sync");
@@ -195,7 +199,6 @@ public class InputdataElv600 extends AppCompatActivity {
     }
 
     private void syncAllOfflineDataAuto(Runnable onComplete) {
-        // ✅ PERBAIKAN: Gunakan method ELV600
         int offlineCount = offlineDb.getOfflineDataCountELV600();
         if (offlineCount == 0) {
             if (onComplete != null) onComplete.run();
@@ -213,7 +216,6 @@ public class InputdataElv600 extends AppCompatActivity {
     }
 
     private void syncDataSerialAuto(String tableType, Runnable next) {
-        // ✅ PERBAIKAN: Gunakan method ELV600
         List<Map<String,String>> list = offlineDb.getUnsyncedDataELV600(tableType);
         if (list == null || list.isEmpty()) {
             if (next != null) next.run();
@@ -233,7 +235,6 @@ public class InputdataElv600 extends AppCompatActivity {
         String jsonStr = item.get("json");
 
         if (jsonStr == null || jsonStr.isEmpty()) {
-            // ✅ PERBAIKAN: Gunakan method ELV600
             offlineDb.deleteByTempIdELV600(tableType, tempId);
             syncDataItemAuto(tableType, dataList, index + 1, onFinish);
             return;
@@ -267,7 +268,6 @@ public class InputdataElv600 extends AppCompatActivity {
 
                     int code = conn.getResponseCode();
                     if (code == 200) {
-                        // ✅ PERBAIKAN: Gunakan method ELV600
                         offlineDb.deleteByTempIdELV600(tableType, tempId);
                         Log.d("ELV600_AutoSync", "Synced " + tableType + " tempId=" + tempId);
                     }
@@ -278,7 +278,6 @@ public class InputdataElv600 extends AppCompatActivity {
                 }
             } catch (Exception e) {
                 Log.e("ELV600_AutoSync", "JSON parse failed for tempId=" + tempId + ": " + e.getMessage());
-                // ✅ PERBAIKAN: Gunakan method ELV600
                 offlineDb.deleteByTempIdELV600(tableType, tempId);
             }
 
@@ -326,11 +325,8 @@ public class InputdataElv600 extends AppCompatActivity {
         inputHV5 = findViewById(R.id.inputHV5);
 
         btnSubmitDMA = findViewById(R.id.btnSubmitDMA);
-        btnSubmitHV1 = findViewById(R.id.btnSubmitHV1);
-        btnSubmitHV2 = findViewById(R.id.btnSubmitHV2);
-        btnSubmitHV3 = findViewById(R.id.btnSubmitHV3);
-        btnSubmitHV4 = findViewById(R.id.btnSubmitHV4);
-        btnSubmitHV5 = findViewById(R.id.btnSubmitHV5);
+        btnSubmitHVAll = findViewById(R.id.btnSubmitHVAll);
+        btnHitung = findViewById(R.id.btnHitung);
 
         spinnerPengukuran = findViewById(R.id.spinnerPengukuran);
         btnPilihPengukuran = findViewById(R.id.btnPilihPengukuran);
@@ -464,6 +460,185 @@ public class InputdataElv600 extends AppCompatActivity {
         mainContent.setVisibility(View.VISIBLE);
     }
 
+    // ✅ NEW: Handle semua HV sekaligus
+    private void handleHVAll() {
+        if (pengukuranId == -1) {
+            showToast("Harap buat/pilih pengukuran terlebih dahulu");
+            return;
+        }
+
+        // Validasi semua field HV harus terisi
+        if (!validateHVFields()) {
+            showToast("Harap isi semua field HV (1-5)");
+            return;
+        }
+
+        // Kirim data HV
+        handleHV("HV-1", inputHV1, "hv_1");
+        handleHV("HV-2", inputHV2, "hv_2");
+        handleHV("HV-3", inputHV3, "hv_3");
+        handleHV("HV-4", inputHV4, "hv_4");
+        handleHV("HV-5", inputHV5, "hv_5");
+
+        showToast("✅ Semua data HV berhasil disimpan");
+        clearHVFields();
+    }
+
+    // ✅ NEW: Validasi field HV saja
+    private boolean validateHVFields() {
+        return !inputHV1.getText().toString().trim().isEmpty() &&
+                !inputHV2.getText().toString().trim().isEmpty() &&
+                !inputHV3.getText().toString().trim().isEmpty() &&
+                !inputHV4.getText().toString().trim().isEmpty() &&
+                !inputHV5.getText().toString().trim().isEmpty();
+    }
+
+    // ✅ NEW: Clear field HV saja
+    private void clearHVFields() {
+        inputHV1.setText("");
+        inputHV2.setText("");
+        inputHV3.setText("");
+        inputHV4.setText("");
+        inputHV5.setText("");
+    }
+
+    // ✅ FINAL FIXED VERSION: handleHitung khusus untuk ELV600
+    private void handleHitung() {
+        try {
+            // Pastikan user sudah memilih data pengukuran
+            if (pengukuranId == -1) {
+                showToast("❌ Harap pilih data pengukuran terlebih dahulu");
+                return;
+            }
+
+            // ✅ URL endpoint langsung ke route CodeIgniter
+            String url = BASE_URL + "hitung/elv600";
+            // Hasil akhir: http://192.168.1.12/GHW/api-apps/public/dombody/hitung/elv600
+
+            // Siapkan data JSON yang dikirim
+            JSONObject postData = new JSONObject();
+            postData.put("pengukuran_id", pengukuranId);
+
+            // Buat request ke server
+            JsonObjectRequest request = new JsonObjectRequest(
+                    Request.Method.POST,
+                    url,
+                    postData,
+                    response -> {
+                        try {
+                            String status = response.optString("status", "error");
+                            String message = response.optString("message", "Tidak ada pesan dari server");
+
+                            if (status.equalsIgnoreCase("success")) {
+                                JSONObject data = response.optJSONObject("data");
+
+                                StringBuilder hasilBuilder = new StringBuilder();
+                                if (data != null) {
+                                    Iterator<String> keys = data.keys();
+                                    while (keys.hasNext()) {
+                                        String key = keys.next();
+                                        double val = data.optDouble(key, 0.0);
+                                        hasilBuilder.append(key).append(": ").append(val).append("\n");
+                                    }
+                                }
+
+                                showToast("✅ " + message + "\n" + hasilBuilder.toString());
+                            } else {
+                                showToast("⚠️ " + message);
+                            }
+
+                        } catch (Exception e) {
+                            showToast("❌ Gagal parsing response: " + e.getMessage());
+                        }
+                    },
+                    error -> {
+                        String msg = "❌ Gagal terhubung ke server";
+                        if (error != null) {
+                            if (error.networkResponse != null) {
+                                msg += " (HTTP " + error.networkResponse.statusCode + ")";
+                            } else if (error.getMessage() != null) {
+                                msg += ": " + error.getMessage();
+                            } else {
+                                msg += " (Unknown network error)";
+                            }
+                        }
+                        showToast(msg);
+                    }
+            );
+
+            // Kirim ke server menggunakan context aplikasi
+            RequestQueue queue = Volley.newRequestQueue(getApplicationContext());
+            queue.add(request);
+
+        } catch (Exception e) {
+            showToast("❌ Error: " + e.getMessage());
+        }
+    }
+
+
+    // ✅ Validasi semua field
+    private boolean validateAllFields() {
+        return !inputDMA.getText().toString().trim().isEmpty() &&
+                !inputHV1.getText().toString().trim().isEmpty() &&
+                !inputHV2.getText().toString().trim().isEmpty() &&
+                !inputHV3.getText().toString().trim().isEmpty() &&
+                !inputHV4.getText().toString().trim().isEmpty() &&
+                !inputHV5.getText().toString().trim().isEmpty();
+    }
+
+    // ✅ MODIFIED: Handle DMA (dengan clear field)
+    private void handleDMA() {
+        String nilaiDMA = inputDMA.getText().toString().trim();
+        if (nilaiDMA.isEmpty()) {
+            showToast("Harap isi nilai DMA");
+            return;
+        }
+
+        if (pengukuranId == -1) {
+            showToast("Harap buat/pilih pengukuran terlebih dahulu");
+            return;
+        }
+
+        Map<String, String> data = new HashMap<>();
+        data.put("mode", "pengukuran");
+        data.put("dma", nilaiDMA);
+        data.put("pengukuran_id", String.valueOf(pengukuranId));
+
+        Log.d("ELV600_API", "Mengirim data DMA: " + data.toString());
+
+        if (isInternetAvailable()) {
+            sendToServer(data, "dma", false);
+        } else {
+            String localTempId = "local_" + System.currentTimeMillis();
+            data.put("temp_id", localTempId);
+            saveOffline("dma", localTempId, data);
+        }
+        inputDMA.setText("");
+    }
+
+    // ✅ MODIFIED: Handle HV (tanpa clear field)
+    private void handleHV(String fieldName, EditText input, String fieldKey) {
+        String nilai = input.getText().toString().trim();
+        if (nilai.isEmpty()) {
+            return; // Skip jika kosong, sudah divalidasi di validateHVFields
+        }
+
+        Map<String, String> data = new HashMap<>();
+        data.put("mode", "elv600");
+        data.put(fieldKey, nilai);
+        data.put("pengukuran_id", String.valueOf(pengukuranId));
+
+        Log.d("ELV600_API", "Mengirim data " + fieldName + ": " + data.toString());
+
+        if (isInternetAvailable()) {
+            sendToServer(data, "data", false);
+        } else {
+            String localTempId = "local_" + System.currentTimeMillis();
+            data.put("temp_id", localTempId);
+            saveOffline("data", localTempId, data);
+        }
+    }
+
     // ✅ MODIFIED: Load data pengukuran dengan offline support
     private void loadPengukuranData() {
         if (!isInternetAvailable()) {
@@ -549,7 +724,6 @@ public class InputdataElv600 extends AppCompatActivity {
     // ✅ NEW: Load data dari lokal ketika offline
     private void loadTanggalOffline() {
         try {
-            // ✅ PERBAIKAN: Gunakan method ELV600
             List<Map<String,String>> rows = offlineDb.getPengukuranMasterELV600();
             List<String> list = new ArrayList<>();
             pengukuranMap.clear();
@@ -640,91 +814,10 @@ public class InputdataElv600 extends AppCompatActivity {
         return bulanMap.getOrDefault(upperBulan, "01");
     }
 
-    // ✅ MODIFIED: Handle DMA dengan offline support
-    private void handleDMA() {
-        String nilaiDMA = inputDMA.getText().toString().trim();
-        if (nilaiDMA.isEmpty()) {
-            showToast("Harap isi nilai DMA");
-            return;
-        }
-
-        if (pengukuranId == -1) {
-            showToast("Harap buat/pilih pengukuran terlebih dahulu");
-            return;
-        }
-
-        Map<String, String> data = new HashMap<>();
-        data.put("mode", "pengukuran");
-        data.put("dma", nilaiDMA);
-        data.put("pengukuran_id", String.valueOf(pengukuranId));
-
-        Log.d("ELV600_API", "Mengirim data DMA: " + data.toString());
-
-        if (isInternetAvailable()) {
-            sendToServer(data, "dma", false);
-        } else {
-            String localTempId = "local_" + System.currentTimeMillis();
-            data.put("temp_id", localTempId);
-            saveOffline("dma", localTempId, data);
-        }
-        inputDMA.setText("");
-    }
-
-    private void handleHV1() {
-        handleHV("HV-1", inputHV1, "hv_1");
-    }
-
-    private void handleHV2() {
-        handleHV("HV-2", inputHV2, "hv_2");
-    }
-
-    private void handleHV3() {
-        handleHV("HV-3", inputHV3, "hv_3");
-    }
-
-    private void handleHV4() {
-        handleHV("HV-4", inputHV4, "hv_4");
-    }
-
-    private void handleHV5() {
-        handleHV("HV-5", inputHV5, "hv_5");
-    }
-
-    // ✅ MODIFIED: Handle HV dengan offline support
-    private void handleHV(String fieldName, EditText input, String fieldKey) {
-        String nilai = input.getText().toString().trim();
-        if (nilai.isEmpty()) {
-            showToast("Harap isi nilai " + fieldName);
-            return;
-        }
-
-        if (pengukuranId == -1) {
-            showToast("Harap buat/pilih pengukuran terlebih dahulu");
-            return;
-        }
-
-        Map<String, String> data = new HashMap<>();
-        data.put("mode", "elv600");
-        data.put(fieldKey, nilai);
-        data.put("pengukuran_id", String.valueOf(pengukuranId));
-
-        Log.d("ELV600_API", "Mengirim data " + fieldName + ": " + data.toString());
-
-        if (isInternetAvailable()) {
-            sendToServer(data, "data", false);
-        } else {
-            String localTempId = "local_" + System.currentTimeMillis();
-            data.put("temp_id", localTempId);
-            saveOffline("data", localTempId, data);
-        }
-        input.setText("");
-    }
-
     // ✅ NEW: Save offline method
     private void saveOffline(String tableType, String tempId, Map<String, String> data) {
         try {
             JSONObject json = new JSONObject(data);
-            // ✅ PERBAIKAN: Gunakan method ELV600
             boolean success = offlineDb.insertDataELV600(tableType, tempId, json.toString());
             if (success) {
                 showToast("📱 Data disimpan offline (" + tableType + ")");
@@ -835,7 +928,6 @@ public class InputdataElv600 extends AppCompatActivity {
 
     // ✅ NEW: Sync all offline data method
     private void syncAllOfflineData(Runnable onComplete) {
-        // ✅ PERBAIKAN: Gunakan method ELV600
         boolean adaData = offlineDb.hasUnsyncedDataELV600();
         if (!adaData) {
             if (onComplete != null) onComplete.run();
@@ -850,7 +942,6 @@ public class InputdataElv600 extends AppCompatActivity {
     }
 
     private void syncDataSerial(String tableType, Runnable next) {
-        // ✅ PERBAIKAN: Gunakan method ELV600
         List<Map<String, String>> dataList = offlineDb.getUnsyncedDataELV600(tableType);
         if (dataList.isEmpty()) {
             if (next != null) next.run();
@@ -891,7 +982,6 @@ public class InputdataElv600 extends AppCompatActivity {
 
                     int responseCode = conn.getResponseCode();
                     if (responseCode == 200) {
-                        // ✅ PERBAIKAN: Gunakan method ELV600
                         offlineDb.deleteByTempIdELV600(tableType, tempId);
                         Log.d("ELV600_Sync", "Data " + tableType + " tempId=" + tempId + " berhasil disinkronisasi");
                     }

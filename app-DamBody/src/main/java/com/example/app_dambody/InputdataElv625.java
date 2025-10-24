@@ -1,5 +1,11 @@
 package com.example.app_dambody;
 
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.VolleyError;
+import java.util.Iterator;
+
 import android.app.DatePickerDialog;
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -12,6 +18,9 @@ import android.view.View;
 import android.widget.*;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
+
+import com.android.volley.RequestQueue;
+import com.android.volley.toolbox.Volley;
 import com.google.android.material.textfield.TextInputLayout;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -37,7 +46,7 @@ public class InputdataElv625 extends AppCompatActivity {
 
     // Form utama
     private EditText inputDMA, inputHV1, inputHV2, inputHV3;
-    private Button btnSubmitDMA, btnSubmitHV1, btnSubmitHV2, btnSubmitHV3;
+    private Button btnSubmitDMA, btnSubmitHV, btnHitungHV;
     private Spinner spinnerPengukuran;
     private Button btnPilihPengukuran;
 
@@ -96,9 +105,8 @@ public class InputdataElv625 extends AppCompatActivity {
 
         // Set click listeners untuk tombol form
         btnSubmitDMA.setOnClickListener(v -> handleDMA());
-        btnSubmitHV1.setOnClickListener(v -> handleHV1());
-        btnSubmitHV2.setOnClickListener(v -> handleHV2());
-        btnSubmitHV3.setOnClickListener(v -> handleHV3());
+        btnSubmitHV.setOnClickListener(v -> handleAllHV());
+        btnHitungHV.setOnClickListener(v -> hitungRataRataHV());
     }
 
     @Override
@@ -315,9 +323,8 @@ public class InputdataElv625 extends AppCompatActivity {
         inputHV3 = findViewById(R.id.inputHV3);
 
         btnSubmitDMA = findViewById(R.id.btnSubmitDMA);
-        btnSubmitHV1 = findViewById(R.id.btnSubmitHV1);
-        btnSubmitHV2 = findViewById(R.id.btnSubmitHV2);
-        btnSubmitHV3 = findViewById(R.id.btnSubmitHV3);
+        btnSubmitHV = findViewById(R.id.btnSubmitHV);
+        btnHitungHV = findViewById(R.id.btnHitungHV);
 
         spinnerPengukuran = findViewById(R.id.spinnerPengukuran);
         btnPilihPengukuran = findViewById(R.id.btnPilihPengukuran);
@@ -656,31 +663,152 @@ public class InputdataElv625 extends AppCompatActivity {
         inputDMA.setText("");
     }
 
-    private void handleHV1() {
-        handleHV("HV-1", inputHV1, "hv_1");
-    }
+    // ✅ FINAL FIXED: Kirim semua HV sekaligus (1 request, 1 row)
+    private void handleAllHV() {
+        try {
+            String nilaiHV1 = inputHV1.getText().toString().trim();
+            String nilaiHV2 = inputHV2.getText().toString().trim();
+            String nilaiHV3 = inputHV3.getText().toString().trim();
 
-    private void handleHV2() {
-        handleHV("HV-2", inputHV2, "hv_2");
-    }
+            // Validasi minimal satu diisi
+            if (nilaiHV1.isEmpty() && nilaiHV2.isEmpty() && nilaiHV3.isEmpty()) {
+                showToast("⚠️ Harap isi minimal satu nilai HV");
+                return;
+            }
 
-    private void handleHV3() {
-        handleHV("HV-3", inputHV3, "hv_3");
-    }
+            if (pengukuranId == -1) {
+                showToast("❌ Harap pilih data pengukuran terlebih dahulu");
+                return;
+            }
 
-    // ✅ MODIFIED: Handle HV dengan offline support
-    private void handleHV(String fieldName, EditText input, String fieldKey) {
-        String nilai = input.getText().toString().trim();
-        if (nilai.isEmpty()) {
-            showToast("Harap isi nilai " + fieldName);
-            return;
+            // ✅ Buat JSON body sekaligus
+            JSONObject postData = new JSONObject();
+            postData.put("mode", "elv625");
+            postData.put("pengukuran_id", pengukuranId);
+
+            if (!nilaiHV1.isEmpty()) postData.put("hv_1", nilaiHV1);
+            if (!nilaiHV2.isEmpty()) postData.put("hv_2", nilaiHV2);
+            if (!nilaiHV3.isEmpty()) postData.put("hv_3", nilaiHV3);
+
+            Log.d("ELV625_API", "JSON dikirim (semua HV): " + postData);
+
+            // Kirim dalam 1 request
+            JsonObjectRequest request = new JsonObjectRequest(
+                    Request.Method.POST,
+                    INSERT_DATA_URL,
+                    postData,
+                    response -> {
+                        try {
+                            String status = response.optString("status", "error");
+                            String message = response.optString("message", "Tidak ada pesan dari server");
+
+                            if (status.equalsIgnoreCase("success")) {
+                                showToast("✅ " + message);
+                                // Kosongkan field setelah sukses
+                                inputHV1.setText("");
+                                inputHV2.setText("");
+                                inputHV3.setText("");
+                            } else {
+                                showToast("⚠️ " + message);
+                            }
+                        } catch (Exception e) {
+                            showToast("❌ Gagal parsing response: " + e.getMessage());
+                        }
+                    },
+                    error -> {
+                        String msg = "❌ Gagal kirim ke server";
+                        if (error != null && error.getMessage() != null) {
+                            msg += ": " + error.getMessage();
+                        }
+                        showToast(msg);
+                    }
+            );
+
+            RequestQueue queue = Volley.newRequestQueue(getApplicationContext());
+            queue.add(request);
+
+        } catch (Exception e) {
+            showToast("❌ Error: " + e.getMessage());
         }
+    }
 
-        if (pengukuranId == -1) {
-            showToast("Harap buat/pilih pengukuran terlebih dahulu");
-            return;
+
+    // ✅ FINAL VERSION: hitungRataRataHV untuk ELV625
+    private void hitungRataRataHV() {
+        try {
+            // Pastikan user sudah memilih data pengukuran
+            if (pengukuranId == -1) {
+                showToast("❌ Harap pilih data pengukuran terlebih dahulu");
+                return;
+            }
+
+            // ✅ URL endpoint sesuai route di CodeIgniter
+            String url = BASE_URL + "hitung/elv625" ;
+            // Contoh hasil: http://192.168.1.12/GHW/api-apps/public/dombody/hitung/elv625
+
+            // Siapkan data JSON yang dikirim ke server
+            JSONObject postData = new JSONObject();
+            postData.put("pengukuran_id", pengukuranId);
+
+            // Buat request ke server
+            JsonObjectRequest request = new JsonObjectRequest(
+                    Request.Method.POST,
+                    url,
+                    postData,
+                    response -> {
+                        try {
+                            String status = response.optString("status", "error");
+                            String message = response.optString("message", "Tidak ada pesan dari server");
+
+                            if (status.equalsIgnoreCase("success")) {
+                                JSONObject data = response.optJSONObject("data");
+
+                                StringBuilder hasilBuilder = new StringBuilder();
+                                if (data != null) {
+                                    Iterator<String> keys = data.keys();
+                                    while (keys.hasNext()) {
+                                        String key = keys.next();
+                                        double val = data.optDouble(key, 0.0);
+                                        hasilBuilder.append(key).append(": ").append(val).append("\n");
+                                    }
+                                }
+
+                                showToast("✅ " + message + "\n" + hasilBuilder.toString());
+                            } else {
+                                showToast("⚠️ " + message);
+                            }
+
+                        } catch (Exception e) {
+                            showToast("❌ Gagal parsing response: " + e.getMessage());
+                        }
+                    },
+                    error -> {
+                        String msg = "❌ Gagal terhubung ke server";
+                        if (error != null) {
+                            if (error.networkResponse != null) {
+                                msg += " (HTTP " + error.networkResponse.statusCode + ")";
+                            } else if (error.getMessage() != null) {
+                                msg += ": " + error.getMessage();
+                            } else {
+                                msg += " (Unknown network error)";
+                            }
+                        }
+                        showToast(msg);
+                    }
+            );
+
+            // Kirim ke server menggunakan context aplikasi
+            RequestQueue queue = Volley.newRequestQueue(getApplicationContext());
+            queue.add(request);
+
+        } catch (Exception e) {
+            showToast("❌ Error: " + e.getMessage());
         }
+    }
 
+
+    // ✅ NEW: Method untuk mengirim data HV individual
+    private void sendHVData(String fieldName, String nilai, String fieldKey) {
         Map<String, String> data = new HashMap<>();
         data.put("mode", "elv625");
         data.put(fieldKey, nilai);
@@ -695,7 +823,6 @@ public class InputdataElv625 extends AppCompatActivity {
             data.put("temp_id", localTempId);
             saveOffline("data", localTempId, data);
         }
-        input.setText("");
     }
 
     // ✅ NEW: Save offline method
