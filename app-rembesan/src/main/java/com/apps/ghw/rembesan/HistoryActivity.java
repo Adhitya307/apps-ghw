@@ -72,6 +72,7 @@ public class HistoryActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_history);
 
+
         dbHelper = new DatabaseHelper(this);
         requestQueue = Volley.newRequestQueue(this);
 

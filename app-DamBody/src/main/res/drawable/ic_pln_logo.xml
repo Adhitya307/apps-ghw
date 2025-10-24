@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+
+    <!-- Background lingkaran biru (PLN brand color) -->
+    <path
+        android:fillColor="#0054A6"
+        android:pathData="M60,0a60,60 0 1,1 0,120a60,60 0 1,1 0,-120z"/>
+
+    <!-- Huruf P (putih) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M45,30h15c8.3,0 15,6.7 15,15v30c0,8.3 -6.7,15 -15,15H45V30zm15,10v20h5c2.8,0 5,-2.2 5,-5v-10c0,-2.8 -2.2,-5 -5,-5h-5z"/>
+
+    <!-- Huruf L (putih) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M75,30v40h15v10H60V30h15z"/>
+
+    <!-- Huruf N (putih) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M90,30h15v70H105V45L90,60V30z"/>
+
+    <!-- Garis kuning (PLN brand color) -->
+    <path
+        android:fillColor="#F9A61A"
+        android:pathData="M30,90h60v5H30z"/>
+</vector>

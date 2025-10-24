@@ -16,7 +16,7 @@ import java.util.Map;
 
 public class OfflineDataHelper extends SQLiteOpenHelper {
     private static final String DATABASE_NAME = "db_hdm.db";
-    private static final int DATABASE_VERSION = 1;
+    private static final int DATABASE_VERSION = 3;
 
     // Tables untuk ELV625
     private static final String TABLE_PENGUKURAN_ELV625 = "offline_pengukuran_elv625";

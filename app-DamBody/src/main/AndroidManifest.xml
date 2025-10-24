@@ -16,6 +16,12 @@
         <activity
             android:name=".InputdataElv600"
             android:exported="false" />
+
+        <activity
+            android:name=".HistoryDamBodyActivity"
+            android:exported="true"
+            android:label="Riwayat Dam Body" />
+
     </application>
 
 </manifest>
