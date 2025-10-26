@@ -13,7 +13,7 @@ import java.util.List;
 public class DatabaseHelper extends SQLiteOpenHelper {
 
     private static final String TAG = "DatabaseHelper";
-    private static final String DATABASE_NAME = "db_hdm.db";
+    public static final String DATABASE_NAME = "db_hdm.db";
     private static final int DATABASE_VERSION = 3;
 
     // Table names
@@ -281,6 +281,87 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             do {
                 Pergerakan600Model d = new Pergerakan600Model();
                 d.setId_pergerakan(c.getInt(c.getColumnIndexOrThrow("id_pergerakan")));
+                d.setId_pengukuran(c.getInt(c.getColumnIndexOrThrow("id_pengukuran")));
+                d.setHv_1(c.getDouble(c.getColumnIndexOrThrow("hv_1")));
+                d.setHv_2(c.getDouble(c.getColumnIndexOrThrow("hv_2")));
+                d.setHv_3(c.getDouble(c.getColumnIndexOrThrow("hv_3")));
+                d.setHv_4(c.getDouble(c.getColumnIndexOrThrow("hv_4")));
+                d.setHv_5(c.getDouble(c.getColumnIndexOrThrow("hv_5")));
+                list.add(d);
+            } while (c.moveToNext());
+        }
+        c.close();
+        return list;
+    }
+
+    // Tambahkan method getAll untuk setiap tabel
+    public List<Depth625Model> getAllDepth625() {
+        List<Depth625Model> list = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor c = db.rawQuery("SELECT * FROM " + TABLE_DEPTH_625, null);
+        if (c.moveToFirst()) {
+            do {
+                Depth625Model d = new Depth625Model();
+                d.setId_depth(c.getInt(c.getColumnIndexOrThrow("id_depth")));
+                d.setId_pengukuran(c.getInt(c.getColumnIndexOrThrow("id_pengukuran")));
+                d.setHv_1(c.getDouble(c.getColumnIndexOrThrow("hv_1")));
+                d.setHv_2(c.getDouble(c.getColumnIndexOrThrow("hv_2")));
+                d.setHv_3(c.getDouble(c.getColumnIndexOrThrow("hv_3")));
+                list.add(d);
+            } while (c.moveToNext());
+        }
+        c.close();
+        return list;
+    }
+
+    public List<Depth600Model> getAllDepth600() {
+        List<Depth600Model> list = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor c = db.rawQuery("SELECT * FROM " + TABLE_DEPTH_600, null);
+        if (c.moveToFirst()) {
+            do {
+                Depth600Model d = new Depth600Model();
+                d.setId_depth(c.getInt(c.getColumnIndexOrThrow("id_depth")));
+                d.setId_pengukuran(c.getInt(c.getColumnIndexOrThrow("id_pengukuran")));
+                d.setHv_1(c.getDouble(c.getColumnIndexOrThrow("hv_1")));
+                d.setHv_2(c.getDouble(c.getColumnIndexOrThrow("hv_2")));
+                d.setHv_3(c.getDouble(c.getColumnIndexOrThrow("hv_3")));
+                d.setHv_4(c.getDouble(c.getColumnIndexOrThrow("hv_4")));
+                d.setHv_5(c.getDouble(c.getColumnIndexOrThrow("hv_5")));
+                list.add(d);
+            } while (c.moveToNext());
+        }
+        c.close();
+        return list;
+    }
+
+    public List<Initial625Model> getAllInitial625() {
+        List<Initial625Model> list = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor c = db.rawQuery("SELECT * FROM " + TABLE_INITIAL_625, null);
+        if (c.moveToFirst()) {
+            do {
+                Initial625Model d = new Initial625Model();
+                d.setId_initial_reading(c.getInt(c.getColumnIndexOrThrow("id_initial_reading")));
+                d.setId_pengukuran(c.getInt(c.getColumnIndexOrThrow("id_pengukuran")));
+                d.setHv_1(c.getDouble(c.getColumnIndexOrThrow("hv_1")));
+                d.setHv_2(c.getDouble(c.getColumnIndexOrThrow("hv_2")));
+                d.setHv_3(c.getDouble(c.getColumnIndexOrThrow("hv_3")));
+                list.add(d);
+            } while (c.moveToNext());
+        }
+        c.close();
+        return list;
+    }
+
+    public List<Initial600Model> getAllInitial600() {
+        List<Initial600Model> list = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor c = db.rawQuery("SELECT * FROM " + TABLE_INITIAL_600, null);
+        if (c.moveToFirst()) {
+            do {
+                Initial600Model d = new Initial600Model();
+                d.setId_initial_reading(c.getInt(c.getColumnIndexOrThrow("id_initial_reading")));
                 d.setId_pengukuran(c.getInt(c.getColumnIndexOrThrow("id_pengukuran")));
                 d.setHv_1(c.getDouble(c.getColumnIndexOrThrow("hv_1")));
                 d.setHv_2(c.getDouble(c.getColumnIndexOrThrow("hv_2")));

@@ -15,8 +15,8 @@ import java.util.List;
 import java.util.Map;
 
 public class OfflineDataHelper extends SQLiteOpenHelper {
-    private static final String DATABASE_NAME = "db_hdm.db";
-    private static final int DATABASE_VERSION = 3;
+    private static final String DATABASE_NAME = "db_hdm_offline.db";
+    private static final int DATABASE_VERSION = 4;
 
     // Tables untuk ELV625
     private static final String TABLE_PENGUKURAN_ELV625 = "offline_pengukuran_elv625";
@@ -113,6 +113,7 @@ public class OfflineDataHelper extends SQLiteOpenHelper {
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_DATA_ELV600);
         onCreate(db);
     }
+
 
     // ========== METHOD UNTUK ELV625 ==========
 

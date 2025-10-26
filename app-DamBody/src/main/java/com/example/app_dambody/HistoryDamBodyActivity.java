@@ -1,12 +1,23 @@
 package com.example.app_dambody;
 
+import android.app.AlertDialog;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
+import android.text.Html;
 import android.view.View;
 import android.widget.*;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
+import androidx.core.content.FileProvider;
+
+import java.io.*;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 public class HistoryDamBodyActivity extends AppCompatActivity {
 
@@ -16,6 +27,7 @@ public class HistoryDamBodyActivity extends AppCompatActivity {
     private CardView cardELV625, cardELV600;
     private DatabaseHelper dbHelper;
     private List<PengukuranModel> pengukuranList;
+    private ProgressBar progressBarExport;
 
     private int selectedId = -1;
 
@@ -24,6 +36,13 @@ public class HistoryDamBodyActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_history_dambody);
 
+        initViews();
+        dbHelper = new DatabaseHelper(this);
+        loadSpinnerData();
+        setupClickListeners();
+    }
+
+    private void initViews() {
         spinnerPengukuran = findViewById(R.id.spinnerPengukuran);
         btnTampilkanData = findViewById(R.id.btnTampilkanData);
         btnExportDB = findViewById(R.id.btnExportDB);
@@ -31,11 +50,10 @@ public class HistoryDamBodyActivity extends AppCompatActivity {
         tvData600 = findViewById(R.id.tvData600);
         cardELV625 = findViewById(R.id.cardELV625);
         cardELV600 = findViewById(R.id.cardELV600);
+        progressBarExport = findViewById(R.id.progressBarExport);
+    }
 
-        dbHelper = new DatabaseHelper(this);
-
-        loadSpinnerData();
-
+    private void setupClickListeners() {
         btnTampilkanData.setOnClickListener(v -> {
             if (selectedId == -1) {
                 Toast.makeText(this, "⚠️ Pilih data pengukuran dulu", Toast.LENGTH_SHORT).show();
@@ -44,8 +62,7 @@ public class HistoryDamBodyActivity extends AppCompatActivity {
             tampilkanData(selectedId);
         });
 
-        btnExportDB.setOnClickListener(v ->
-                Toast.makeText(this, "📦 Export database belum diaktifkan", Toast.LENGTH_SHORT).show());
+        btnExportDB.setOnClickListener(v -> exportDatabaseToSQL());
     }
 
     private void loadSpinnerData() {
@@ -89,79 +106,325 @@ public class HistoryDamBodyActivity extends AppCompatActivity {
         // ======== ELV625 ========
         if (!baca625.isEmpty() || !gerak625.isEmpty()) {
             cardELV625.setVisibility(View.VISIBLE);
-            sb625.append("📊 Data ELV625\n\n");
 
-            // tampilkan pembacaan
-            sb625.append("📊 PEMBACAAN:\n");
+            // Pembacaan ELV625
             if (!baca625.isEmpty()) {
+                sb625.append("📊 <b>PEMBACAAN ELV625</b><br><br>");
+                int i = 1;
                 for (Pembacaan625Model b : baca625) {
-                    sb625.append("HV1=").append(b.getHv_1())
-                            .append("  HV2=").append(b.getHv_2())
-                            .append("  HV3=").append(b.getHv_3())
-                            .append("\n");
+                    sb625.append("• <b>Data Pembacaan ").append(i++).append("</b><br>")
+                            .append("  HV1 : ").append(b.getHv_1()).append("<br>")
+                            .append("  HV2 : ").append(b.getHv_2()).append("<br>")
+                            .append("  HV3 : ").append(b.getHv_3()).append("<br><br>");
                 }
-            } else {
-                sb625.append("- Tidak ada data pembacaan\n");
             }
 
-            // tampilkan pergerakan
-            sb625.append("\n📈 PERGERAKAN:\n");
+            // Pergerakan ELV625
             if (!gerak625.isEmpty()) {
+                sb625.append("🔄 <b>PERGERAKAN ELV625</b><br><br>");
+                int i = 1;
                 for (Pergerakan625Model m : gerak625) {
-                    sb625.append("HV1=").append(m.getHv_1())
-                            .append("  HV2=").append(m.getHv_2())
-                            .append("  HV3=").append(m.getHv_3())
-                            .append("\n");
+                    sb625.append("• <b>Data Pergerakan ").append(i++).append("</b><br>")
+                            .append("  HV1 : ").append(m.getHv_1()).append("<br>")
+                            .append("  HV2 : ").append(m.getHv_2()).append("<br>")
+                            .append("  HV3 : ").append(m.getHv_3()).append("<br><br>");
                 }
-            } else {
-                sb625.append("- Tidak ada data pergerakan\n");
             }
-
         } else {
             cardELV625.setVisibility(View.GONE);
+            sb625.append("Tidak ada data ELV625");
         }
 
         // ======== ELV600 ========
         if (!baca600.isEmpty() || !gerak600.isEmpty()) {
             cardELV600.setVisibility(View.VISIBLE);
-            sb600.append("📈 Data ELV600\n\n");
 
-            // tampilkan pembacaan
-            sb600.append("📊 PEMBACAAN:\n");
+            // Pembacaan ELV600
             if (!baca600.isEmpty()) {
+                sb600.append("📊 <b>PEMBACAAN ELV600</b><br><br>");
+                int i = 1;
                 for (Pembacaan600Model b : baca600) {
-                    sb600.append("HV1=").append(b.getHv_1())
-                            .append("  HV2=").append(b.getHv_2())
-                            .append("  HV3=").append(b.getHv_3())
-                            .append("  HV4=").append(b.getHv_4())
-                            .append("  HV5=").append(b.getHv_5())
-                            .append("\n");
+                    sb600.append("• <b>Data Pembacaan ").append(i++).append("</b><br>")
+                            .append("  HV1 : ").append(b.getHv_1()).append("<br>")
+                            .append("  HV2 : ").append(b.getHv_2()).append("<br>")
+                            .append("  HV3 : ").append(b.getHv_3()).append("<br>")
+                            .append("  HV4 : ").append(b.getHv_4()).append("<br>")
+                            .append("  HV5 : ").append(b.getHv_5()).append("<br><br>");
                 }
-            } else {
-                sb600.append("- Tidak ada data pembacaan\n");
             }
 
-            // tampilkan pergerakan
-            sb600.append("\n📈 PERGERAKAN:\n");
+            // Pergerakan ELV600
             if (!gerak600.isEmpty()) {
+                sb600.append("🔄 <b>PERGERAKAN ELV600</b><br><br>");
+                int i = 1;
                 for (Pergerakan600Model m : gerak600) {
-                    sb600.append("HV1=").append(m.getHv_1())
-                            .append("  HV2=").append(m.getHv_2())
-                            .append("  HV3=").append(m.getHv_3())
-                            .append("  HV4=").append(m.getHv_4())
-                            .append("  HV5=").append(m.getHv_5())
-                            .append("\n");
+                    sb600.append("• <b>Data Pergerakan ").append(i++).append("</b><br>")
+                            .append("  HV1 : ").append(m.getHv_1()).append("<br>")
+                            .append("  HV2 : ").append(m.getHv_2()).append("<br>")
+                            .append("  HV3 : ").append(m.getHv_3()).append("<br>")
+                            .append("  HV4 : ").append(m.getHv_4()).append("<br>")
+                            .append("  HV5 : ").append(m.getHv_5()).append("<br><br>");
                 }
-            } else {
-                sb600.append("- Tidak ada data pergerakan\n");
             }
-
         } else {
             cardELV600.setVisibility(View.GONE);
+            sb600.append("Tidak ada data ELV600");
         }
 
-        tvData625.setText(sb625.toString());
-        tvData600.setText(sb600.toString());
+        // Set text dengan HTML formatting
+        tvData625.setText(Html.fromHtml(sb625.toString()));
+        tvData600.setText(Html.fromHtml(sb600.toString()));
     }
 
+    private void exportDatabaseToSQL() {
+        progressBarExport.setVisibility(View.VISIBLE);
+        btnExportDB.setEnabled(false);
+        btnExportDB.setText("Mengekspor...");
+
+        new Thread(() -> {
+            try {
+                // Buat nama file dengan timestamp
+                String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
+                String fileName = "DamBody_DB_" + timeStamp + ".sql";
+
+                // Direktori download
+                File downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+                if (!downloadDir.exists()) {
+                    downloadDir.mkdirs();
+                }
+
+                File exportFile = new File(downloadDir, fileName);
+
+                // Generate SQL content
+                String sqlContent = generateSQLContent();
+
+                // Write SQL content to file
+                FileWriter writer = new FileWriter(exportFile);
+                writer.write(sqlContent);
+                writer.close();
+
+                runOnUiThread(() -> {
+                    Toast.makeText(this, "✅ Database berhasil diekspor ke SQL: " + fileName, Toast.LENGTH_LONG).show();
+                    resetExportButton();
+
+                    // Tampilkan dialog sukses dengan opsi share
+                    showExportSuccessDialog(exportFile);
+                });
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                runOnUiThread(() -> {
+                    Toast.makeText(this, "❌ Gagal mengekspor: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                    resetExportButton();
+                });
+            }
+        }).start();
+    }
+
+    private String generateSQLContent() {
+        StringBuilder sql = new StringBuilder();
+
+        // Header SQL
+        sql.append("-- DamBody Database Export\n");
+        sql.append("-- Generated: ").append(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date())).append("\n");
+        sql.append("-- Database: ").append(DatabaseHelper.DATABASE_NAME).append("\n\n");
+
+        // Export semua tabel
+        exportTablePengukuran(sql);
+        exportTablePembacaan625(sql);
+        exportTablePembacaan600(sql);
+        exportTableDepth625(sql);
+        exportTableDepth600(sql);
+        exportTableInitial625(sql);
+        exportTableInitial600(sql);
+        exportTablePergerakan625(sql);
+        exportTablePergerakan600(sql);
+
+        return sql.toString();
+    }
+
+    private void exportTablePengukuran(StringBuilder sql) {
+        sql.append("-- Table: t_pengukuran_hdm\n");
+        List<PengukuranModel> data = dbHelper.getAllPengukuran();
+        for (PengukuranModel item : data) {
+            sql.append("INSERT OR REPLACE INTO t_pengukuran_hdm (id_pengukuran, tahun, periode, tanggal, dma, temp_id, created_at, updated_at) VALUES (")
+                    .append(item.getId_pengukuran()).append(", ")
+                    .append(item.getTahun()).append(", ")
+                    .append(quote(item.getPeriode())).append(", ")
+                    .append(quote(item.getTanggal())).append(", ")
+                    .append(quote(item.getDma())).append(", ")
+                    .append(quote(item.getTemp_id())).append(", ")
+                    .append("datetime('now'), datetime('now'));\n");
+        }
+        sql.append("\n");
+    }
+
+    private void exportTablePembacaan625(StringBuilder sql) {
+        sql.append("-- Table: t_pembacaan_hdm_elv625\n");
+        List<Pembacaan625Model> data = dbHelper.getAllPembacaan625();
+        for (Pembacaan625Model item : data) {
+            sql.append("INSERT OR REPLACE INTO t_pembacaan_hdm_elv625 (id_pembacaan, id_pengukuran, hv_1, hv_2, hv_3, created_at, updated_at) VALUES (")
+                    .append(item.getId_pembacaan()).append(", ")
+                    .append(item.getId_pengukuran()).append(", ")
+                    .append(item.getHv_1()).append(", ")
+                    .append(item.getHv_2()).append(", ")
+                    .append(item.getHv_3()).append(", ")
+                    .append("datetime('now'), datetime('now'));\n");
+        }
+        sql.append("\n");
+    }
+
+    private void exportTablePembacaan600(StringBuilder sql) {
+        sql.append("-- Table: t_pembacaan_hdm_elv600\n");
+        List<Pembacaan600Model> data = dbHelper.getAllPembacaan600();
+        for (Pembacaan600Model item : data) {
+            sql.append("INSERT OR REPLACE INTO t_pembacaan_hdm_elv600 (id_pembacaan, id_pengukuran, hv_1, hv_2, hv_3, hv_4, hv_5, created_at, updated_at) VALUES (")
+                    .append(item.getId_pembacaan()).append(", ")
+                    .append(item.getId_pengukuran()).append(", ")
+                    .append(item.getHv_1()).append(", ")
+                    .append(item.getHv_2()).append(", ")
+                    .append(item.getHv_3()).append(", ")
+                    .append(item.getHv_4()).append(", ")
+                    .append(item.getHv_5()).append(", ")
+                    .append("datetime('now'), datetime('now'));\n");
+        }
+        sql.append("\n");
+    }
+
+    private void exportTableDepth625(StringBuilder sql) {
+        sql.append("-- Table: t_depth_elv625\n");
+        List<Depth625Model> data = dbHelper.getAllDepth625();
+        for (Depth625Model item : data) {
+            sql.append("INSERT OR REPLACE INTO t_depth_elv625 (id_depth, id_pengukuran, hv_1, hv_2, hv_3, created_at, updated_at) VALUES (")
+                    .append(item.getId_depth()).append(", ")
+                    .append(item.getId_pengukuran()).append(", ")
+                    .append(item.getHv_1()).append(", ")
+                    .append(item.getHv_2()).append(", ")
+                    .append(item.getHv_3()).append(", ")
+                    .append("datetime('now'), datetime('now'));\n");
+        }
+        sql.append("\n");
+    }
+
+    private void exportTableDepth600(StringBuilder sql) {
+        sql.append("-- Table: t_depth_elv600\n");
+        List<Depth600Model> data = dbHelper.getAllDepth600();
+        for (Depth600Model item : data) {
+            sql.append("INSERT OR REPLACE INTO t_depth_elv600 (id_depth, id_pengukuran, hv_1, hv_2, hv_3, hv_4, hv_5, created_at, updated_at) VALUES (")
+                    .append(item.getId_depth()).append(", ")
+                    .append(item.getId_pengukuran()).append(", ")
+                    .append(item.getHv_1()).append(", ")
+                    .append(item.getHv_2()).append(", ")
+                    .append(item.getHv_3()).append(", ")
+                    .append(item.getHv_4()).append(", ")
+                    .append(item.getHv_5()).append(", ")
+                    .append("datetime('now'), datetime('now'));\n");
+        }
+        sql.append("\n");
+    }
+
+    private void exportTableInitial625(StringBuilder sql) {
+        sql.append("-- Table: m_initial_reading_elv_625\n");
+        List<Initial625Model> data = dbHelper.getAllInitial625();
+        for (Initial625Model item : data) {
+            sql.append("INSERT OR REPLACE INTO m_initial_reading_elv_625 (id_initial_reading, id_pengukuran, hv_1, hv_2, hv_3, created_at, updated_at) VALUES (")
+                    .append(item.getId_initial_reading()).append(", ")
+                    .append(item.getId_pengukuran()).append(", ")
+                    .append(item.getHv_1()).append(", ")
+                    .append(item.getHv_2()).append(", ")
+                    .append(item.getHv_3()).append(", ")
+                    .append("datetime('now'), datetime('now'));\n");
+        }
+        sql.append("\n");
+    }
+
+    private void exportTableInitial600(StringBuilder sql) {
+        sql.append("-- Table: m_initial_reading_elv_600\n");
+        List<Initial600Model> data = dbHelper.getAllInitial600();
+        for (Initial600Model item : data) {
+            sql.append("INSERT OR REPLACE INTO m_initial_reading_elv_600 (id_initial_reading, id_pengukuran, hv_1, hv_2, hv_3, hv_4, hv_5, created_at, updated_at) VALUES (")
+                    .append(item.getId_initial_reading()).append(", ")
+                    .append(item.getId_pengukuran()).append(", ")
+                    .append(item.getHv_1()).append(", ")
+                    .append(item.getHv_2()).append(", ")
+                    .append(item.getHv_3()).append(", ")
+                    .append(item.getHv_4()).append(", ")
+                    .append(item.getHv_5()).append(", ")
+                    .append("datetime('now'), datetime('now'));\n");
+        }
+        sql.append("\n");
+    }
+
+    private void exportTablePergerakan625(StringBuilder sql) {
+        sql.append("-- Table: t_pergerakan_elv625\n");
+        List<Pergerakan625Model> data = dbHelper.getAllPergerakan625();
+        for (Pergerakan625Model item : data) {
+            sql.append("INSERT OR REPLACE INTO t_pergerakan_elv625 (id_pergerakan, id_pengukuran, hv_1, hv_2, hv_3, created_at, updated_at) VALUES (")
+                    .append(item.getId_pergerakan()).append(", ")
+                    .append(item.getId_pengukuran()).append(", ")
+                    .append(item.getHv_1()).append(", ")
+                    .append(item.getHv_2()).append(", ")
+                    .append(item.getHv_3()).append(", ")
+                    .append("datetime('now'), datetime('now'));\n");
+        }
+        sql.append("\n");
+    }
+
+    private void exportTablePergerakan600(StringBuilder sql) {
+        sql.append("-- Table: t_pergerakan_elv600\n");
+        List<Pergerakan600Model> data = dbHelper.getAllPergerakan600();
+        for (Pergerakan600Model item : data) {
+            sql.append("INSERT OR REPLACE INTO t_pergerakan_elv600 (id_pergerakan, id_pengukuran, hv_1, hv_2, hv_3, hv_4, hv_5, created_at, updated_at) VALUES (")
+                    .append(item.getId_pergerakan()).append(", ")
+                    .append(item.getId_pengukuran()).append(", ")
+                    .append(item.getHv_1()).append(", ")
+                    .append(item.getHv_2()).append(", ")
+                    .append(item.getHv_3()).append(", ")
+                    .append(item.getHv_4()).append(", ")
+                    .append(item.getHv_5()).append(", ")
+                    .append("datetime('now'), datetime('now'));\n");
+        }
+        sql.append("\n");
+    }
+
+    private String quote(String value) {
+        if (value == null) return "NULL";
+        return "'" + value.replace("'", "''") + "'";
+    }
+
+    private void resetExportButton() {
+        runOnUiThread(() -> {
+            progressBarExport.setVisibility(View.GONE);
+            btnExportDB.setEnabled(true);
+            btnExportDB.setText("Export Database ke SQL");
+        });
+    }
+
+    private void showExportSuccessDialog(File exportedFile) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("✅ Ekspor Berhasil")
+                .setMessage("Database berhasil diekspor ke file SQL:\n" + exportedFile.getName() + "\n\nLokasi: Downloads/")
+                .setPositiveButton("BAGIKAN", (dialog, which) -> shareSQLFile(exportedFile))
+                .setNegativeButton("OK", null)
+                .show();
+    }
+
+    private void shareSQLFile(File sqlFile) {
+        try {
+            Intent shareIntent = new Intent(Intent.ACTION_SEND);
+            shareIntent.setType("text/plain");
+
+            Uri fileUri = FileProvider.getUriForFile(this,
+                    getPackageName() + ".fileprovider", sqlFile);
+
+            shareIntent.putExtra(Intent.EXTRA_STREAM, fileUri);
+            shareIntent.putExtra(Intent.EXTRA_SUBJECT, "DamBody Database Export");
+            shareIntent.putExtra(Intent.EXTRA_TEXT, "File ekspor database DamBody dalam format SQL");
+            shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+            startActivity(Intent.createChooser(shareIntent, "Bagikan File SQL"));
+        } catch (Exception e) {
+            Toast.makeText(this, "❌ Gagal membagikan file: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
 }

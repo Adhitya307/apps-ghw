@@ -55,7 +55,7 @@ public class InputdataElv600 extends AppCompatActivity {
     private String tempId = null;
 
     // API URL
-    private static final String BASE_URL = "http://192.168.1.12/GHW/api-apps/public/dombody/";
+    private static final String BASE_URL = "http://192.168.1.9/GHW/api-apps/public/dombody/";
     private static final String INSERT_DATA_URL = BASE_URL + "input";
     private static final String GET_PENGUKURAN_URL = BASE_URL + "get-pengukuran";
 
@@ -513,7 +513,7 @@ public class InputdataElv600 extends AppCompatActivity {
 
             // ✅ URL endpoint langsung ke route CodeIgniter
             String url = BASE_URL + "hitung/elv600";
-            // Hasil akhir: http://192.168.1.12/GHW/api-apps/public/dombody/hitung/elv600
+
 
             // Siapkan data JSON yang dikirim
             JSONObject postData = new JSONObject();
@@ -710,12 +710,13 @@ public class InputdataElv600 extends AppCompatActivity {
                 }
 
             } catch (Exception e) {
-                Log.e("LOAD_PENGUKURAN", "Error: " + e.getMessage());
+                Log.e("LOAD_PENGUKURAN", "Error: ", e);
                 runOnUiThread(() -> {
-                    showToast("❌ Gagal load data pengukuran");
+                    showToast("❌ Gagal load data pengukuran: " + e.getMessage());
                     loadTanggalOffline();
                 });
-            } finally {
+            }
+ finally {
                 if (conn != null) conn.disconnect();
             }
         }).start();

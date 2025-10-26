@@ -55,7 +55,7 @@ public class InputdataElv625 extends AppCompatActivity {
     private String tempId = null;
 
     // API URL
-    private static final String BASE_URL = "http://192.168.1.12/GHW/api-apps/public/dombody/";
+    private static final String BASE_URL = "http://192.168.1.9/GHW/api-apps/public/dombody/";
     private static final String INSERT_DATA_URL = BASE_URL + "input";
     private static final String GET_PENGUKURAN_URL = BASE_URL + "get-pengukuran";
 
@@ -663,14 +663,13 @@ public class InputdataElv625 extends AppCompatActivity {
         inputDMA.setText("");
     }
 
-    // ✅ FINAL FIXED: Kirim semua HV sekaligus (1 request, 1 row)
+    // ✅ FINAL FIXED + OFFLINE SUPPORT
     private void handleAllHV() {
         try {
             String nilaiHV1 = inputHV1.getText().toString().trim();
             String nilaiHV2 = inputHV2.getText().toString().trim();
             String nilaiHV3 = inputHV3.getText().toString().trim();
 
-            // Validasi minimal satu diisi
             if (nilaiHV1.isEmpty() && nilaiHV2.isEmpty() && nilaiHV3.isEmpty()) {
                 showToast("⚠️ Harap isi minimal satu nilai HV");
                 return;
@@ -681,18 +680,27 @@ public class InputdataElv625 extends AppCompatActivity {
                 return;
             }
 
-            // ✅ Buat JSON body sekaligus
             JSONObject postData = new JSONObject();
             postData.put("mode", "elv625");
             postData.put("pengukuran_id", pengukuranId);
-
             if (!nilaiHV1.isEmpty()) postData.put("hv_1", nilaiHV1);
             if (!nilaiHV2.isEmpty()) postData.put("hv_2", nilaiHV2);
             if (!nilaiHV3.isEmpty()) postData.put("hv_3", nilaiHV3);
 
-            Log.d("ELV625_API", "JSON dikirim (semua HV): " + postData);
+            String tempId = "ELV625_" + System.currentTimeMillis();
 
-            // Kirim dalam 1 request
+            if (!isNetworkAvailable()) {
+                // 🚫 Tidak ada internet -> simpan ke lokal
+                OfflineDataHelper db = new OfflineDataHelper(getApplicationContext());
+                boolean saved = db.insertDataELV625("data", tempId, postData.toString());
+
+                if (saved) showToast("📦 Tidak ada internet. Data HV disimpan lokal.");
+                else showToast("❌ Gagal menyimpan data HV lokal.");
+
+                return;
+            }
+
+            // 🌐 Jika ada internet, kirim ke server
             JsonObjectRequest request = new JsonObjectRequest(
                     Request.Method.POST,
                     INSERT_DATA_URL,
@@ -704,23 +712,24 @@ public class InputdataElv625 extends AppCompatActivity {
 
                             if (status.equalsIgnoreCase("success")) {
                                 showToast("✅ " + message);
-                                // Kosongkan field setelah sukses
                                 inputHV1.setText("");
                                 inputHV2.setText("");
                                 inputHV3.setText("");
                             } else {
-                                showToast("⚠️ " + message);
+                                // ⚠️ Jika server tolak -> simpan offline
+                                OfflineDataHelper db = new OfflineDataHelper(getApplicationContext());
+                                db.insertDataELV625("data", tempId, postData.toString());
+                                showToast("⚠️ Server gagal respon. Data disimpan offline.");
                             }
                         } catch (Exception e) {
-                            showToast("❌ Gagal parsing response: " + e.getMessage());
+                            showToast("❌ Parsing error: " + e.getMessage());
                         }
                     },
                     error -> {
-                        String msg = "❌ Gagal kirim ke server";
-                        if (error != null && error.getMessage() != null) {
-                            msg += ": " + error.getMessage();
-                        }
-                        showToast(msg);
+                        // ⚠️ Jika request gagal (mis. server mati) → simpan offline
+                        OfflineDataHelper db = new OfflineDataHelper(getApplicationContext());
+                        db.insertDataELV625("data", tempId, postData.toString());
+                        showToast("📦 Gagal kirim ke server. Data disimpan offline.");
                     }
             );
 
@@ -731,6 +740,13 @@ public class InputdataElv625 extends AppCompatActivity {
             showToast("❌ Error: " + e.getMessage());
         }
     }
+
+    private boolean isNetworkAvailable() {
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+        return activeNetwork != null && activeNetwork.isConnected();
+    }
+
 
 
     // ✅ FINAL VERSION: hitungRataRataHV untuk ELV625
@@ -744,7 +760,7 @@ public class InputdataElv625 extends AppCompatActivity {
 
             // ✅ URL endpoint sesuai route di CodeIgniter
             String url = BASE_URL + "hitung/elv625" ;
-            // Contoh hasil: http://192.168.1.12/GHW/api-apps/public/dombody/hitung/elv625
+
 
             // Siapkan data JSON yang dikirim ke server
             JSONObject postData = new JSONObject();
