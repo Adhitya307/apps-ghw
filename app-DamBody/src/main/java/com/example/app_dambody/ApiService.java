@@ -1,7 +1,10 @@
 package com.example.app_dambody;
 
 import retrofit2.Call;
+import retrofit2.http.Body;
 import retrofit2.http.GET;
+import retrofit2.http.POST;
+import retrofit2.http.Path;
 import retrofit2.http.Query;
 
 public interface ApiService {
@@ -42,7 +45,44 @@ public interface ApiService {
     @GET("api/dambody/pergerakan-600")
     Call<Pergerakan600Response> getPergerakan600();
 
+    // =============================================================
+    // ✅ ENDPOINT AMBANG BATAS BARU
+    // =============================================================
+
+    // Ambang Batas 625
+    @GET("api/dambody/ambang-batas-625-h1")
+    Call<AmbangBatas625H1Response> getAmbangBatas625H1();
+
+    @GET("api/dambody/ambang-batas-625-h2")
+    Call<AmbangBatas625H2Response> getAmbangBatas625H2();
+
+    @GET("api/dambody/ambang-batas-625-h3")
+    Call<AmbangBatas625H3Response> getAmbangBatas625H3();
+
+    // Ambang Batas 600
+    @GET("api/dambody/ambang-batas-600-h1")
+    Call<AmbangBatas600H1Response> getAmbangBatas600H1();
+
+    @GET("api/dambody/ambang-batas-600-h2")
+    Call<AmbangBatas600H2Response> getAmbangBatas600H2();
+
+    @GET("api/dambody/ambang-batas-600-h3")
+    Call<AmbangBatas600H3Response> getAmbangBatas600H3();
+
+    @GET("api/dambody/ambang-batas-600-h4")
+    Call<AmbangBatas600H4Response> getAmbangBatas600H4();
+
+    @GET("api/dambody/ambang-batas-600-h5")
+    Call<AmbangBatas600H5Response> getAmbangBatas600H5();
+
     // Endpoint untuk sync semua data
     @GET("api/dambody/sync")
     Call<SyncResponse> getSyncData(@Query("last_sync") String lastSync);
+
+    // Update Ambang Batas (gunakan sesuai kebutuhan)
+    @POST("ambangbatas625/h1/update")
+    Call<AmbangBatas625H1Response> updateAmbangBatas625H1(@Body AmbangBatas625H1Model ambangBatas);
+
+    @POST("ambangbatas600/h1/update")
+    Call<AmbangBatas600H1Response> updateAmbangBatas600H1(@Body AmbangBatas600H1Model ambangBatas);
 }

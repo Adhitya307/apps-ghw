@@ -74,7 +74,7 @@ public class DamBodyHomeActivity extends AppCompatActivity {
     }
 
     // =============================================================
-    // ✅ SINKRONISASI UTAMA
+    // ✅ SINKRONISASI UTAMA (DENGAN AMBANG BATAS)
     private void syncAllDataFromServer() {
         Log.d(TAG, "🚀 Memulai sinkronisasi semua data dari server...");
         Toast.makeText(this, "🔄 Sinkronisasi dimulai...", Toast.LENGTH_SHORT).show();
@@ -89,6 +89,10 @@ public class DamBodyHomeActivity extends AppCompatActivity {
         syncInitial600();
         syncPergerakan625();
         syncPergerakan600();
+
+        // ✅ TAMBAHKAN SYNC AMBANG BATAS
+        syncAmbangBatas625();
+        syncAmbangBatas600();
     }
 
     // =============================================================
@@ -296,6 +300,222 @@ public class DamBodyHomeActivity extends AppCompatActivity {
             @Override
             public void onFailure(Call<Pergerakan600Response> call, Throwable t) {
                 Log.e(TAG, "❌ Error sync Pergerakan ELV600: " + t.getMessage());
+            }
+        });
+    }
+
+    // =============================================================
+    // ✅ SYNC: AMBANG BATAS ELV625
+    // =============================================================
+    private void syncAmbangBatas625() {
+        Log.d(TAG, "🔄 Memulai sinkronisasi Ambang Batas ELV625...");
+
+        syncAmbangBatas625H1();
+        syncAmbangBatas625H2();
+        syncAmbangBatas625H3();
+    }
+
+    private void syncAmbangBatas625H1() {
+        api.getAmbangBatas625H1().enqueue(new Callback<AmbangBatas625H1Response>() {
+            @Override
+            public void onResponse(Call<AmbangBatas625H1Response> call, Response<AmbangBatas625H1Response> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    List<AmbangBatas625H1Model> list = response.body().getData();
+                    if (list != null) {
+                        for (AmbangBatas625H1Model item : list) {
+                            dbHelper.insertOrUpdateAmbangBatas625H1(item);
+                        }
+                        Log.i(TAG, "✅ Sinkronisasi Ambang Batas 625 H1: " + list.size());
+                    }
+                } else {
+                    Log.w(TAG, "⚠️ Tidak ada data Ambang Batas 625 H1 dari server.");
+                }
+            }
+
+            @Override
+            public void onFailure(Call<AmbangBatas625H1Response> call, Throwable t) {
+                Log.e(TAG, "❌ Error sync Ambang Batas 625 H1: " + t.getMessage());
+            }
+        });
+    }
+
+    private void syncAmbangBatas625H2() {
+        api.getAmbangBatas625H2().enqueue(new Callback<AmbangBatas625H2Response>() {
+            @Override
+            public void onResponse(Call<AmbangBatas625H2Response> call, Response<AmbangBatas625H2Response> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    List<AmbangBatas625H2Model> list = response.body().getData();
+                    if (list != null) {
+                        for (AmbangBatas625H2Model item : list) {
+                            dbHelper.insertOrUpdateAmbangBatas625H2(item);
+                        }
+                        Log.i(TAG, "✅ Sinkronisasi Ambang Batas 625 H2: " + list.size());
+                    }
+                } else {
+                    Log.w(TAG, "⚠️ Tidak ada data Ambang Batas 625 H2 dari server.");
+                }
+            }
+
+            @Override
+            public void onFailure(Call<AmbangBatas625H2Response> call, Throwable t) {
+                Log.e(TAG, "❌ Error sync Ambang Batas 625 H2: " + t.getMessage());
+            }
+        });
+    }
+
+    private void syncAmbangBatas625H3() {
+        api.getAmbangBatas625H3().enqueue(new Callback<AmbangBatas625H3Response>() {
+            @Override
+            public void onResponse(Call<AmbangBatas625H3Response> call, Response<AmbangBatas625H3Response> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    List<AmbangBatas625H3Model> list = response.body().getData();
+                    if (list != null) {
+                        for (AmbangBatas625H3Model item : list) {
+                            dbHelper.insertOrUpdateAmbangBatas625H3(item);
+                        }
+                        Log.i(TAG, "✅ Sinkronisasi Ambang Batas 625 H3: " + list.size());
+                    }
+                } else {
+                    Log.w(TAG, "⚠️ Tidak ada data Ambang Batas 625 H3 dari server.");
+                }
+            }
+
+            @Override
+            public void onFailure(Call<AmbangBatas625H3Response> call, Throwable t) {
+                Log.e(TAG, "❌ Error sync Ambang Batas 625 H3: " + t.getMessage());
+            }
+        });
+    }
+
+    // =============================================================
+    // ✅ SYNC: AMBANG BATAS ELV600
+    // =============================================================
+    private void syncAmbangBatas600() {
+        Log.d(TAG, "🔄 Memulai sinkronisasi Ambang Batas ELV600...");
+
+        syncAmbangBatas600H1();
+        syncAmbangBatas600H2();
+        syncAmbangBatas600H3();
+        syncAmbangBatas600H4();
+        syncAmbangBatas600H5();
+    }
+
+    private void syncAmbangBatas600H1() {
+        api.getAmbangBatas600H1().enqueue(new Callback<AmbangBatas600H1Response>() {
+            @Override
+            public void onResponse(Call<AmbangBatas600H1Response> call, Response<AmbangBatas600H1Response> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    List<AmbangBatas600H1Model> list = response.body().getData();
+                    if (list != null) {
+                        for (AmbangBatas600H1Model item : list) {
+                            dbHelper.insertOrUpdateAmbangBatas600H1(item);
+                        }
+                        Log.i(TAG, "✅ Sinkronisasi Ambang Batas 600 H1: " + list.size());
+                    }
+                } else {
+                    Log.w(TAG, "⚠️ Tidak ada data Ambang Batas 600 H1 dari server.");
+                }
+            }
+
+            @Override
+            public void onFailure(Call<AmbangBatas600H1Response> call, Throwable t) {
+                Log.e(TAG, "❌ Error sync Ambang Batas 600 H1: " + t.getMessage());
+            }
+        });
+    }
+
+    private void syncAmbangBatas600H2() {
+        api.getAmbangBatas600H2().enqueue(new Callback<AmbangBatas600H2Response>() {
+            @Override
+            public void onResponse(Call<AmbangBatas600H2Response> call, Response<AmbangBatas600H2Response> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    List<AmbangBatas600H2Model> list = response.body().getData();
+                    if (list != null) {
+                        for (AmbangBatas600H2Model item : list) {
+                            dbHelper.insertOrUpdateAmbangBatas600H2(item);
+                        }
+                        Log.i(TAG, "✅ Sinkronisasi Ambang Batas 600 H2: " + list.size());
+                    }
+                } else {
+                    Log.w(TAG, "⚠️ Tidak ada data Ambang Batas 600 H2 dari server.");
+                }
+            }
+
+            @Override
+            public void onFailure(Call<AmbangBatas600H2Response> call, Throwable t) {
+                Log.e(TAG, "❌ Error sync Ambang Batas 600 H2: " + t.getMessage());
+            }
+        });
+    }
+
+    private void syncAmbangBatas600H3() {
+        api.getAmbangBatas600H3().enqueue(new Callback<AmbangBatas600H3Response>() {
+            @Override
+            public void onResponse(Call<AmbangBatas600H3Response> call, Response<AmbangBatas600H3Response> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    List<AmbangBatas600H3Model> list = response.body().getData();
+                    if (list != null) {
+                        for (AmbangBatas600H3Model item : list) {
+                            dbHelper.insertOrUpdateAmbangBatas600H3(item);
+                        }
+                        Log.i(TAG, "✅ Sinkronisasi Ambang Batas 600 H3: " + list.size());
+                    }
+                } else {
+                    Log.w(TAG, "⚠️ Tidak ada data Ambang Batas 600 H3 dari server.");
+                }
+            }
+
+            @Override
+            public void onFailure(Call<AmbangBatas600H3Response> call, Throwable t) {
+                Log.e(TAG, "❌ Error sync Ambang Batas 600 H3: " + t.getMessage());
+            }
+        });
+    }
+
+    private void syncAmbangBatas600H4() {
+        api.getAmbangBatas600H4().enqueue(new Callback<AmbangBatas600H4Response>() {
+            @Override
+            public void onResponse(Call<AmbangBatas600H4Response> call, Response<AmbangBatas600H4Response> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    List<AmbangBatas600H4Model> list = response.body().getData();
+                    if (list != null) {
+                        for (AmbangBatas600H4Model item : list) {
+                            dbHelper.insertOrUpdateAmbangBatas600H4(item);
+                        }
+                        Log.i(TAG, "✅ Sinkronisasi Ambang Batas 600 H4: " + list.size());
+                    }
+                } else {
+                    Log.w(TAG, "⚠️ Tidak ada data Ambang Batas 600 H4 dari server.");
+                }
+            }
+
+            @Override
+            public void onFailure(Call<AmbangBatas600H4Response> call, Throwable t) {
+                Log.e(TAG, "❌ Error sync Ambang Batas 600 H4: " + t.getMessage());
+            }
+        });
+    }
+
+    private void syncAmbangBatas600H5() {
+        api.getAmbangBatas600H5().enqueue(new Callback<AmbangBatas600H5Response>() {
+            @Override
+            public void onResponse(Call<AmbangBatas600H5Response> call, Response<AmbangBatas600H5Response> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    List<AmbangBatas600H5Model> list = response.body().getData();
+                    if (list != null) {
+                        for (AmbangBatas600H5Model item : list) {
+                            dbHelper.insertOrUpdateAmbangBatas600H5(item);
+                        }
+                        Log.i(TAG, "✅ Sinkronisasi Ambang Batas 600 H5: " + list.size());
+                    }
+                } else {
+                    Log.w(TAG, "⚠️ Tidak ada data Ambang Batas 600 H5 dari server.");
+                }
+            }
+
+            @Override
+            public void onFailure(Call<AmbangBatas600H5Response> call, Throwable t) {
+                Log.e(TAG, "❌ Error sync Ambang Batas 600 H5: " + t.getMessage());
             }
         });
     }

@@ -240,6 +240,16 @@ public class HistoryDamBodyActivity extends AppCompatActivity {
         exportTablePergerakan625(sql);
         exportTablePergerakan600(sql);
 
+        // Export tabel ambang batas
+        exportTableAmbangBatas625H1(sql);
+        exportTableAmbangBatas625H2(sql);
+        exportTableAmbangBatas625H3(sql);
+        exportTableAmbangBatas600H1(sql);
+        exportTableAmbangBatas600H2(sql);
+        exportTableAmbangBatas600H3(sql);
+        exportTableAmbangBatas600H4(sql);
+        exportTableAmbangBatas600H5(sql);
+
         return sql.toString();
     }
 
@@ -383,6 +393,144 @@ public class HistoryDamBodyActivity extends AppCompatActivity {
                     .append(item.getHv_4()).append(", ")
                     .append(item.getHv_5()).append(", ")
                     .append("datetime('now'), datetime('now'));\n");
+        }
+        sql.append("\n");
+    }
+
+    // ==================== AMBANG BATAS EXPORT METHODS ====================
+
+    private void exportTableAmbangBatas625H1(StringBuilder sql) {
+        sql.append("-- Table: ambang_batas_625_h1\n");
+        List<AmbangBatas625H1Model> data = dbHelper.getAllAmbangBatas625H1();
+        for (AmbangBatas625H1Model item : data) {
+            sql.append("INSERT OR REPLACE INTO ambang_batas_625_h1 (id_ambang_batas, id_pengukuran, aman, peringatan, bahaya, pergerakan, created_at, updated_at) VALUES (")
+                    .append(item.getId_ambang_batas()).append(", ")
+                    .append(item.getId_pengukuran()).append(", ")
+                    .append(item.getAman()).append(", ")
+                    .append(item.getPeringatan()).append(", ")
+                    .append(item.getBahaya()).append(", ")
+                    .append(item.getPergerakan()).append(", ")
+                    .append(quote(item.getCreated_at())).append(", ")
+                    .append(quote(item.getUpdated_at())).append(");\n");
+        }
+        sql.append("\n");
+    }
+
+    private void exportTableAmbangBatas625H2(StringBuilder sql) {
+        sql.append("-- Table: ambang_batas_625_h2\n");
+        List<AmbangBatas625H2Model> data = dbHelper.getAllAmbangBatas625H2();
+        for (AmbangBatas625H2Model item : data) {
+            sql.append("INSERT OR REPLACE INTO ambang_batas_625_h2 (id_ambang_batas, id_pengukuran, aman, peringatan, bahaya, pergerakan, created_at, updated_at) VALUES (")
+                    .append(item.getId_ambang_batas()).append(", ")
+                    .append(item.getId_pengukuran()).append(", ")
+                    .append(item.getAman()).append(", ")
+                    .append(item.getPeringatan()).append(", ")
+                    .append(item.getBahaya()).append(", ")
+                    .append(item.getPergerakan()).append(", ")
+                    .append(quote(item.getCreated_at())).append(", ")
+                    .append(quote(item.getUpdated_at())).append(");\n");
+        }
+        sql.append("\n");
+    }
+
+    private void exportTableAmbangBatas625H3(StringBuilder sql) {
+        sql.append("-- Table: ambang_batas_625_h3\n");
+        List<AmbangBatas625H3Model> data = dbHelper.getAllAmbangBatas625H3();
+        for (AmbangBatas625H3Model item : data) {
+            sql.append("INSERT OR REPLACE INTO ambang_batas_625_h3 (id_ambang_batas, id_pengukuran, aman, peringatan, bahaya, pergerakan, created_at, updated_at) VALUES (")
+                    .append(item.getId_ambang_batas()).append(", ")
+                    .append(item.getId_pengukuran()).append(", ")
+                    .append(item.getAman()).append(", ")
+                    .append(item.getPeringatan()).append(", ")
+                    .append(item.getBahaya()).append(", ")
+                    .append(item.getPergerakan()).append(", ")
+                    .append(quote(item.getCreated_at())).append(", ")
+                    .append(quote(item.getUpdated_at())).append(");\n");
+        }
+        sql.append("\n");
+    }
+
+    private void exportTableAmbangBatas600H1(StringBuilder sql) {
+        sql.append("-- Table: ambang_batas_600_h1\n");
+        List<AmbangBatas600H1Model> data = dbHelper.getAllAmbangBatas600H1();
+        for (AmbangBatas600H1Model item : data) {
+            sql.append("INSERT OR REPLACE INTO ambang_batas_600_h1 (id_ambang_batas, id_pengukuran, aman, peringatan, bahaya, pergerakan, created_at, updated_at) VALUES (")
+                    .append(item.getId_ambang_batas()).append(", ")
+                    .append(item.getId_pengukuran()).append(", ")
+                    .append(item.getAman()).append(", ")
+                    .append(item.getPeringatan()).append(", ")
+                    .append(item.getBahaya()).append(", ")
+                    .append(item.getPergerakan()).append(", ")
+                    .append(quote(item.getCreated_at())).append(", ")
+                    .append(quote(item.getUpdated_at())).append(");\n");
+        }
+        sql.append("\n");
+    }
+
+    private void exportTableAmbangBatas600H2(StringBuilder sql) {
+        sql.append("-- Table: ambang_batas_600_h2\n");
+        List<AmbangBatas600H2Model> data = dbHelper.getAllAmbangBatas600H2();
+        for (AmbangBatas600H2Model item : data) {
+            sql.append("INSERT OR REPLACE INTO ambang_batas_600_h2 (id_ambang_batas, id_pengukuran, aman, peringatan, bahaya, pergerakan, created_at, updated_at) VALUES (")
+                    .append(item.getId_ambang_batas()).append(", ")
+                    .append(item.getId_pengukuran()).append(", ")
+                    .append(item.getAman()).append(", ")
+                    .append(item.getPeringatan()).append(", ")
+                    .append(item.getBahaya()).append(", ")
+                    .append(item.getPergerakan()).append(", ")
+                    .append(quote(item.getCreated_at())).append(", ")
+                    .append(quote(item.getUpdated_at())).append(");\n");
+        }
+        sql.append("\n");
+    }
+
+    private void exportTableAmbangBatas600H3(StringBuilder sql) {
+        sql.append("-- Table: ambang_batas_600_h3\n");
+        List<AmbangBatas600H3Model> data = dbHelper.getAllAmbangBatas600H3();
+        for (AmbangBatas600H3Model item : data) {
+            sql.append("INSERT OR REPLACE INTO ambang_batas_600_h3 (id_ambang_batas, id_pengukuran, aman, peringatan, bahaya, pergerakan, created_at, updated_at) VALUES (")
+                    .append(item.getId_ambang_batas()).append(", ")
+                    .append(item.getId_pengukuran()).append(", ")
+                    .append(item.getAman()).append(", ")
+                    .append(item.getPeringatan()).append(", ")
+                    .append(item.getBahaya()).append(", ")
+                    .append(item.getPergerakan()).append(", ")
+                    .append(quote(item.getCreated_at())).append(", ")
+                    .append(quote(item.getUpdated_at())).append(");\n");
+        }
+        sql.append("\n");
+    }
+
+    private void exportTableAmbangBatas600H4(StringBuilder sql) {
+        sql.append("-- Table: ambang_batas_600_h4\n");
+        List<AmbangBatas600H4Model> data = dbHelper.getAllAmbangBatas600H4();
+        for (AmbangBatas600H4Model item : data) {
+            sql.append("INSERT OR REPLACE INTO ambang_batas_600_h4 (id_ambang_batas, id_pengukuran, aman, peringatan, bahaya, pergerakan, created_at, updated_at) VALUES (")
+                    .append(item.getId_ambang_batas()).append(", ")
+                    .append(item.getId_pengukuran()).append(", ")
+                    .append(item.getAman()).append(", ")
+                    .append(item.getPeringatan()).append(", ")
+                    .append(item.getBahaya()).append(", ")
+                    .append(item.getPergerakan()).append(", ")
+                    .append(quote(item.getCreated_at())).append(", ")
+                    .append(quote(item.getUpdated_at())).append(");\n");
+        }
+        sql.append("\n");
+    }
+
+    private void exportTableAmbangBatas600H5(StringBuilder sql) {
+        sql.append("-- Table: ambang_batas_600_h5\n");
+        List<AmbangBatas600H5Model> data = dbHelper.getAllAmbangBatas600H5();
+        for (AmbangBatas600H5Model item : data) {
+            sql.append("INSERT OR REPLACE INTO ambang_batas_600_h5 (id_ambang_batas, id_pengukuran, aman, peringatan, bahaya, pergerakan, created_at, updated_at) VALUES (")
+                    .append(item.getId_ambang_batas()).append(", ")
+                    .append(item.getId_pengukuran()).append(", ")
+                    .append(item.getAman()).append(", ")
+                    .append(item.getPeringatan()).append(", ")
+                    .append(item.getBahaya()).append(", ")
+                    .append(item.getPergerakan()).append(", ")
+                    .append(quote(item.getCreated_at())).append(", ")
+                    .append(quote(item.getUpdated_at())).append(");\n");
         }
         sql.append("\n");
     }

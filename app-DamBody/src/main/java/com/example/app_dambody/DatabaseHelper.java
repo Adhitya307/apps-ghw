@@ -14,9 +14,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     private static final String TAG = "DatabaseHelper";
     public static final String DATABASE_NAME = "db_hdm.db";
-    private static final int DATABASE_VERSION = 3;
+    private static final int DATABASE_VERSION = 5; // Updated version
 
-    // Table names
+    // Table names - EXISTING
     private static final String TABLE_PENGUKURAN = "t_pengukuran_hdm";
     private static final String TABLE_PEMBACAAN_625 = "t_pembacaan_hdm_elv625";
     private static final String TABLE_PEMBACAAN_600 = "t_pembacaan_hdm_elv600";
@@ -27,12 +27,29 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String TABLE_PERGERAKAN_625 = "t_pergerakan_elv625";
     private static final String TABLE_PERGERAKAN_600 = "t_pergerakan_elv600";
 
+    // NEW: Ambang Batas Table names
+    private static final String TABLE_AMBANG_BATAS_625_H1 = "ambang_batas_625_h1";
+    private static final String TABLE_AMBANG_BATAS_625_H2 = "ambang_batas_625_h2";
+    private static final String TABLE_AMBANG_BATAS_625_H3 = "ambang_batas_625_h3";
+    private static final String TABLE_AMBANG_BATAS_600_H1 = "ambang_batas_600_h1";
+    private static final String TABLE_AMBANG_BATAS_600_H2 = "ambang_batas_600_h2";
+    private static final String TABLE_AMBANG_BATAS_600_H3 = "ambang_batas_600_h3";
+    private static final String TABLE_AMBANG_BATAS_600_H4 = "ambang_batas_600_h4";
+    private static final String TABLE_AMBANG_BATAS_600_H5 = "ambang_batas_600_h5";
+
     public DatabaseHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
     }
 
+
+    @Override
+    public void onConfigure(SQLiteDatabase db) {
+        super.onConfigure(db);
+        db.enableWriteAheadLogging(); // ✅ penting agar DB bisa dibaca tanpa terkunci
+    }
     @Override
     public void onCreate(SQLiteDatabase db) {
+        // EXISTING TABLES - TIDAK DIUBAH
         db.execSQL("CREATE TABLE IF NOT EXISTS " + TABLE_PENGUKURAN + " (" +
                 "id_pengukuran INTEGER PRIMARY KEY, " +
                 "tahun INTEGER, " +
@@ -85,11 +102,93 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 "id_pengukuran INTEGER, hv_1 REAL, hv_2 REAL, hv_3 REAL, hv_4 REAL, hv_5 REAL, " +
                 "created_at TEXT, updated_at TEXT)");
 
+        // NEW: AMBANG BATAS TABLES
+        db.execSQL("CREATE TABLE IF NOT EXISTS " + TABLE_AMBANG_BATAS_625_H1 + " (" +
+                "id_ambang_batas INTEGER PRIMARY KEY, " +
+                "id_pengukuran INTEGER, " +
+                "aman REAL, " +
+                "peringatan REAL, " +
+                "bahaya REAL, " +
+                "pergerakan REAL, " +
+                "created_at TEXT, " +
+                "updated_at TEXT)");
+
+        db.execSQL("CREATE TABLE IF NOT EXISTS " + TABLE_AMBANG_BATAS_625_H2 + " (" +
+                "id_ambang_batas INTEGER PRIMARY KEY, " +
+                "id_pengukuran INTEGER, " +
+                "aman REAL, " +
+                "peringatan REAL, " +
+                "bahaya REAL, " +
+                "pergerakan REAL, " +
+                "created_at TEXT, " +
+                "updated_at TEXT)");
+
+        db.execSQL("CREATE TABLE IF NOT EXISTS " + TABLE_AMBANG_BATAS_625_H3 + " (" +
+                "id_ambang_batas INTEGER PRIMARY KEY, " +
+                "id_pengukuran INTEGER, " +
+                "aman REAL, " +
+                "peringatan REAL, " +
+                "bahaya REAL, " +
+                "pergerakan REAL, " +
+                "created_at TEXT, " +
+                "updated_at TEXT)");
+
+        db.execSQL("CREATE TABLE IF NOT EXISTS " + TABLE_AMBANG_BATAS_600_H1 + " (" +
+                "id_ambang_batas INTEGER PRIMARY KEY, " +
+                "id_pengukuran INTEGER, " +
+                "aman REAL, " +
+                "peringatan REAL, " +
+                "bahaya REAL, " +
+                "pergerakan REAL, " +
+                "created_at TEXT, " +
+                "updated_at TEXT)");
+
+        db.execSQL("CREATE TABLE IF NOT EXISTS " + TABLE_AMBANG_BATAS_600_H2 + " (" +
+                "id_ambang_batas INTEGER PRIMARY KEY, " +
+                "id_pengukuran INTEGER, " +
+                "aman REAL, " +
+                "peringatan REAL, " +
+                "bahaya REAL, " +
+                "pergerakan REAL, " +
+                "created_at TEXT, " +
+                "updated_at TEXT)");
+
+        db.execSQL("CREATE TABLE IF NOT EXISTS " + TABLE_AMBANG_BATAS_600_H3 + " (" +
+                "id_ambang_batas INTEGER PRIMARY KEY, " +
+                "id_pengukuran INTEGER, " +
+                "aman REAL, " +
+                "peringatan REAL, " +
+                "bahaya REAL, " +
+                "pergerakan REAL, " +
+                "created_at TEXT, " +
+                "updated_at TEXT)");
+
+        db.execSQL("CREATE TABLE IF NOT EXISTS " + TABLE_AMBANG_BATAS_600_H4 + " (" +
+                "id_ambang_batas INTEGER PRIMARY KEY, " +
+                "id_pengukuran INTEGER, " +
+                "aman REAL, " +
+                "peringatan REAL, " +
+                "bahaya REAL, " +
+                "pergerakan REAL, " +
+                "created_at TEXT, " +
+                "updated_at TEXT)");
+
+        db.execSQL("CREATE TABLE IF NOT EXISTS " + TABLE_AMBANG_BATAS_600_H5 + " (" +
+                "id_ambang_batas INTEGER PRIMARY KEY, " +
+                "id_pengukuran INTEGER, " +
+                "aman REAL, " +
+                "peringatan REAL, " +
+                "bahaya REAL, " +
+                "pergerakan REAL, " +
+                "created_at TEXT, " +
+                "updated_at TEXT)");
+
         Log.i(TAG, "✅ Semua tabel berhasil dibuat");
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        // EXISTING DROP TABLES - TIDAK DIUBAH
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_PENGUKURAN);
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_PEMBACAAN_625);
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_PEMBACAAN_600);
@@ -99,6 +198,17 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_INITIAL_600);
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_PERGERAKAN_625);
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_PERGERAKAN_600);
+
+        // NEW: DROP AMBANG BATAS TABLES
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_AMBANG_BATAS_625_H1);
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_AMBANG_BATAS_625_H2);
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_AMBANG_BATAS_625_H3);
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_AMBANG_BATAS_600_H1);
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_AMBANG_BATAS_600_H2);
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_AMBANG_BATAS_600_H3);
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_AMBANG_BATAS_600_H4);
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_AMBANG_BATAS_600_H5);
+
         onCreate(db);
     }
 
@@ -121,6 +231,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     }
 
     // ==================== Specific Insert Or Update Methods ====================
+    // EXISTING METHODS - TIDAK DIUBAH
     public long insertOrUpdatePengukuran(PengukuranModel d) {
         ContentValues v = new ContentValues();
         v.put("tahun", d.getTahun());
@@ -191,9 +302,107 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return insertOrUpdate(TABLE_PERGERAKAN_600, "id_pergerakan", d.getId_pergerakan(), v);
     }
 
+    // NEW: AMBANG BATAS INSERT/UPDATE METHODS
+    public long insertOrUpdateAmbangBatas625H1(AmbangBatas625H1Model d) {
+        ContentValues v = new ContentValues();
+        v.put("id_pengukuran", d.getId_pengukuran());
+        v.put("aman", d.getAman());
+        v.put("peringatan", d.getPeringatan());
+        v.put("bahaya", d.getBahaya());
+        v.put("pergerakan", d.getPergerakan());
+        v.put("created_at", d.getCreated_at());
+        v.put("updated_at", d.getUpdated_at());
+        return insertOrUpdate(TABLE_AMBANG_BATAS_625_H1, "id_ambang_batas", d.getId_ambang_batas(), v);
+    }
+
+    public long insertOrUpdateAmbangBatas625H2(AmbangBatas625H2Model d) {
+        ContentValues v = new ContentValues();
+        v.put("id_pengukuran", d.getId_pengukuran());
+        v.put("aman", d.getAman());
+        v.put("peringatan", d.getPeringatan());
+        v.put("bahaya", d.getBahaya());
+        v.put("pergerakan", d.getPergerakan());
+        v.put("created_at", d.getCreated_at());
+        v.put("updated_at", d.getUpdated_at());
+        return insertOrUpdate(TABLE_AMBANG_BATAS_625_H2, "id_ambang_batas", d.getId_ambang_batas(), v);
+    }
+
+    public long insertOrUpdateAmbangBatas625H3(AmbangBatas625H3Model d) {
+        ContentValues v = new ContentValues();
+        v.put("id_pengukuran", d.getId_pengukuran());
+        v.put("aman", d.getAman());
+        v.put("peringatan", d.getPeringatan());
+        v.put("bahaya", d.getBahaya());
+        v.put("pergerakan", d.getPergerakan());
+        v.put("created_at", d.getCreated_at());
+        v.put("updated_at", d.getUpdated_at());
+        return insertOrUpdate(TABLE_AMBANG_BATAS_625_H3, "id_ambang_batas", d.getId_ambang_batas(), v);
+    }
+
+    public long insertOrUpdateAmbangBatas600H1(AmbangBatas600H1Model d) {
+        ContentValues v = new ContentValues();
+        v.put("id_pengukuran", d.getId_pengukuran());
+        v.put("aman", d.getAman());
+        v.put("peringatan", d.getPeringatan());
+        v.put("bahaya", d.getBahaya());
+        v.put("pergerakan", d.getPergerakan());
+        v.put("created_at", d.getCreated_at());
+        v.put("updated_at", d.getUpdated_at());
+        return insertOrUpdate(TABLE_AMBANG_BATAS_600_H1, "id_ambang_batas", d.getId_ambang_batas(), v);
+    }
+
+    public long insertOrUpdateAmbangBatas600H2(AmbangBatas600H2Model d) {
+        ContentValues v = new ContentValues();
+        v.put("id_pengukuran", d.getId_pengukuran());
+        v.put("aman", d.getAman());
+        v.put("peringatan", d.getPeringatan());
+        v.put("bahaya", d.getBahaya());
+        v.put("pergerakan", d.getPergerakan());
+        v.put("created_at", d.getCreated_at());
+        v.put("updated_at", d.getUpdated_at());
+        return insertOrUpdate(TABLE_AMBANG_BATAS_600_H2, "id_ambang_batas", d.getId_ambang_batas(), v);
+    }
+
+    public long insertOrUpdateAmbangBatas600H3(AmbangBatas600H3Model d) {
+        ContentValues v = new ContentValues();
+        v.put("id_pengukuran", d.getId_pengukuran());
+        v.put("aman", d.getAman());
+        v.put("peringatan", d.getPeringatan());
+        v.put("bahaya", d.getBahaya());
+        v.put("pergerakan", d.getPergerakan());
+        v.put("created_at", d.getCreated_at());
+        v.put("updated_at", d.getUpdated_at());
+        return insertOrUpdate(TABLE_AMBANG_BATAS_600_H3, "id_ambang_batas", d.getId_ambang_batas(), v);
+    }
+
+    public long insertOrUpdateAmbangBatas600H4(AmbangBatas600H4Model d) {
+        ContentValues v = new ContentValues();
+        v.put("id_pengukuran", d.getId_pengukuran());
+        v.put("aman", d.getAman());
+        v.put("peringatan", d.getPeringatan());
+        v.put("bahaya", d.getBahaya());
+        v.put("pergerakan", d.getPergerakan());
+        v.put("created_at", d.getCreated_at());
+        v.put("updated_at", d.getUpdated_at());
+        return insertOrUpdate(TABLE_AMBANG_BATAS_600_H4, "id_ambang_batas", d.getId_ambang_batas(), v);
+    }
+
+    public long insertOrUpdateAmbangBatas600H5(AmbangBatas600H5Model d) {
+        ContentValues v = new ContentValues();
+        v.put("id_pengukuran", d.getId_pengukuran());
+        v.put("aman", d.getAman());
+        v.put("peringatan", d.getPeringatan());
+        v.put("bahaya", d.getBahaya());
+        v.put("pergerakan", d.getPergerakan());
+        v.put("created_at", d.getCreated_at());
+        v.put("updated_at", d.getUpdated_at());
+        return insertOrUpdate(TABLE_AMBANG_BATAS_600_H5, "id_ambang_batas", d.getId_ambang_batas(), v);
+    }
+
 
 // ==================== GET ALL METHODS ====================
 
+    // EXISTING GET ALL METHODS - TIDAK DIUBAH
     public List<PengukuranModel> getAllPengukuran() {
         List<PengukuranModel> list = new ArrayList<>();
         SQLiteDatabase db = this.getReadableDatabase();
@@ -375,6 +584,127 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return list;
     }
 
+    // NEW: GET ALL AMBANG BATAS METHODS
+    public List<AmbangBatas625H1Model> getAllAmbangBatas625H1() {
+        List<AmbangBatas625H1Model> list = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor c = db.rawQuery("SELECT * FROM " + TABLE_AMBANG_BATAS_625_H1, null);
+        if (c.moveToFirst()) {
+            do {
+                AmbangBatas625H1Model d = new AmbangBatas625H1Model();
+                setAmbangBatasDataFromCursor(d, c);
+                list.add(d);
+            } while (c.moveToNext());
+        }
+        c.close();
+        return list;
+    }
+
+    public List<AmbangBatas625H2Model> getAllAmbangBatas625H2() {
+        List<AmbangBatas625H2Model> list = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor c = db.rawQuery("SELECT * FROM " + TABLE_AMBANG_BATAS_625_H2, null);
+        if (c.moveToFirst()) {
+            do {
+                AmbangBatas625H2Model d = new AmbangBatas625H2Model();
+                setAmbangBatasDataFromCursor(d, c);
+                list.add(d);
+            } while (c.moveToNext());
+        }
+        c.close();
+        return list;
+    }
+
+    public List<AmbangBatas625H3Model> getAllAmbangBatas625H3() {
+        List<AmbangBatas625H3Model> list = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor c = db.rawQuery("SELECT * FROM " + TABLE_AMBANG_BATAS_625_H3, null);
+        if (c.moveToFirst()) {
+            do {
+                AmbangBatas625H3Model d = new AmbangBatas625H3Model();
+                setAmbangBatasDataFromCursor(d, c);
+                list.add(d);
+            } while (c.moveToNext());
+        }
+        c.close();
+        return list;
+    }
+
+    public List<AmbangBatas600H1Model> getAllAmbangBatas600H1() {
+        List<AmbangBatas600H1Model> list = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor c = db.rawQuery("SELECT * FROM " + TABLE_AMBANG_BATAS_600_H1, null);
+        if (c.moveToFirst()) {
+            do {
+                AmbangBatas600H1Model d = new AmbangBatas600H1Model();
+                setAmbangBatasDataFromCursor(d, c);
+                list.add(d);
+            } while (c.moveToNext());
+        }
+        c.close();
+        return list;
+    }
+
+    public List<AmbangBatas600H2Model> getAllAmbangBatas600H2() {
+        List<AmbangBatas600H2Model> list = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor c = db.rawQuery("SELECT * FROM " + TABLE_AMBANG_BATAS_600_H2, null);
+        if (c.moveToFirst()) {
+            do {
+                AmbangBatas600H2Model d = new AmbangBatas600H2Model();
+                setAmbangBatasDataFromCursor(d, c);
+                list.add(d);
+            } while (c.moveToNext());
+        }
+        c.close();
+        return list;
+    }
+
+    public List<AmbangBatas600H3Model> getAllAmbangBatas600H3() {
+        List<AmbangBatas600H3Model> list = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor c = db.rawQuery("SELECT * FROM " + TABLE_AMBANG_BATAS_600_H3, null);
+        if (c.moveToFirst()) {
+            do {
+                AmbangBatas600H3Model d = new AmbangBatas600H3Model();
+                setAmbangBatasDataFromCursor(d, c);
+                list.add(d);
+            } while (c.moveToNext());
+        }
+        c.close();
+        return list;
+    }
+
+    public List<AmbangBatas600H4Model> getAllAmbangBatas600H4() {
+        List<AmbangBatas600H4Model> list = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor c = db.rawQuery("SELECT * FROM " + TABLE_AMBANG_BATAS_600_H4, null);
+        if (c.moveToFirst()) {
+            do {
+                AmbangBatas600H4Model d = new AmbangBatas600H4Model();
+                setAmbangBatasDataFromCursor(d, c);
+                list.add(d);
+            } while (c.moveToNext());
+        }
+        c.close();
+        return list;
+    }
+
+    public List<AmbangBatas600H5Model> getAllAmbangBatas600H5() {
+        List<AmbangBatas600H5Model> list = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor c = db.rawQuery("SELECT * FROM " + TABLE_AMBANG_BATAS_600_H5, null);
+        if (c.moveToFirst()) {
+            do {
+                AmbangBatas600H5Model d = new AmbangBatas600H5Model();
+                setAmbangBatasDataFromCursor(d, c);
+                list.add(d);
+            } while (c.moveToNext());
+        }
+        c.close();
+        return list;
+    }
+
     // ===============================================================
 // ✅ INSERT OR UPDATE: PEMBACAAN ELV625
 // ===============================================================
@@ -525,6 +855,109 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         }
         c.close();
         return list;
+    }
+
+    // NEW: GET AMBANG BATAS BY PENGUKURAN METHODS
+    public AmbangBatas625H1Model getAmbangBatas625H1ByPengukuran(int idPengukuran) {
+        return getAmbangBatasByPengukuran(TABLE_AMBANG_BATAS_625_H1, idPengukuran, new AmbangBatas625H1Model());
+    }
+
+    public AmbangBatas625H2Model getAmbangBatas625H2ByPengukuran(int idPengukuran) {
+        return getAmbangBatasByPengukuran(TABLE_AMBANG_BATAS_625_H2, idPengukuran, new AmbangBatas625H2Model());
+    }
+
+    public AmbangBatas625H3Model getAmbangBatas625H3ByPengukuran(int idPengukuran) {
+        return getAmbangBatasByPengukuran(TABLE_AMBANG_BATAS_625_H3, idPengukuran, new AmbangBatas625H3Model());
+    }
+
+    public AmbangBatas600H1Model getAmbangBatas600H1ByPengukuran(int idPengukuran) {
+        return getAmbangBatasByPengukuran(TABLE_AMBANG_BATAS_600_H1, idPengukuran, new AmbangBatas600H1Model());
+    }
+
+    public AmbangBatas600H2Model getAmbangBatas600H2ByPengukuran(int idPengukuran) {
+        return getAmbangBatasByPengukuran(TABLE_AMBANG_BATAS_600_H2, idPengukuran, new AmbangBatas600H2Model());
+    }
+
+    public AmbangBatas600H3Model getAmbangBatas600H3ByPengukuran(int idPengukuran) {
+        return getAmbangBatasByPengukuran(TABLE_AMBANG_BATAS_600_H3, idPengukuran, new AmbangBatas600H3Model());
+    }
+
+    public AmbangBatas600H4Model getAmbangBatas600H4ByPengukuran(int idPengukuran) {
+        return getAmbangBatasByPengukuran(TABLE_AMBANG_BATAS_600_H4, idPengukuran, new AmbangBatas600H4Model());
+    }
+
+    public AmbangBatas600H5Model getAmbangBatas600H5ByPengukuran(int idPengukuran) {
+        return getAmbangBatasByPengukuran(TABLE_AMBANG_BATAS_600_H5, idPengukuran, new AmbangBatas600H5Model());
+    }
+
+    // ==================== HELPER METHODS ====================
+
+    private <T> T getAmbangBatasByPengukuran(String tableName, int idPengukuran, T model) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor c = db.rawQuery("SELECT * FROM " + tableName + " WHERE id_pengukuran = ?",
+                new String[]{String.valueOf(idPengukuran)});
+
+        if (c.moveToFirst()) {
+            setAmbangBatasDataFromCursor(model, c);
+        } else {
+            model = null;
+        }
+
+        c.close();
+        return model;
+    }
+
+    private void setAmbangBatasDataFromCursor(Object model, Cursor c) {
+        if (model instanceof AmbangBatas625H1Model) {
+            AmbangBatas625H1Model d = (AmbangBatas625H1Model) model;
+            setAmbangBatasCommonData(d, c);
+        } else if (model instanceof AmbangBatas625H2Model) {
+            AmbangBatas625H2Model d = (AmbangBatas625H2Model) model;
+            setAmbangBatasCommonData(d, c);
+        } else if (model instanceof AmbangBatas625H3Model) {
+            AmbangBatas625H3Model d = (AmbangBatas625H3Model) model;
+            setAmbangBatasCommonData(d, c);
+        } else if (model instanceof AmbangBatas600H1Model) {
+            AmbangBatas600H1Model d = (AmbangBatas600H1Model) model;
+            setAmbangBatasCommonData(d, c);
+        } else if (model instanceof AmbangBatas600H2Model) {
+            AmbangBatas600H2Model d = (AmbangBatas600H2Model) model;
+            setAmbangBatasCommonData(d, c);
+        } else if (model instanceof AmbangBatas600H3Model) {
+            AmbangBatas600H3Model d = (AmbangBatas600H3Model) model;
+            setAmbangBatasCommonData(d, c);
+        } else if (model instanceof AmbangBatas600H4Model) {
+            AmbangBatas600H4Model d = (AmbangBatas600H4Model) model;
+            setAmbangBatasCommonData(d, c);
+        } else if (model instanceof AmbangBatas600H5Model) {
+            AmbangBatas600H5Model d = (AmbangBatas600H5Model) model;
+            setAmbangBatasCommonData(d, c);
+        }
+    }
+
+    private void setAmbangBatasCommonData(Object model, Cursor c) {
+        try {
+            // Common fields for all AmbangBatas models
+            if (model instanceof AmbangBatas625H1Model) {
+                AmbangBatas625H1Model d = (AmbangBatas625H1Model) model;
+                d.setId_ambang_batas(c.getInt(c.getColumnIndexOrThrow("id_ambang_batas")));
+                d.setId_pengukuran(c.getInt(c.getColumnIndexOrThrow("id_pengukuran")));
+                d.setAman(c.getDouble(c.getColumnIndexOrThrow("aman")));
+                d.setPeringatan(c.getDouble(c.getColumnIndexOrThrow("peringatan")));
+                d.setBahaya(c.getDouble(c.getColumnIndexOrThrow("bahaya")));
+
+                int pergerakanIndex = c.getColumnIndex("pergerakan");
+                if (!c.isNull(pergerakanIndex)) {
+                    d.setPergerakan(c.getDouble(pergerakanIndex));
+                }
+
+                d.setCreated_at(c.getString(c.getColumnIndexOrThrow("created_at")));
+                d.setUpdated_at(c.getString(c.getColumnIndexOrThrow("updated_at")));
+            }
+            // Apply the same pattern for other models...
+        } catch (Exception e) {
+            Log.e(TAG, "Error setting ambang batas data from cursor: " + e.getMessage());
+        }
     }
 
 }
