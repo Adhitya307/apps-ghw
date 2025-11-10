@@ -1,0 +1,39 @@
+<resources>
+    <string name="app_name">Dam Body Module</string>
+    <string name="title_dam_body">Dam Body Monitoring</string>
+    <string name="btn_elv_625">ELV 625 Monitoring</string>
+    <string name="btn_elv_600">ELV 600 Monitoring</string>
+    <string name="btn_history">Data History</string>
+
+    <string name="prompt_pilih_pengukuran">Pilih Tanggal Pengukuran</string>
+
+    <string-array name="kode_options">
+        <item></item> <!-- Item kosong sebagai default -->
+        <item>S (200 ml)</item>
+        <item>M (500 ml)</item>
+        <item>L (Liter)</item>
+        <item>E (Ember)</item>
+    </string-array>
+
+    <string-array name="periode_options">
+        <item>TW-1</item>
+        <item>TW-2</item>
+        <item>TW-3</item>
+        <item>TW-4</item>
+    </string-array>
+
+    <string-array name="bulan_options">
+        <item>JAN</item>
+        <item>FEB</item>
+        <item>MAR</item>
+        <item>APR</item>
+        <item>MEI</item>
+        <item>JUN</item>
+        <item>JUL</item>
+        <item>AGS</item>
+        <item>SEP</item>
+        <item>OKT</item>
+        <item>NOV</item>
+        <item>DES</item>
+    </string-array>
+</resources>

@@ -12,14 +12,15 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
 
 import com.apps.ghw.rembesan.HomeActivity;
-import com.example.app_dambody.DamBodyHomeActivity; // IMPORT INI
+import com.example.app_dambody.DamBodyHomeActivity;
+import com.apps.bubbletilt.BubbleTiltHomeActivity;  // IMPORT BARU UNTUK BUBBLE TILT
 
 public class WelcomeActivity extends AppCompatActivity {
 
     private View badgeContainer;
     private TextView welcomeText, subtitleText, sectionTitle;
     private LinearLayout statusIndicator;
-    private CardView cardMonitoringRembesan, cardMonitoringDamBody, cardLaporan, cardPengaturan; // UBAH JADI cardMonitoringDamBody
+    private CardView cardMonitoringRembesan, cardMonitoringDamBody, cardBubbleTiltMeter;
     private Handler handler = new Handler();
 
     @Override
@@ -40,9 +41,8 @@ public class WelcomeActivity extends AppCompatActivity {
         sectionTitle = findViewById(R.id.sectionTitle);
 
         cardMonitoringRembesan = findViewById(R.id.cardMonitoringRembesan);
-        cardMonitoringDamBody = findViewById(R.id.cardMonitoringTeknis); // MASIH PAKAI ID LAMA DI XML
-        cardLaporan = findViewById(R.id.cardLaporan);
-        cardPengaturan = findViewById(R.id.cardPengaturan);
+        cardMonitoringDamBody = findViewById(R.id.cardMonitoringTeknis);
+        cardBubbleTiltMeter = findViewById(R.id.cardBubbleTiltMeter);
     }
 
     private void startStaggeredAnimation() {
@@ -74,16 +74,15 @@ public class WelcomeActivity extends AppCompatActivity {
         handler.postDelayed(() -> {
             // Stage 5: Menu cards dengan stagger
             animateCardView(cardMonitoringRembesan, 0);
-            animateCardView(cardMonitoringDamBody, 100); // PAKAI VARIABLE BARU
-            animateCardView(cardLaporan, 200);
-            animateCardView(cardPengaturan, 300);
+            animateCardView(cardMonitoringDamBody, 100);
+            animateCardView(cardBubbleTiltMeter, 200);
         }, 1300);
     }
 
     private void resetViews() {
         // Reset semua view ke state awal
         View[] views = {badgeContainer, welcomeText, subtitleText, statusIndicator, sectionTitle,
-                cardMonitoringRembesan, cardMonitoringDamBody, cardLaporan, cardPengaturan}; // UBAH DI SINI
+                cardMonitoringRembesan, cardMonitoringDamBody, cardBubbleTiltMeter};
 
         for (View view : views) {
             if (view != null) {
@@ -142,7 +141,7 @@ public class WelcomeActivity extends AppCompatActivity {
             });
         });
 
-        cardMonitoringDamBody.setOnClickListener(v -> { // UBAH DI SINI
+        cardMonitoringDamBody.setOnClickListener(v -> {
             animateClick(v, () -> {
                 // PINDAH KE DAM BODY HOME ACTIVITY
                 Intent intent = new Intent(WelcomeActivity.this, DamBodyHomeActivity.class);
@@ -151,12 +150,13 @@ public class WelcomeActivity extends AppCompatActivity {
             });
         });
 
-        cardLaporan.setOnClickListener(v -> {
-            animateClick(v, () -> showToast("Modul Laporan - Dalam Pengembangan"));
-        });
-
-        cardPengaturan.setOnClickListener(v -> {
-            animateClick(v, () -> showToast("Modul Pengaturan - Dalam Pengembangan"));
+        cardBubbleTiltMeter.setOnClickListener(v -> {
+            animateClick(v, () -> {
+                // PINDAH KE BUBBLE TILT METER HOME ACTIVITY
+                Intent intent = new Intent(WelcomeActivity.this, BubbleTiltHomeActivity.class);
+                startActivity(intent);
+                overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+            });
         });
     }
 

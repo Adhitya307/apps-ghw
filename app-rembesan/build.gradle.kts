@@ -48,8 +48,9 @@ dependencies {
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
 
-    // ✅ Integrasi modul lokal app-DamBody (library internal)
+    // ✅ Integrasi modul lokal
     implementation(project(":app-DamBody"))
+    implementation(project(":app-BubbleTilt"))
 
     // ✅ Unit Testing
     testImplementation("junit:junit:4.13.2")

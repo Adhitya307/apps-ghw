@@ -23,9 +23,12 @@ dependencyResolutionManagement {
 // ✅ Nama root project
 rootProject.name = "KERJA PRAKTIK"
 
-// ✅ Daftarkan dua modul sejajar (bukan nested)
+// ✅ Daftarkan semua modul sejajar (bukan nested)
 include(":app-rembesan")
 project(":app-rembesan").projectDir = file("app-rembesan")
 
 include(":app-DamBody")
 project(":app-DamBody").projectDir = file("app-DamBody")
+
+include(":app-BubbleTilt")
+project(":app-BubbleTilt").projectDir = file("app-BubbleTilt")  // TAMBAH BARIS INI
