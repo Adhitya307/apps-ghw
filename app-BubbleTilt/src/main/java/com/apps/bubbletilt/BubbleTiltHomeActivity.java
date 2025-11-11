@@ -71,7 +71,13 @@ public class BubbleTiltHomeActivity extends AppCompatActivity {
             }
         });
 
-
+        // History Button
+        btnHistory.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                animateButtonClick(v, () -> goToHistoryActivity());
+            }
+        });
     }
 
     private void animateButtonClick(View view, Runnable action) {
@@ -103,7 +109,16 @@ public class BubbleTiltHomeActivity extends AppCompatActivity {
         }
     }
 
-
+    private void goToHistoryActivity() {
+        try {
+            Intent intent = new Intent(this, HistoryBtmActivity.class);
+            startActivity(intent);
+            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+        } catch (Exception e) {
+            Log.e(TAG, "❌ Error membuka History: " + e.getMessage());
+            Toast.makeText(this, "Error membuka History", Toast.LENGTH_SHORT).show();
+        }
+    }
 
     // ==================== NETWORK & SYNC METHODS ====================
 
