@@ -121,7 +121,7 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- Card Menu Utama - HANYA 1 TOMBOL -->
+            <!-- Card Menu Utama - DENGAN 2 TOMBOL -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -166,6 +166,42 @@
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
                                 android:text="Input Data Bubble Tilt Meter"
+                                android:textColor="@color/text_primary"
+                                android:textSize="16sp"/>
+                        </LinearLayout>
+                    </androidx.cardview.widget.CardView>
+
+                    <!-- Tombol Data History (BARU) -->
+                    <androidx.cardview.widget.CardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_margin="8dp"
+                        app:cardCornerRadius="4dp"
+                        app:cardElevation="2dp"
+                        app:cardBackgroundColor="@android:color/white">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:background="?attr/selectableItemBackground"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:id="@+id/btnDataHistory"
+                            android:padding="16dp">
+
+                            <ImageView
+                                android:layout_width="24dp"
+                                android:layout_height="24dp"
+                                android:src="@drawable/ic_history"
+                                android:layout_marginEnd="16dp"
+                                android:contentDescription="Data History Bubble Tilt Meter"/>
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="Data History"
                                 android:textColor="@color/text_primary"
                                 android:textSize="16sp"/>
                         </LinearLayout>
