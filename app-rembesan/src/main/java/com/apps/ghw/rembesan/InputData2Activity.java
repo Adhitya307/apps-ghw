@@ -40,11 +40,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class InputData2Activity extends AppCompatActivity {
 
     private static final String TAG = "InputData2Activity";
-    private static final String BASE_URL = "http://192.168.1.9/GHW/api-apps/public/rembesan/";
+    private static final String BASE_URL = "http://192.168.1.12/GHW/api-apps/public/rembesan/";
     private static final String SERVER_INPUT_URL = BASE_URL + "input";
     private static final String CEK_DATA_URL = BASE_URL + "cek-data";
     private static final String GET_PENGUKURAN_URL = BASE_URL + "get_pengukuran";
     private static final String HITUNG_SEMUA_URL = BASE_URL + "Rumus-Rembesan";
+    private static final String GET_INTI_GALLERY_URL = BASE_URL + "get_inti_gallery";
 
     private Spinner spinnerPengukuran;
     private Button btnPilihPengukuran, btnSubmitThomson, btnSubmitSR, btnSubmitBocoran, btnSubmitTmaWaduk, btnHitungSemua;
@@ -571,12 +572,32 @@ public class InputData2Activity extends AppCompatActivity {
         map.put("mode", "bocoran");
         map.put("pengukuran_id", String.valueOf(pengukuranId));
         map.put("elv_624_t1", safeText(inputElv624T1));
-        map.put("elv_624_t1_kode", inputElv624T1Kode != null && inputElv624T1Kode.getSelectedItem() != null ? inputElv624T1Kode.getSelectedItem().toString() : "");
+        map.put("elv_624_t1_kode", convertKodeToShort(inputElv624T1Kode));
         map.put("elv_615_t2", safeText(inputElv615T2));
-        map.put("elv_615_t2_kode", inputElv615T2Kode != null && inputElv615T2Kode.getSelectedItem() != null ? inputElv615T2Kode.getSelectedItem().toString() : "");
+        map.put("elv_615_t2_kode", convertKodeToShort(inputElv615T2Kode));
         map.put("pipa_p1", safeText(inputPipaP1));
-        map.put("pipa_p1_kode", inputPipaP1Kode != null && inputPipaP1Kode.getSelectedItem() != null ? inputPipaP1Kode.getSelectedItem().toString() : "");
+        map.put("pipa_p1_kode", convertKodeToShort(inputPipaP1Kode));
         return map;
+    }
+
+    // METHOD BARU UNTUK KONVERSI KODE
+    private String convertKodeToShort(Spinner spinner) {
+        if (spinner == null || spinner.getSelectedItem() == null) {
+            return "";
+        }
+
+        String selected = spinner.getSelectedItem().toString();
+
+        // Konversi ke kode singkat
+        if (selected.contains("L") || selected.contains("Liter")) {
+            return "L";
+        } else if (selected.contains("S") || selected.contains("200")) {
+            return "S";
+        } else if (selected.contains("M") || selected.contains("500")) {
+            return "M";
+        } else {
+            return selected; // fallback
+        }
     }
 
     private Map<String,String> buildTmaData() {
@@ -1065,6 +1086,10 @@ public class InputData2Activity extends AppCompatActivity {
                 br.close();
 
                 JSONObject resp = new JSONObject(sb.toString());
+
+                // AMBIL DATA INTI GALLERY DARI ENDPOINT TAMBAHAN
+                JSONObject intiGalleryData = getIntiGalleryData(finalId);
+
                 runOnUiThread(() -> {
                     pd.dismiss();
                     try {
@@ -1083,33 +1108,55 @@ public class InputData2Activity extends AppCompatActivity {
                             }
                         }
 
-                        String lookBurtInfo = "";
-                        String statusKeterangan = "aman";
-                        if (data != null) {
-                            String rembBendungan = data.optString("rembesan_bendungan", "-");
-                            String rembPerM = data.optString("rembesan_per_m", "-");
-                            String ket = data.optString("keterangan", "-");
-                            lookBurtInfo = "\n💧 Analisa Look Burt:\n"
-                                    + "  - Rembesan Bendungan: " + rembBendungan + "\n"
-                                    + "  - Rembesan per M: " + rembPerM + "\n"
-                                    + "  - Keterangan: " + ket;
+                        String customMessage = "";
+                        String statusKeterangan = "success";
 
-                            if (ket.toLowerCase().contains("bahaya")) {
+                        if (data != null) {
+                            String rembesanPerM = data.optString("rembesan_per_m", "0");
+
+// AMBIL NILAI DARI INTI GALLERY
+                            String intiGalleryValue = "-";
+                            String ambangBatasValue = "-";
+
+                            if (intiGalleryData != null) {
+                                intiGalleryValue = intiGalleryData.optString("a1", "-");
+                                ambangBatasValue = intiGalleryData.optString("ambang_a1", "-");
+                            }
+
+// AMBIL DATA LANGSUNG DARI RESPONSE (ANALISALOOKBURTMODEL)
+// HAPUS INI: String rembesanPerM = data.optString("rembesan_per_m", "0"); // SUDAH ADA DI ATAS
+                            String nilaiAmbangOk = data.optString("nilai_ambang_ok", "0.28");
+                            String nilaiAmbangNotok = data.optString("nilai_ambang_notok", "0.56");
+                            String keterangan = data.optString("keterangan", "-");
+
+// TENTUKAN STATUS KETERANGAN BERDASARKAN DATA SERVER
+                            if (keterangan.toLowerCase().contains("bahaya")) {
                                 statusKeterangan = "danger";
-                            } else if (ket.toLowerCase().contains("peringatan") || ket.toLowerCase().contains("waspada")) {
+                            } else if (keterangan.toLowerCase().contains("peringatan") || keterangan.toLowerCase().contains("waspada")) {
                                 statusKeterangan = "warning";
                             } else {
                                 statusKeterangan = "success";
                             }
+
+// FORMAT BARU DENGAN NILAI AKTUAL DARI DATABASE
+                            customMessage = "Perhitungan berhasil pada tanggal " + tanggal + "\n\n"
+                                    + "Inti Gallery: " + intiGalleryValue + "\n"
+                                    + "Ambang Batas: " + ambangBatasValue + "\n"
+                                    + "Rembesan per M: " + rembesanPerM + "\n\n"
+                                    + "Ok = < " + nilaiAmbangOk + "\n"
+                                    + "Not ok = > " + nilaiAmbangNotok + "\n\n"
+                                    + "Status: " + keterangan;
+                        } else {
+                            customMessage = "Perhitungan berhasil pada tanggal " + tanggal + "\n\n"
+                                    + "Data tidak tersedia";
                         }
 
                         if ("success".equalsIgnoreCase(status)) {
-                            showCalculationResultDialog(" Perhitungan Berhasil",
-                                    "Semua perhitungan berhasil untuk tanggal " + tanggal + lookBurtInfo,
-                                    statusKeterangan, tanggal);
+                            showCalculationResultDialog("Perhitungan Berhasil",
+                                    customMessage, statusKeterangan, tanggal);
                         } else if ("partial_error".equalsIgnoreCase(status)) {
                             showCalculationResultDialog("⚠️ Perhitungan Sebagian Berhasil",
-                                    "Beberapa perhitungan gagal:\n\n" + msgBuilder.toString() + lookBurtInfo,
+                                    "Beberapa perhitungan gagal:\n\n" + msgBuilder.toString() + customMessage,
                                     "warning", tanggal);
                         } else if ("error".equalsIgnoreCase(status)) {
                             showElegantToast("❌ Gagal menghitung: " + resp.optString("message", "Terjadi kesalahan"), "error");
@@ -1133,6 +1180,50 @@ public class InputData2Activity extends AppCompatActivity {
         }).start();
     }
 
+    // METHOD BARU UNTUK MENGAMBIL DATA INTI GALLERY
+    private JSONObject getIntiGalleryData(int pengukuranId) {
+        HttpURLConnection conn = null;
+        try {
+            // PERBAIKI INI: Gunakan constant GET_INTI_GALLERY_URL yang sudah didefinisikan
+            String urlStr = GET_INTI_GALLERY_URL + "?pengukuran_id=" + pengukuranId;
+            URL url = new URL(urlStr);
+            conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(10_000);
+            conn.setReadTimeout(10_000);
+            conn.setRequestProperty("Accept", "application/json");
+
+            int code = conn.getResponseCode();
+            logInfo("getIntiGalleryData", "HTTP Code: " + code + " untuk URL: " + urlStr);
+
+            if (code == 200) {
+                InputStream is = conn.getInputStream();
+                BufferedReader br = new BufferedReader(new InputStreamReader(is));
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = br.readLine()) != null) sb.append(line);
+                br.close();
+
+                String responseBody = sb.toString();
+                logInfo("getIntiGalleryData", "Response: " + responseBody);
+
+                JSONObject resp = new JSONObject(responseBody);
+                if ("success".equalsIgnoreCase(resp.optString("status", ""))) {
+                    return resp.optJSONObject("data");
+                } else {
+                    logWarn("getIntiGalleryData", "Status bukan success: " + resp.optString("message"));
+                }
+            } else {
+                logWarn("getIntiGalleryData", "HTTP Error: " + code);
+            }
+        } catch (Exception e) {
+            logError("getIntiGalleryData", "Gagal mengambil data inti gallery: " + e.getMessage());
+        } finally {
+            if (conn != null) conn.disconnect();
+        }
+        return null;
+    }
+
     private void showCalculationResultDialog(String title, String message, String status, String tanggal) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         LayoutInflater inflater = LayoutInflater.from(this);
@@ -1150,7 +1241,11 @@ public class InputData2Activity extends AppCompatActivity {
         int iconRes = getIconForStatus(status);
 
         titleText.setText(title);
-        messageText.setText(message);
+
+        // FORMAT PESAN YANG LEBIH BAIK
+        String formattedMessage = formatCalculationMessage(message);
+        messageText.setText(formattedMessage);
+
         tanggalText.setText("📅 Tanggal: " + tanggal);
         iconView.setImageResource(iconRes);
 
@@ -1166,9 +1261,6 @@ public class InputData2Activity extends AppCompatActivity {
 
         okButton.setBackgroundColor(ContextCompat.getColor(this, colorRes));
         okButton.setTextColor(Color.WHITE);
-
-        String formattedMessage = formatMessageWithIcons(message);
-        messageText.setText(formattedMessage);
 
         dialogView.setAlpha(0f);
         dialogView.setScaleX(0.8f);
@@ -1200,6 +1292,44 @@ public class InputData2Activity extends AppCompatActivity {
         });
     }
 
+    // METHOD BARU UNTUK FORMAT PESAN YANG LEBIH BAIK
+    private String formatCalculationMessage(String originalMessage) {
+        // Split message by lines
+        String[] lines = originalMessage.split("\n");
+        StringBuilder formatted = new StringBuilder();
+
+        for (String line : lines) {
+            if (line.contains("Inti Gallery:")) {
+                formatted.append("🔷 ").append(line).append("\n");
+            } else if (line.contains("Ambang Batas:")) {
+                formatted.append("📊 ").append(line).append("\n");
+            } else if (line.contains("Rembesan per M:")) {
+                formatted.append("💧 ").append(line).append("\n");
+            } else if (line.contains("Ok = <")) {
+                formatted.append("✅ ").append(line).append("\n");
+            } else if (line.contains("Not ok = >")) {
+                formatted.append("❌ ").append(line).append("\n");
+            } else if (line.contains("Status:")) {
+                String statusLine = line.replace("Status:", "📋 Status:");
+                if (line.toLowerCase().contains("aman")) {
+                    formatted.append("🟢 ").append(statusLine).append("\n");
+                } else if (line.toLowerCase().contains("peringatan") || line.toLowerCase().contains("waspada")) {
+                    formatted.append("🟡 ").append(statusLine).append("\n");
+                } else if (line.toLowerCase().contains("bahaya")) {
+                    formatted.append("🔴 ").append(statusLine).append("\n");
+                } else {
+                    formatted.append(statusLine).append("\n");
+                }
+            } else if (line.contains("Perhitungan berhasil pada tanggal")) {
+                // Skip duplicate line
+                continue;
+            } else {
+                formatted.append(line).append("\n");
+            }
+        }
+
+        return formatted.toString();
+    }
     private String formatMessageWithIcons(String message) {
         String formatted = message
                 .replace("Analisa Look Burt", "🔍 Analisa Look Burt")
