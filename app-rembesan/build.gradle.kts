@@ -51,6 +51,7 @@ dependencies {
     // ✅ Integrasi modul lokal
     implementation(project(":app-DamBody"))
     implementation(project(":app-BubbleTilt"))
+    implementation(project(":app-exstenso"))
 
     // ✅ Unit Testing
     testImplementation("junit:junit:4.13.2")

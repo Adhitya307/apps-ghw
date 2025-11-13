@@ -13,14 +13,15 @@ import androidx.cardview.widget.CardView;
 
 import com.apps.ghw.rembesan.HomeActivity;
 import com.example.app_dambody.DamBodyHomeActivity;
-import com.apps.bubbletilt.BubbleTiltHomeActivity;  // IMPORT BARU UNTUK BUBBLE TILT
+import com.apps.bubbletilt.BubbleTiltHomeActivity;
+import com.example.app.exstenso.ExstensoHomeActivity;  // IMPORT YANG DIPERBAIKI
 
 public class WelcomeActivity extends AppCompatActivity {
 
     private View badgeContainer;
     private TextView welcomeText, subtitleText, sectionTitle;
     private LinearLayout statusIndicator;
-    private CardView cardMonitoringRembesan, cardMonitoringDamBody, cardBubbleTiltMeter;
+    private CardView cardMonitoringRembesan, cardMonitoringDamBody, cardBubbleTiltMeter, cardRodExtensoMeter;
     private Handler handler = new Handler();
 
     @Override
@@ -43,6 +44,7 @@ public class WelcomeActivity extends AppCompatActivity {
         cardMonitoringRembesan = findViewById(R.id.cardMonitoringRembesan);
         cardMonitoringDamBody = findViewById(R.id.cardMonitoringTeknis);
         cardBubbleTiltMeter = findViewById(R.id.cardBubbleTiltMeter);
+        cardRodExtensoMeter = findViewById(R.id.cardRodExtensoMeter);
     }
 
     private void startStaggeredAnimation() {
@@ -76,13 +78,14 @@ public class WelcomeActivity extends AppCompatActivity {
             animateCardView(cardMonitoringRembesan, 0);
             animateCardView(cardMonitoringDamBody, 100);
             animateCardView(cardBubbleTiltMeter, 200);
+            animateCardView(cardRodExtensoMeter, 300);
         }, 1300);
     }
 
     private void resetViews() {
         // Reset semua view ke state awal
         View[] views = {badgeContainer, welcomeText, subtitleText, statusIndicator, sectionTitle,
-                cardMonitoringRembesan, cardMonitoringDamBody, cardBubbleTiltMeter};
+                cardMonitoringRembesan, cardMonitoringDamBody, cardBubbleTiltMeter, cardRodExtensoMeter};
 
         for (View view : views) {
             if (view != null) {
@@ -154,6 +157,15 @@ public class WelcomeActivity extends AppCompatActivity {
             animateClick(v, () -> {
                 // PINDAH KE BUBBLE TILT METER HOME ACTIVITY
                 Intent intent = new Intent(WelcomeActivity.this, BubbleTiltHomeActivity.class);
+                startActivity(intent);
+                overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+            });
+        });
+
+        cardRodExtensoMeter.setOnClickListener(v -> {
+            animateClick(v, () -> {
+                // PINDAH KE ROD EXTENSO METER HOME ACTIVITY
+                Intent intent = new Intent(WelcomeActivity.this, ExstensoHomeActivity.class);
                 startActivity(intent);
                 overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
             });
