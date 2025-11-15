@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- ====== Base App Theme ====== -->
+    <style name="Theme.App" parent="Theme.Material3.Light.NoActionBar">
+        <!-- Brand Colors -->
+        <item name="colorPrimary">@color/pln_primary</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorPrimaryContainer">@color/pln_primary_dark</item>
+
+        <item name="colorSecondary">@color/pln_accent</item>
+        <item name="colorOnSecondary">@color/white</item>
+
+        <!-- Status Bar & Navigation Bar -->
+        <item name="android:statusBarColor">@color/pln_primary_dark</item>
+        <item name="android:navigationBarColor">@color/pln_primary</item>
+
+        <!-- Disable Action Bar -->
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+    </style>
+
+
+    <!-- ====== Dark Mode Theme ====== -->
+    <style name="Theme.App.Dark" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">@color/pln_primary_dark</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorSecondary">@color/pln_accent</item>
+        <item name="colorOnSecondary">@color/white</item>
+    </style>
+
+
+    <!-- Overlay for App Bar Components -->
+    <style name="Theme.App.AppBarOverlay" parent="ThemeOverlay.Material3.Dark.ActionBar" />
+
+    <!-- Popup Overlay (menu, dialogs, dll) -->
+    <style name="Theme.App.PopupOverlay" parent="ThemeOverlay.Material3.Light" />
+
+</resources>

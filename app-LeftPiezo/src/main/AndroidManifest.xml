@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application>
+        <!-- Main Home Activity - HAPUS INTENT-FILTER LAUNCHER -->
+        <activity
+            android:name=".HomeLeftPiezoActivity"
+            android:label="Piezometer Sandaran Bendungan Kiri"
+            android:exported="false" />  <!-- UBAH exported MENJADI false -->
+
+        <!-- Input Data Activity -->
+        <activity
+            android:name=".InputDataLeftPiezo"
+            android:label="Input Data Piezometer"
+            android:exported="false" />
+    </application>
+</manifest>

@@ -2,7 +2,7 @@
 <network-security-config>
     <!-- Izinkan HTTP untuk IP lokal -->
     <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">192.168.1.9</domain>
+        <domain includeSubdomains="true">10.45.163.30</domain>
     </domain-config>
 
     <!-- Izinkan juga semua domain (opsional, untuk dev) -->

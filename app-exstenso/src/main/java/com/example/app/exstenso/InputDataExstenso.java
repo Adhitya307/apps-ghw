@@ -51,10 +51,12 @@ public class InputDataExstenso extends AppCompatActivity {
     private int pengukuranId = -1;
     private String selectedExType = "pembacaan_ex1";
 
-    // API URL - Sesuaikan dengan routes exstenso
     private static final String BASE_URL = "http://192.168.1.12/GHW/api-apps/public/exstenso/";
     private static final String INSERT_DATA_URL = BASE_URL + "inputdata";
-    private static final String GET_PENGUKURAN_URL = BASE_URL + "getpengukuran";
+    private static final String GET_PENGUKURAN_URL = BASE_URL + "getpengukuran"; // Data bulan ini
+    private static final String GET_ALL_PENGUKURAN_URL = BASE_URL + "getpengukuran/getAll"; // Semua data
+    private static final String GET_DATA_URL = BASE_URL + "getdata";
+    private static final String GET_ALL_DATA_URL = BASE_URL + "getalldata"; // Jika ada endpoint ini
 
     // Data pengukuran
     private final Map<String, Integer> pengukuranMap = new HashMap<>();
@@ -326,10 +328,9 @@ public class InputDataExstenso extends AppCompatActivity {
 
     private void updateDMAPengukuran() {
         Map<String, String> data = new HashMap<>();
-        data.put("mode", "update_dma"); // GANTI: dari "pengukuran" ke "update_dma"
+        data.put("mode", "update_dma");
         data.put("pengukuran_id", String.valueOf(pengukuranId));
         data.put("dma", inputDMA.getText().toString().trim());
-        // HAPUS: tahun, tanggal, periode karena tidak diperlukan
 
         Log.d("EXSTENSO_API", "Mengupdate DMA pengukuran: " + data.toString());
         sendToServer(data, "DMA");
@@ -351,7 +352,87 @@ public class InputDataExstenso extends AppCompatActivity {
         }
 
         Log.d("EXSTENSO_API", "Menyimpan data " + selectedExType + ": " + data.toString());
-        sendToServer(data, "Pembacaan");
+        sendToServerWithHitung(data, "Pembacaan");
+    }
+
+    private void sendToServerWithHitung(Map<String, String> dataMap, String dataType) {
+        new Thread(() -> {
+            HttpURLConnection conn = null;
+            try {
+                // 1. Simpan data pembacaan terlebih dahulu
+                URL url = new URL(INSERT_DATA_URL);
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setDoOutput(true);
+                conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+                conn.setRequestProperty("Accept", "application/json");
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(10000);
+
+                JSONObject jsonData = new JSONObject();
+                for (Map.Entry<String, String> entry : dataMap.entrySet()) {
+                    jsonData.put(entry.getKey(), entry.getValue());
+                }
+
+                String jsonString = jsonData.toString();
+                Log.d("EXSTENSO_API", "JSON yang dikirim (" + dataType + "): " + jsonString);
+
+                OutputStream os = conn.getOutputStream();
+                os.write(jsonString.getBytes("UTF-8"));
+                os.flush();
+                os.close();
+
+                int responseCode = conn.getResponseCode();
+                Log.d("EXSTENSO_API", "Response Code (" + dataType + "): " + responseCode);
+
+                InputStream is = (responseCode == 200) ? conn.getInputStream() : conn.getErrorStream();
+                BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) sb.append(line);
+                reader.close();
+
+                String responseBody = sb.toString();
+                Log.d("EXSTENSO_API", "Response Body (" + dataType + "): " + responseBody);
+
+                JSONObject response = new JSONObject(responseBody);
+                String status = response.optString("status", "");
+                String message = response.optString("message", "");
+
+                // 2. Jika berhasil simpan pembacaan, hitung deformasi
+                if (status.equals("success") && dataType.equals("Pembacaan")) {
+                    hitungDeformasiOtomatis();
+                }
+
+                runOnUiThread(() -> {
+                    switch (status.toLowerCase()) {
+                        case "success":
+                            showToast("✅ " + message);
+                            if (dataType.equals("DMA")) {
+                                clearDMASection();
+                            } else {
+                                clearPembacaanSection();
+                            }
+                            break;
+                        case "info":
+                            showToast("ℹ️ " + message);
+                            break;
+                        case "error":
+                        default:
+                            showToast("❌ " + message);
+                            break;
+                    }
+                });
+
+            } catch (Exception e) {
+                Log.e("SEND_TO_SERVER", "Error (" + dataType + "): " + e.getMessage(), e);
+                runOnUiThread(() -> {
+                    showToast("❌ Gagal kirim " + dataType + ": " + e.getMessage());
+                });
+            } finally {
+                if (conn != null) conn.disconnect();
+            }
+        }).start();
     }
 
     private void sendToServer(Map<String, String> dataMap, String dataType) {
@@ -428,6 +509,87 @@ public class InputDataExstenso extends AppCompatActivity {
         }).start();
     }
 
+    // METHOD UNTUK HITUNG DEFORMASI OTOMATIS
+    private void hitungDeformasiOtomatis() {
+        new Thread(() -> {
+            HttpURLConnection conn = null;
+            try {
+                // Tentukan endpoint berdasarkan selectedExType
+                String hitungEndpoint = "";
+                switch (selectedExType) {
+                    case "pembacaan_ex1":
+                        hitungEndpoint = "hitung-deformasi-ex1";
+                        break;
+                    case "pembacaan_ex2":
+                        hitungEndpoint = "hitung-deformasi-ex2";
+                        break;
+                    case "pembacaan_ex3":
+                        hitungEndpoint = "hitung-deformasi-ex3";
+                        break;
+                    case "pembacaan_ex4":
+                        hitungEndpoint = "hitung-deformasi-ex4";
+                        break;
+                    default:
+                        hitungEndpoint = "hitung-deformasi-ex1";
+                }
+
+                String url = BASE_URL + hitungEndpoint;
+                conn = (HttpURLConnection) new URL(url).openConnection();
+                conn.setRequestMethod("POST");
+                conn.setDoOutput(true);
+                conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+                conn.setRequestProperty("Accept", "application/json");
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(10000);
+
+                // Data untuk hitung deformasi
+                JSONObject jsonData = new JSONObject();
+                jsonData.put("id_pengukuran", pengukuranId);
+
+                String jsonString = jsonData.toString();
+                Log.d("EXSTENSO_API", "Hitung deformasi " + selectedExType + ": " + jsonString);
+
+                OutputStream os = conn.getOutputStream();
+                os.write(jsonString.getBytes("UTF-8"));
+                os.flush();
+                os.close();
+
+                int responseCode = conn.getResponseCode();
+                Log.d("EXSTENSO_API", "Response Code (Hitung): " + responseCode);
+
+                InputStream is = (responseCode == 200) ? conn.getInputStream() : conn.getErrorStream();
+                BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) sb.append(line);
+                reader.close();
+
+                String responseBody = sb.toString();
+                Log.d("EXSTENSO_API", "Response Body (Hitung): " + responseBody);
+
+                JSONObject response = new JSONObject(responseBody);
+                String status = response.optString("status", "");
+                String message = response.optString("message", "");
+
+                // TAMBAHKAN NOTIFIKASI
+                runOnUiThread(() -> {
+                    if (status.equals("success")) {
+                        showToast("🧮 Deformasi berhasil dihitung!");
+                    } else {
+                        showToast("❌ Gagal hitung deformasi");
+                    }
+                });
+
+            } catch (Exception e) {
+                runOnUiThread(() -> {
+                    showToast("❌ Error hitung deformasi");
+                });
+            } finally {
+                if (conn != null) conn.disconnect();
+            }
+        }).start();
+    }
+
     // VALIDATION METHODS
     private boolean validateDMAFields() {
         return !inputDMA.getText().toString().trim().isEmpty();
@@ -439,7 +601,7 @@ public class InputDataExstenso extends AppCompatActivity {
                 !inputPembacaan30.getText().toString().trim().isEmpty();
     }
 
-    // MODAL METHODS (sama seperti sebelumnya)
+    // MODAL METHODS
     private void setupModalDropdowns() {
         try {
             String[] bulanArray = getResources().getStringArray(R.array.bulan_options);
@@ -539,7 +701,7 @@ public class InputDataExstenso extends AppCompatActivity {
         mainContent.setVisibility(View.VISIBLE);
     }
 
-    // LOAD PENGUKURAN DATA (sama seperti sebelumnya)
+    // LOAD PENGUKURAN DATA
     private void loadPengukuranData() {
         if (!isInternetAvailable()) {
             showToast("📱 Tidak ada internet");
@@ -619,7 +781,7 @@ public class InputDataExstenso extends AppCompatActivity {
         }).start();
     }
 
-    // HANDLE MODAL PENGUKURAN (sama seperti sebelumnya)
+    // HANDLE MODAL PENGUKURAN
     private void handleModalPengukuran() {
         if (modalInputTahun == null || modalInputBulan == null || modalInputPeriode == null || modalInputTanggal == null) {
             showToast("Form modal belum siap");

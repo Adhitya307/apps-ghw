@@ -57,7 +57,7 @@ public class HistoryBtmActivity extends AppCompatActivity {
     private ArrayList<String> pengukuranLabels = new ArrayList<>();
 
     // TEST URL - ganti dengan URL yang benar
-    private static final String BASE_URL = "http://192.168.1.12/GHW/api-apps/public/api/btm/";
+    private static final String BASE_URL = "http://10.45.163.30/GHW/api-apps/public/api/btm/";
 
     private DatabaseHelperBtm dbHelper;
 

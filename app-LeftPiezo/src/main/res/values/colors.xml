@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Basic Colors -->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <!-- PLN Color Scheme -->
+    <color name="pln_primary">#0D47A1</color>
+    <color name="pln_primary_light">#5472D3</color>
+    <color name="pln_primary_dark">#002171</color>
+    <color name="pln_accent">#FF9800</color> <!-- TAMBAHKAN INI -->
+
+    <!-- Primary Colors -->
+    <color name="primary">#1976D2</color>
+    <color name="primary_dark">#1565C0</color>
+    <color name="primary_light">#E3F2FD</color>
+    <color name="primary_color">#0054A6</color>
+
+    <!-- Text Colors -->
+    <color name="text_primary">#212121</color>
+    <color name="text_secondary">#757575</color>
+    <color name="text_secondary_dark">#616161</color>
+    <color name="primary_text">#212121</color>
+    <color name="secondary_text">#757575</color>
+
+    <!-- UI Colors -->
+    <color name="divider">#EEEEEE</color>
+    <color name="row_alternate_color">#F0F5FF</color>
+    <color name="background_light">#FAFAFA</color>
+    <color name="white_alpha_80">#CCFFFFFF</color>
+
+    <!-- Status Colors untuk Notifikasi -->
+    <color name="pln_success">#4CAF50</color>
+    <color name="pln_warning">#FF9800</color>
+    <color name="pln_danger">#F44336</color>
+    <color name="pln_info">#2196F3</color>
+
+    <!-- Blue Colors -->
+    <color name="blue_primary">#2196F3</color>
+    <color name="blue_dark">#1976D2</color>
+    <color name="blue_light">#E3F2FD</color>
+
+    <!-- Green Colors -->
+    <color name="green_primary">#4CAF50</color>
+    <color name="green_dark">#388E3C</color>
+    <color name="green_light">#E8F5E8</color>
+
+    <!-- Success Colors -->
+    <color name="success_green">#4CAF50</color>
+    <color name="success_dark_green">#388E3C</color>
+    <color name="success_light_green">#E8F5E8</color>
+
+    <!-- Orange/Warning Colors -->
+    <color name="orange_dark">#F57C00</color>
+    <color name="orange_light">#FFF3E0</color>
+
+    <!-- Warning Colors -->
+    <color name="warning_orange">#FF9800</color>
+    <color name="warning_dark_orange">#F57C00</color>
+    <color name="warning_light_orange">#FFF3E0</color>
+
+    <!-- Gray Colors -->
+    <color name="gray_light">#F5F5F5</color>
+    <color name="gray_medium">#9E9E9E</color>
+</resources>

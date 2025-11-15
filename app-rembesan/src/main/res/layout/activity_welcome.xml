@@ -134,7 +134,7 @@
                 android:background="@drawable/section_title_bg"
                 android:elevation="4dp" />
 
-            <!-- Vertical Menu Layout - SEMUA CARD DITAMPILKAN VERTIKAL -->
+            <!-- Vertical Menu Layout -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -184,7 +184,8 @@
                             android:textSize="14sp"
                             android:textStyle="bold"
                             android:maxLines="2"
-                            android:lineSpacingExtra="2dp" />
+                            android:lineSpacingExtra="2dp"
+                            android:minHeight="40dp" />
                     </LinearLayout>
                 </androidx.cardview.widget.CardView>
 
@@ -230,7 +231,8 @@
                             android:textStyle="bold"
                             android:gravity="center"
                             android:maxLines="2"
-                            android:lineSpacingExtra="2dp" />
+                            android:lineSpacingExtra="2dp"
+                            android:minHeight="40dp" />
                     </LinearLayout>
                 </androidx.cardview.widget.CardView>
 
@@ -277,11 +279,12 @@
                             android:textSize="14sp"
                             android:textStyle="bold"
                             android:maxLines="2"
-                            android:lineSpacingExtra="2dp" />
+                            android:lineSpacingExtra="2dp"
+                            android:minHeight="40dp" />
                     </LinearLayout>
                 </androidx.cardview.widget.CardView>
 
-                <!-- Card ROD Extenso Meter (BARU) -->
+                <!-- Card ROD Extenso Meter -->
                 <androidx.cardview.widget.CardView
                     android:id="@+id/cardRodExtensoMeter"
                     android:layout_width="match_parent"
@@ -324,7 +327,56 @@
                             android:textSize="14sp"
                             android:textStyle="bold"
                             android:maxLines="2"
-                            android:lineSpacingExtra="2dp" />
+                            android:lineSpacingExtra="2dp"
+                            android:minHeight="40dp" />
+                    </LinearLayout>
+                </androidx.cardview.widget.CardView>
+
+                <!-- Card Piezometer Sandaran Bendungan Kiri (BARU) -->
+                <androidx.cardview.widget.CardView
+                    android:id="@+id/cardPiezometerKiri"
+                    android:layout_width="match_parent"
+                    android:layout_height="150dp"
+                    android:layout_margin="6dp"
+                    android:alpha="0"
+                    android:translationY="20dp"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="6dp"
+                    app:cardUseCompatPadding="true">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:background="@drawable/card_gradient_quaternary"
+                        android:padding="16dp">
+
+                        <LinearLayout
+                            android:layout_width="52dp"
+                            android:layout_height="52dp"
+                            android:background="@drawable/circle_white_20"
+                            android:gravity="center">
+
+                            <ImageView
+                                android:layout_width="26dp"
+                                android:layout_height="26dp"
+                                android:src="@drawable/ic_piezometer"
+                                android:tint="#1A237E" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:gravity="center"
+                            android:text="Piezometer Sandaran Bendungan Kiri"
+                            android:textColor="#FFFFFF"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:maxLines="2"
+                            android:lineSpacingExtra="2dp"
+                            android:minHeight="40dp" />
                     </LinearLayout>
                 </androidx.cardview.widget.CardView>
 

@@ -55,7 +55,7 @@ public class InputdataElv625 extends AppCompatActivity {
     private String tempId = null;
 
     // API URL
-    private static final String BASE_URL = "http://192.168.1.9/GHW/api-apps/public/dombody/";
+    private static final String BASE_URL = "http://10.45.163.30/GHW/api-apps/public/dombody/";
     private static final String INSERT_DATA_URL = BASE_URL + "input";
     private static final String GET_PENGUKURAN_URL = BASE_URL + "get-pengukuran";
 

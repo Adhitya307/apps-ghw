@@ -33,3 +33,4 @@ project(":app-DamBody").projectDir = file("app-DamBody")
 include(":app-BubbleTilt")
 project(":app-BubbleTilt").projectDir = file("app-BubbleTilt")  // TAMBAH BARIS INI
 include(":app-exstenso")
+include(":app-LeftPiezo")

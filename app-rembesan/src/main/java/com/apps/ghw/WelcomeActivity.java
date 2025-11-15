@@ -14,14 +14,15 @@ import androidx.cardview.widget.CardView;
 import com.apps.ghw.rembesan.HomeActivity;
 import com.example.app_dambody.DamBodyHomeActivity;
 import com.apps.bubbletilt.BubbleTiltHomeActivity;
-import com.example.app.exstenso.ExstensoHomeActivity;  // IMPORT YANG DIPERBAIKI
+import com.example.app.exstenso.ExstensoHomeActivity;
+import com.example.app_leftpiezo.HomeLeftPiezoActivity;
 
 public class WelcomeActivity extends AppCompatActivity {
 
     private View badgeContainer;
     private TextView welcomeText, subtitleText, sectionTitle;
     private LinearLayout statusIndicator;
-    private CardView cardMonitoringRembesan, cardMonitoringDamBody, cardBubbleTiltMeter, cardRodExtensoMeter;
+    private CardView cardMonitoringRembesan, cardMonitoringDamBody, cardBubbleTiltMeter, cardRodExtensoMeter, cardPiezometerKiri;
     private Handler handler = new Handler();
 
     @Override
@@ -45,47 +46,41 @@ public class WelcomeActivity extends AppCompatActivity {
         cardMonitoringDamBody = findViewById(R.id.cardMonitoringTeknis);
         cardBubbleTiltMeter = findViewById(R.id.cardBubbleTiltMeter);
         cardRodExtensoMeter = findViewById(R.id.cardRodExtensoMeter);
+        cardPiezometerKiri = findViewById(R.id.cardPiezometerKiri);
     }
 
     private void startStaggeredAnimation() {
-        // Reset semua view ke state awal
         resetViews();
 
-        // Animasi bertahap dengan sequence yang lebih baik
         handler.postDelayed(() -> {
-            // Stage 1: Logo badge dengan scale animation
             animateBadge();
         }, 300);
 
         handler.postDelayed(() -> {
-            // Stage 2: Text elements
             animateView(welcomeText, 400);
             animateView(subtitleText, 400);
         }, 600);
 
         handler.postDelayed(() -> {
-            // Stage 3: Status indicator
             animateView(statusIndicator, 300);
         }, 900);
 
         handler.postDelayed(() -> {
-            // Stage 4: Section title
             animateView(sectionTitle, 400);
         }, 1100);
 
         handler.postDelayed(() -> {
-            // Stage 5: Menu cards dengan stagger
             animateCardView(cardMonitoringRembesan, 0);
             animateCardView(cardMonitoringDamBody, 100);
             animateCardView(cardBubbleTiltMeter, 200);
             animateCardView(cardRodExtensoMeter, 300);
+            animateCardView(cardPiezometerKiri, 400);
         }, 1300);
     }
 
     private void resetViews() {
-        // Reset semua view ke state awal
         View[] views = {badgeContainer, welcomeText, subtitleText, statusIndicator, sectionTitle,
-                cardMonitoringRembesan, cardMonitoringDamBody, cardBubbleTiltMeter, cardRodExtensoMeter};
+                cardMonitoringRembesan, cardMonitoringDamBody, cardBubbleTiltMeter, cardRodExtensoMeter, cardPiezometerKiri};
 
         for (View view : views) {
             if (view != null) {
@@ -94,7 +89,6 @@ public class WelcomeActivity extends AppCompatActivity {
             }
         }
 
-        // Reset khusus untuk badge container
         if (badgeContainer != null) {
             badgeContainer.setScaleX(0.8f);
             badgeContainer.setScaleY(0.8f);
@@ -103,7 +97,6 @@ public class WelcomeActivity extends AppCompatActivity {
 
     private void animateBadge() {
         if (badgeContainer != null) {
-            // Scale animation untuk badge
             badgeContainer.animate()
                     .scaleX(1f)
                     .scaleY(1f)
@@ -146,7 +139,6 @@ public class WelcomeActivity extends AppCompatActivity {
 
         cardMonitoringDamBody.setOnClickListener(v -> {
             animateClick(v, () -> {
-                // PINDAH KE DAM BODY HOME ACTIVITY
                 Intent intent = new Intent(WelcomeActivity.this, DamBodyHomeActivity.class);
                 startActivity(intent);
                 overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
@@ -155,7 +147,6 @@ public class WelcomeActivity extends AppCompatActivity {
 
         cardBubbleTiltMeter.setOnClickListener(v -> {
             animateClick(v, () -> {
-                // PINDAH KE BUBBLE TILT METER HOME ACTIVITY
                 Intent intent = new Intent(WelcomeActivity.this, BubbleTiltHomeActivity.class);
                 startActivity(intent);
                 overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
@@ -164,8 +155,15 @@ public class WelcomeActivity extends AppCompatActivity {
 
         cardRodExtensoMeter.setOnClickListener(v -> {
             animateClick(v, () -> {
-                // PINDAH KE ROD EXTENSO METER HOME ACTIVITY
                 Intent intent = new Intent(WelcomeActivity.this, ExstensoHomeActivity.class);
+                startActivity(intent);
+                overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+            });
+        });
+
+        cardPiezometerKiri.setOnClickListener(v -> {
+            animateClick(v, () -> {
+                Intent intent = new Intent(WelcomeActivity.this, HomeLeftPiezoActivity.class);
                 startActivity(intent);
                 overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
             });
