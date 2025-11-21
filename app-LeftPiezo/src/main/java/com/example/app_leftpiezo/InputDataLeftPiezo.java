@@ -51,11 +51,12 @@ public class InputDataLeftPiezo extends AppCompatActivity {
     private int pengukuranId = -1;
     private String selectedLokasi = "L01";
 
-    // API URLs untuk Left Piezo
+    // API URLs untuk Left Piezo - DIUBAH
     private static final String BASE_URL = "http://192.168.1.12/GHW/api-apps/public/leftpiez/";
     private static final String INSERT_DATA_URL = BASE_URL + "inputdata";
     private static final String GET_PENGUKURAN_URL = BASE_URL + "getpengukuran";
     private static final String GET_DATA_URL = BASE_URL + "getdata";
+    private static final String HITUNG_URL = BASE_URL + "hitung/hitunglokasi/"; // DIUBAH
 
     // Data pengukuran
     private final Map<String, Integer> pengukuranMap = new HashMap<>();
@@ -344,7 +345,7 @@ public class InputDataLeftPiezo extends AppCompatActivity {
         }
 
         Log.d("LEFTPIEZO_API", "Menyimpan data " + selectedLokasi + ": " + data.toString());
-        sendToServer(data, "Pembacaan");
+        sendToServerWithCalculation(data, "Pembacaan");
     }
 
     // METHOD BARU: Validasi angka untuk inch
@@ -358,6 +359,82 @@ public class InputDataLeftPiezo extends AppCompatActivity {
         }
     }
 
+    // METHOD BARU: Kirim data dengan perhitungan (untuk Pembacaan)
+    private void sendToServerWithCalculation(Map<String, String> dataMap, String dataType) {
+        new Thread(() -> {
+            HttpURLConnection conn = null;
+            try {
+                URL url = new URL(INSERT_DATA_URL);
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setDoOutput(true);
+                conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+                conn.setRequestProperty("Accept", "application/json");
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(10000);
+
+                JSONObject jsonData = new JSONObject();
+                for (Map.Entry<String, String> entry : dataMap.entrySet()) {
+                    jsonData.put(entry.getKey(), entry.getValue());
+                }
+
+                String jsonString = jsonData.toString();
+                Log.d("LEFTPIEZO_API", "JSON yang dikirim (" + dataType + "): " + jsonString);
+
+                OutputStream os = conn.getOutputStream();
+                os.write(jsonString.getBytes("UTF-8"));
+                os.flush();
+                os.close();
+
+                int responseCode = conn.getResponseCode();
+                Log.d("LEFTPIEZO_API", "Response Code (" + dataType + "): " + responseCode);
+
+                InputStream is = (responseCode == 200) ? conn.getInputStream() : conn.getErrorStream();
+                BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) sb.append(line);
+                reader.close();
+
+                String responseBody = sb.toString();
+                Log.d("LEFTPIEZO_API", "Response Body (" + dataType + "): " + responseBody);
+
+                JSONObject response = new JSONObject(responseBody);
+                String status = response.optString("status", "");
+                String message = response.optString("message", "");
+
+                runOnUiThread(() -> {
+                    switch (status.toLowerCase()) {
+                        case "success":
+                            showToast("✅ " + message);
+                            clearPembacaanSection();
+                            // PANGGIL PERHITUNGAN SETELAH SIMPAN BERHASIL
+                            triggerPerhitungan();
+                            break;
+                        case "info":
+                            showToast("ℹ️ " + message);
+                            clearPembacaanSection();
+                            triggerPerhitungan();
+                            break;
+                        case "error":
+                        default:
+                            showToast("❌ " + message);
+                            break;
+                    }
+                });
+
+            } catch (Exception e) {
+                Log.e("SEND_TO_SERVER", "Error (" + dataType + "): " + e.getMessage(), e);
+                runOnUiThread(() -> {
+                    showToast("❌ Gagal kirim " + dataType + ": " + e.getMessage());
+                });
+            } finally {
+                if (conn != null) conn.disconnect();
+            }
+        }).start();
+    }
+
+    // METHOD LAMA: Tetap untuk DMA (tanpa perhitungan)
     private void sendToServer(Map<String, String> dataMap, String dataType) {
         new Thread(() -> {
             HttpURLConnection conn = null;
@@ -407,8 +484,6 @@ public class InputDataLeftPiezo extends AppCompatActivity {
                             showToast("✅ " + message);
                             if (dataType.equals("DMA")) {
                                 clearDMASection();
-                            } else {
-                                clearPembacaanSection();
                             }
                             break;
                         case "info":
@@ -428,6 +503,55 @@ public class InputDataLeftPiezo extends AppCompatActivity {
                 });
             } finally {
                 if (conn != null) conn.disconnect();
+            }
+        }).start();
+    }
+
+    // METHOD BARU: Trigger perhitungan setelah simpan pembacaan berhasil - DIUBAH
+    private void triggerPerhitungan() {
+        if (pengukuranId == -1) return;
+
+        new Thread(() -> {
+            try {
+                // DIUBAH: Menghapus "/hitunglokasi/" karena sudah termasuk di HITUNG_URL
+                String url = HITUNG_URL + pengukuranId + "/" + selectedLokasi;
+                HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+                conn.setRequestMethod("GET");
+                conn.setRequestProperty("Accept", "application/json");
+                conn.setConnectTimeout(8000);
+                conn.setReadTimeout(8000);
+
+                int responseCode = conn.getResponseCode();
+                BufferedReader reader = new BufferedReader(new InputStreamReader(
+                        responseCode == 200 ? conn.getInputStream() : conn.getErrorStream()
+                ));
+
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) sb.append(line);
+                reader.close();
+
+                String responseBody = sb.toString();
+                Log.d("LEFTPIEZO_CALC", "Response Perhitungan: " + responseBody);
+
+                JSONObject response = new JSONObject(responseBody);
+                String status = response.optString("status", "");
+                String message = response.optString("message", "");
+
+                runOnUiThread(() -> {
+                    if ("success".equals(status)) {
+                        double nilai = response.optDouble("nilai", 0);
+                        showToast("🧮 Perhitungan berhasil: " + nilai);
+                    } else {
+                        showToast("⚠️ " + message);
+                    }
+                });
+
+            } catch (Exception e) {
+                Log.e("TRIGGER_CALC", "Error trigger perhitungan: " + e.getMessage());
+                runOnUiThread(() -> {
+                    showToast("⚠️ Data tersimpan, tapi perhitungan gagal");
+                });
             }
         }).start();
     }

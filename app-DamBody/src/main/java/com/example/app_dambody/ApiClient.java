@@ -4,7 +4,7 @@ import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
 public class ApiClient {
-    private static final String BASE_URL = "http://10.45.163.30/GHW/api-apps/public/";
+    public static final String BASE_URL = "https://sgl-geoteknik.darfataraproteksi.my.id/api/";
     private static Retrofit retrofit = null;
 
     public static Retrofit getClient() {

@@ -274,7 +274,7 @@
 
                     <Button
                         android:id="@+id/btnSimpanPembacaan"
-                        android:text="💾 Simpan Pembacaan"
+                        android:text="💾 Simpan Dan Hitung Pembacaan"
                         android:layout_width="match_parent"
                         android:layout_height="48dp"
                         android:layout_marginBottom="12dp"

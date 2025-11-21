@@ -8,7 +8,7 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class ApiClient {
     // Ganti sesuai alamat server kamu
-    public static final String BASE_URL = "http://10.45.163.30/GHW/api-apps/public/";
+    public static final String BASE_URL = "https://sgl-geoteknik.darfataraproteksi.my.id/api/";
 
     private static Retrofit retrofit;
 

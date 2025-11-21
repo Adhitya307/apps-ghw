@@ -40,6 +40,8 @@ import java.util.Locale;
 
 public class HistoryActivity extends AppCompatActivity {
 
+    private static final String TAG = "HistoryActivity";
+
     private Spinner spinnerPengukuran;
     private Button btnTampilkanData;
     private Button btnExportDB;
@@ -63,7 +65,7 @@ public class HistoryActivity extends AppCompatActivity {
     private ArrayList<Integer> pengukuranIds = new ArrayList<>();
     private ArrayList<String> pengukuranLabels = new ArrayList<>();
 
-    private static final String BASE_URL = "http://10.45.163.30/GHW/api-apps/public/api/rembesan/";
+    private static final String BASE_URL = "https://sgl-geoteknik.darfataraproteksi.my.id/api/";
 
     private DatabaseHelper dbHelper;
 
@@ -71,7 +73,7 @@ public class HistoryActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-
+        setContentView(R.layout.activity_history);
 
         dbHelper = new DatabaseHelper(this);
         requestQueue = Volley.newRequestQueue(this);
@@ -120,7 +122,7 @@ public class HistoryActivity extends AppCompatActivity {
 
     private void loadPengukuranList() {
         if (isOnline()) {
-            String url = BASE_URL + "pengukuran";
+            String url = BASE_URL + "api/rembesan/pengukuran";
             JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
                     response -> {
                         try {
@@ -173,7 +175,7 @@ public class HistoryActivity extends AppCompatActivity {
 
     // ============ Tampilkan data online ============
     private void tampilkanDataOnline(int pengukuranId) {
-        String url = BASE_URL + "detail/" + pengukuranId;
+        String url = BASE_URL + "api/rembesan/detail/" + pengukuranId;
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
                 response -> {
                     try {

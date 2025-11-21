@@ -40,12 +40,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class InputData2Activity extends AppCompatActivity {
 
     private static final String TAG = "InputData2Activity";
-    private static final String BASE_URL = "http://10.45.163.30/GHW/api-apps/public/rembesan/";
-    private static final String SERVER_INPUT_URL = BASE_URL + "input";
-    private static final String CEK_DATA_URL = BASE_URL + "cek-data";
-    private static final String GET_PENGUKURAN_URL = BASE_URL + "get_pengukuran";
-    private static final String HITUNG_SEMUA_URL = BASE_URL + "Rumus-Rembesan";
-    private static final String GET_INTI_GALLERY_URL = BASE_URL + "get_inti_gallery";
+    private static final String BASE_URL = "https://sgl-geoteknik.darfataraproteksi.my.id/api/";
+
+    private static final String SERVER_INPUT_URL = BASE_URL + "rembesan/input";
+    private static final String CEK_DATA_URL = BASE_URL + "rembesan/cek-data";
+    private static final String GET_PENGUKURAN_URL = BASE_URL + "rembesan/get_pengukuran";
+    private static final String HITUNG_SEMUA_URL = BASE_URL + "rembesan/Rumus-Rembesan";
+    private static final String GET_INTI_GALLERY_URL = BASE_URL + "rembesan/get_inti_gallery";
 
     private Spinner spinnerPengukuran;
     private Button btnPilihPengukuran, btnSubmitThomson, btnSubmitSR, btnSubmitBocoran, btnSubmitTmaWaduk, btnHitungSemua;
@@ -1225,70 +1226,46 @@ public class InputData2Activity extends AppCompatActivity {
     }
 
     private void showCalculationResultDialog(String title, String message, String status, String tanggal) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        LayoutInflater inflater = LayoutInflater.from(this);
-        View dialogView = inflater.inflate(R.layout.dialog_calculation_result, null);
-        builder.setView(dialogView);
+        runOnUiThread(() -> {
+            try {
+                // Format message yang lebih rapi
+                String fullMessage = formatCalculationMessage(message);
 
-        TextView titleText = dialogView.findViewById(R.id.dialog_title);
-        TextView messageText = dialogView.findViewById(R.id.dialog_message);
-        TextView tanggalText = dialogView.findViewById(R.id.dialog_tanggal);
-        ImageView iconView = dialogView.findViewById(R.id.dialog_icon);
-        Button okButton = dialogView.findViewById(R.id.dialog_button_ok);
-        LinearLayout headerLayout = dialogView.findViewById(R.id.dialog_header);
+                AlertDialog.Builder builder = new AlertDialog.Builder(this);
+                builder.setTitle(title)
+                        .setMessage(fullMessage)
+                        .setPositiveButton("OK", (dialog, which) -> {
+                            dialog.dismiss();
+                        })
+                        .setCancelable(false);
 
-        int colorRes = getColorForStatus(status);
-        int iconRes = getIconForStatus(status);
+                AlertDialog dialog = builder.create();
+                dialog.show();
 
-        titleText.setText(title);
+                Log.d(TAG, "Dialog standar ditampilkan dengan tombol OK");
 
-        // FORMAT PESAN YANG LEBIH BAIK
-        String formattedMessage = formatCalculationMessage(message);
-        messageText.setText(formattedMessage);
+            } catch (Exception e) {
+                Log.e(TAG, "Error showing dialog: " + e.getMessage());
+                // Fallback ke toast
+                showElegantToast(title + ": " + message, "info");
+            }
+        });
+    }
 
-        tanggalText.setText("📅 Tanggal: " + tanggal);
-        iconView.setImageResource(iconRes);
-
-        headerLayout.setBackgroundColor(ContextCompat.getColor(this, colorRes));
-
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-            headerLayout.setElevation(8f);
-            okButton.setElevation(4f);
-        }
-
-        iconView.setAlpha(0f);
-        iconView.animate().alpha(1f).setDuration(500).start();
-
-        okButton.setBackgroundColor(ContextCompat.getColor(this, colorRes));
-        okButton.setTextColor(Color.WHITE);
-
-        dialogView.setAlpha(0f);
-        dialogView.setScaleX(0.8f);
-        dialogView.setScaleY(0.8f);
-
-        final AlertDialog dialog = builder.create();
-        dialog.setCancelable(false);
-        dialog.show();
-
-        dialogView.animate()
-                .alpha(1f)
-                .scaleX(1f)
-                .scaleY(1f)
-                .setDuration(300)
-                .start();
-
-        okButton.setOnClickListener(v -> {
-            v.animate().scaleX(0.95f).scaleY(0.95f).setDuration(100).withEndAction(() -> {
-                v.animate().scaleX(1f).scaleY(1f).setDuration(100).start();
-            }).start();
-
-            dialogView.animate()
-                    .alpha(0f)
-                    .scaleX(0.8f)
-                    .scaleY(0.8f)
-                    .setDuration(200)
-                    .withEndAction(dialog::dismiss)
-                    .start();
+    private void showFallbackDialog(String title, String message) {
+        runOnUiThread(() -> {
+            try {
+                new AlertDialog.Builder(this)
+                        .setTitle(title)
+                        .setMessage(message)
+                        .setPositiveButton("OK", (dialog, which) -> dialog.dismiss())
+                        .setCancelable(false)
+                        .show();
+            } catch (Exception e) {
+                Log.e(TAG, "Error showing fallback dialog: " + e.getMessage());
+                // Last resort: show toast
+                showElegantToast(title + ": " + message, "info");
+            }
         });
     }
 

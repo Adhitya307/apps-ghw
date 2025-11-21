@@ -17,6 +17,8 @@ import android.os.Handler;
 import android.util.Log;
 import android.view.View;
 import android.widget.*;
+
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
 
@@ -55,9 +57,9 @@ public class InputdataElv600 extends AppCompatActivity {
     private String tempId = null;
 
     // API URL
-    private static final String BASE_URL = "http://10.45.163.30/GHW/api-apps/public/dombody/";
-    private static final String INSERT_DATA_URL = BASE_URL + "input";
-    private static final String GET_PENGUKURAN_URL = BASE_URL + "get-pengukuran";
+    private static final String BASE_URL = "https://sgl-geoteknik.darfataraproteksi.my.id/api/";
+    private static final String INSERT_DATA_URL = BASE_URL + "dombody/input";
+    private static final String GET_PENGUKURAN_URL = BASE_URL + "dombody/get-pengukuran";
 
     // Data pengukuran
     private final Map<String, Integer> pengukuranMap = new HashMap<>();
@@ -502,7 +504,7 @@ public class InputdataElv600 extends AppCompatActivity {
         inputHV5.setText("");
     }
 
-    // ✅ FINAL FIXED VERSION: handleHitung khusus untuk ELV600
+    // ✅ FINAL FIXED VERSION: handleHitung khusus untuk ELV600 dengan popup persistent
     private void handleHitung() {
         try {
             // Pastikan user sudah memilih data pengukuran
@@ -511,13 +513,19 @@ public class InputdataElv600 extends AppCompatActivity {
                 return;
             }
 
-            // ✅ URL endpoint langsung ke route CodeIgniter
-            String url = BASE_URL + "hitung/elv600";
+            // Dapatkan tanggal yang dipilih dari spinner
+            final String selectedTanggal = spinnerPengukuran.getSelectedItem() != null ?
+                    spinnerPengukuran.getSelectedItem().toString() :
+                    "Tanggal tidak diketahui";
 
+            // ✅ URL endpoint langsung ke route CodeIgniter
+            String url = BASE_URL + "dombody/hitung/elv600";
 
             // Siapkan data JSON yang dikirim
             JSONObject postData = new JSONObject();
             postData.put("pengukuran_id", pengukuranId);
+
+            Log.d("ELV600_API", "Mengirim permintaan perhitungan untuk pengukuran_id: " + pengukuranId);
 
             // Buat request ke server
             JsonObjectRequest request = new JsonObjectRequest(
@@ -529,40 +537,36 @@ public class InputdataElv600 extends AppCompatActivity {
                             String status = response.optString("status", "error");
                             String message = response.optString("message", "Tidak ada pesan dari server");
 
+                            Log.d("ELV600_API", "Response dari server: " + response.toString());
+
                             if (status.equalsIgnoreCase("success")) {
                                 JSONObject data = response.optJSONObject("data");
 
-                                StringBuilder hasilBuilder = new StringBuilder();
                                 if (data != null) {
-                                    Iterator<String> keys = data.keys();
-                                    while (keys.hasNext()) {
-                                        String key = keys.next();
-                                        double val = data.optDouble(key, 0.0);
-                                        hasilBuilder.append(key).append(": ").append(val).append("\n");
-                                    }
-                                }
+                                    double pergerakan = data.optDouble("pergerakan", 0.0);
+                                    double hv1 = data.optDouble("hv_1", 0.0);
+                                    double hv2 = data.optDouble("hv_2", 0.0);
+                                    double hv3 = data.optDouble("hv_3", 0.0);
+                                    double hv4 = data.optDouble("hv_4", 0.0);
+                                    double hv5 = data.optDouble("hv_5", 0.0);
 
-                                showToast("✅ " + message + "\n" + hasilBuilder.toString());
+                                    // ✅ TAMPILKAN DIALOG PERSISTENT dengan data dari database
+                                    showPersistentResultDialog(selectedTanggal, pergerakan, hv1, hv2, hv3, hv4, hv5);
+                                } else {
+                                    showToast("✅ " + message);
+                                }
                             } else {
                                 showToast("⚠️ " + message);
                             }
 
                         } catch (Exception e) {
-                            showToast("❌ Gagal parsing response: " + e.getMessage());
+                            Log.e("ELV600_API", "Error parsing response: " + e.getMessage());
+                            showToast("❌ Error parsing response dari server");
                         }
                     },
                     error -> {
-                        String msg = "❌ Gagal terhubung ke server";
-                        if (error != null) {
-                            if (error.networkResponse != null) {
-                                msg += " (HTTP " + error.networkResponse.statusCode + ")";
-                            } else if (error.getMessage() != null) {
-                                msg += ": " + error.getMessage();
-                            } else {
-                                msg += " (Unknown network error)";
-                            }
-                        }
-                        showToast(msg);
+                        Log.e("ELV600_API", "Network error: " + error.getMessage());
+                        showToast("❌ Gagal terhubung ke server");
                     }
             );
 
@@ -575,7 +579,43 @@ public class InputdataElv600 extends AppCompatActivity {
         }
     }
 
+    // ✅ NEW: Dialog persistent dengan data dari database untuk ELV600
+    private void showPersistentResultDialog(String tanggal, double pergerakan, double hv1, double hv2, double hv3, double hv4, double hv5) {
+        runOnUiThread(() -> {
+            try {
+                AlertDialog.Builder builder = new AlertDialog.Builder(this);
+                builder.setTitle("📊 Hasil Perhitungan ELV600");
 
+                // Format pesan lengkap dengan data dari database
+                StringBuilder messageBuilder = new StringBuilder();
+                messageBuilder.append("📅 Tanggal: ").append(tanggal).append("\n\n");
+
+                // Tambahkan data HV dari database
+                messageBuilder.append("Data HV :\n");
+                messageBuilder.append("• HV 1: ").append(String.format("%.4f", hv1)).append("\n");
+                messageBuilder.append("• HV 2: ").append(String.format("%.4f", hv2)).append("\n");
+                messageBuilder.append("• HV 3: ").append(String.format("%.4f", hv3)).append("\n");
+                messageBuilder.append("• HV 4: ").append(String.format("%.4f", hv4)).append("\n");
+                messageBuilder.append("• HV 5: ").append(String.format("%.4f", hv5)).append("\n\n");
+
+
+                builder.setMessage(messageBuilder.toString());
+                builder.setCancelable(false);
+                builder.setPositiveButton("OK", (dialog, which) -> {
+                    dialog.dismiss();
+                });
+
+                AlertDialog dialog = builder.create();
+                dialog.show();
+
+                Log.d("ELV600_DIALOG", "Dialog ditampilkan dengan data dari DB");
+
+            } catch (Exception e) {
+                Log.e("ELV600_DIALOG", "Error showing dialog: " + e.getMessage());
+                showToast("✅ Perhitungan selesai untuk tanggal " + tanggal);
+            }
+        });
+    }
     // ✅ Validasi semua field
     private boolean validateAllFields() {
         return !inputDMA.getText().toString().trim().isEmpty() &&

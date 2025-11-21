@@ -68,11 +68,13 @@ public class InputDataActivity extends AppCompatActivity {
     private SharedPreferences syncPrefs;
 
     // API URL
-    private static final String BASE_URL = "http://10.45.163.30/GHW/api-apps/public/rembesan/";
-    private static final String INSERT_DATA_URL = BASE_URL + "input";
-    private static final String CEK_DATA_URL = BASE_URL + "cek-data";
-    private static final String GET_PENGUKURAN_URL = BASE_URL + "get_pengukuran";
-    private static final String HITUNG_SEMUA_URL = BASE_URL + "Rumus-Rembesan";
+    private static final String BASE_URL = "https://sgl-geoteknik.darfataraproteksi.my.id/api/";
+
+    // BENAR ✓
+    private static final String INSERT_DATA_URL = BASE_URL + "rembesan/input";
+    private static final String CEK_DATA_URL = BASE_URL + "rembesan/cek-data";
+    private static final String GET_PENGUKURAN_URL = BASE_URL + "rembesan/get_pengukuran";
+    private static final String HITUNG_SEMUA_URL = BASE_URL + "rembesan/Rumus-Rembesan";
 
     // Map untuk simpan pasangan tanggal → ID
     private final Map<String, Integer> pengukuranMap = new HashMap<>();
