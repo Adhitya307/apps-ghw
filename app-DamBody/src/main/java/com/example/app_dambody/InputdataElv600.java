@@ -614,13 +614,13 @@ public class InputdataElv600 extends AppCompatActivity {
                 tvTitle.setText("📊 Hasil Perhitungan ELV600");
                 tvTanggal.setText("Tanggal: " + tanggal);
 
-                // Format HV data
+                // Format HV data (cm)
                 String hvData = "Data HV:\n" +
-                        "• HV1: " + String.format("%.4f", hv1) + "\n" +
-                        "• HV2: " + String.format("%.4f", hv2) + "\n" +
-                        "• HV3: " + String.format("%.4f", hv3) + "\n" +
-                        "• HV4: " + String.format("%.4f", hv4) + "\n" +
-                        "• HV5: " + String.format("%.4f", hv5);
+                        "• HV1: " + String.format("%.4f", hv1) + " cm\n" +
+                        "• HV2: " + String.format("%.4f", hv2) + " cm\n" +
+                        "• HV3: " + String.format("%.4f", hv3) + " cm\n" +
+                        "• HV4: " + String.format("%.4f", hv4) + " cm\n" +
+                        "• HV5: " + String.format("%.4f", hv5) + " cm";
                 tvHvData.setText(hvData);
 
                 // Hitung pergerakan untuk masing-masing H
@@ -632,7 +632,7 @@ public class InputdataElv600 extends AppCompatActivity {
 
                 // Ambang batas ELV600 yang benar untuk setiap HV
                 // HV1
-                double amanH1 = -44.29, peringatanH1 = -60.40, bahayaH1 = -51.11;
+                double amanH1 = -44.29 , peringatanH1 = -60.40, bahayaH1 = -51.11;
                 // HV2
                 double amanH2 = -39.75, peringatanH2 = -54.20, bahayaH2 = -45.86;
                 // HV3
@@ -647,54 +647,25 @@ public class InputdataElv600 extends AppCompatActivity {
                         "Aman: " + amanH1 + "\n" +
                         "Peringatan: " + peringatanH1 + "\n" +
                         "Bahaya: " + bahayaH1;
-                tvAmbangBatasH1.setText(ambangBatasH1);
-                tvPergerakanH1.setText("Pergerakan: " + String.format("%.4f", pergerakanH1));
-                String statusH1 = analyzeStatusELV600(pergerakanH1, amanH1, peringatanH1, bahayaH1);
-                tvStatusH1.setText("KONDISI: " + statusH1);
+                tvAmbangBatasH1.setText("AMBANG BATAS HV1:\nAman: " + amanH1 + " mm\nPeringatan: " + peringatanH1 + " mm\nBahaya: " + bahayaH1 + " mm");
+                tvPergerakanH1.setText("Pergerakan: " + String.format("%.4f", pergerakanH1) + " mm");
+                tvStatusH1.setText("KONDISI: " + analyzeStatusELV600(pergerakanH1, amanH1, peringatanH1, bahayaH1));
 
-                // Data untuk H2
-                String ambangBatasH2 = "AMBANG BATAS HV2:\n" +
-                        "Aman: " + amanH2 + "\n" +
-                        "Peringatan: " + peringatanH2 + "\n" +
-                        "Bahaya: " + bahayaH2;
-                tvAmbangBatasH2.setText(ambangBatasH2);
-                tvPergerakanH2.setText("Pergerakan: " + String.format("%.4f", pergerakanH2));
-                String statusH2 = analyzeStatusELV600(pergerakanH2, amanH2, peringatanH2, bahayaH2);
-                tvStatusH2.setText("KONDISI: " + statusH2);
+                tvAmbangBatasH2.setText("AMBANG BATAS HV2:\nAman: " + amanH2 + " mm\nPeringatan: " + peringatanH2 + " mm\nBahaya: " + bahayaH2 + " mm");
+                tvPergerakanH2.setText("Pergerakan: " + String.format("%.4f", pergerakanH2) + " mm");
+                tvStatusH2.setText("KONDISI: " + analyzeStatusELV600(pergerakanH2, amanH2, peringatanH2, bahayaH2));
 
-                // Data untuk H3
-                String ambangBatasH3 = "AMBANG BATAS HV3:\n" +
-                        "Aman: " + amanH3 + "\n" +
-                        "Peringatan: " + peringatanH3 + "\n" +
-                        "Bahaya: " + bahayaH3;
-                tvAmbangBatasH3.setText(ambangBatasH3);
-                tvPergerakanH3.setText("Pergerakan: " + String.format("%.4f", pergerakanH3));
-                String statusH3 = analyzeStatusELV600(pergerakanH3, amanH3, peringatanH3, bahayaH3);
-                tvStatusH3.setText("KONDISI: " + statusH3);
+                tvAmbangBatasH3.setText("AMBANG BATAS HV3:\nAman: " + amanH3 + " mm\nPeringatan: " + peringatanH3 + " mm\nBahaya: " + bahayaH3 + " mm");
+                tvPergerakanH3.setText("Pergerakan: " + String.format("%.4f", pergerakanH3) + " mm");
+                tvStatusH3.setText("KONDISI: " + analyzeStatusELV600(pergerakanH3, amanH3, peringatanH3, bahayaH3));
 
-                // Data untuk H4
-                String ambangBatasH4 = "AMBANG BATAS HV4:\n" +
-                        "Aman: " + amanH4 + "\n" +
-                        "Peringatan: " + peringatanH4 + "\n" +
-                        "Bahaya: " + bahayaH4;
-                tvAmbangBatasH4.setText(ambangBatasH4);
-                tvPergerakanH4.setText("Pergerakan: " + String.format("%.4f", pergerakanH4));
-                String statusH4 = analyzeStatusELV600(pergerakanH4, amanH4, peringatanH4, bahayaH4);
-                tvStatusH4.setText("KONDISI: " + statusH4);
+                tvAmbangBatasH4.setText("AMBANG BATAS HV4:\nAman: " + amanH4 + " mm\nPeringatan: " + peringatanH4 + " mm\nBahaya: " + bahayaH4 + " mm");
+                tvPergerakanH4.setText("Pergerakan: " + String.format("%.4f", pergerakanH4) + " mm");
+                tvStatusH4.setText("KONDISI: " + analyzeStatusELV600(pergerakanH4, amanH4, peringatanH4, bahayaH4));
 
-                // Data untuk H5
-                String ambangBatasH5 = "AMBANG BATAS HV5:\n" +
-                        "Aman: " + amanH5 + "\n" +
-                        "Peringatan: " + peringatanH5 + "\n" +
-                        "Bahaya: " + bahayaH5;
-                tvAmbangBatasH5.setText(ambangBatasH5);
-                tvPergerakanH5.setText("Pergerakan: " + String.format("%.4f", pergerakanH5));
-                String statusH5 = analyzeStatusELV600(pergerakanH5, amanH5, peringatanH5, bahayaH5);
-                tvStatusH5.setText("KONDISI: " + statusH5);
-
-                // Rekomendasi berdasarkan status terburuk
-                String overallStatus = getOverallStatusELV600(statusH1, statusH2, statusH3, statusH4, statusH5);
-
+                tvAmbangBatasH5.setText("AMBANG BATAS HV5:\nAman: " + amanH5 + " mm\nPeringatan: " + peringatanH5 + " mm\nBahaya: " + bahayaH5 + " mm");
+                tvPergerakanH5.setText("Pergerakan: " + String.format("%.4f", pergerakanH5) + " mm");
+                tvStatusH5.setText("KONDISI: " + analyzeStatusELV600(pergerakanH5, amanH5, peringatanH5, bahayaH5));
 
                 // Setup dialog
                 AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -704,16 +675,14 @@ public class InputdataElv600 extends AppCompatActivity {
                 AlertDialog dialog = builder.create();
                 dialog.show();
 
-                // Close button listener
                 btnClose.setOnClickListener(v -> dialog.dismiss());
 
             } catch (Exception e) {
                 Log.e("ELV600_DIALOG", "Error showing calculation dialog: " + e.getMessage());
-                showToast("✅ Perhitungan selesai untuk tanggal " + tanggal);
+                showToast("Perhitungan selesai untuk tanggal " + tanggal);
             }
         });
     }
-
     private String analyzeStatusELV600(double pergerakan, double aman, double peringatan, double bahaya) {
         // PERBAIKAN: Urutan yang benar untuk nilai negatif
         if (pergerakan >= peringatan) {

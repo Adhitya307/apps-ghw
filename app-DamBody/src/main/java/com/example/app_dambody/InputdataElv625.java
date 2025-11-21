@@ -859,9 +859,9 @@ public class InputdataElv625 extends AppCompatActivity {
 
                 // Format HV data
                 String hvData = "Data HV:\n" +
-                        "• HV1: " + String.format("%.4f", hv1) + "\n" +
-                        "• HV2: " + String.format("%.4f", hv2) + "\n" +
-                        "• HV3: " + String.format("%.4f", hv3);
+                        "• HV1: " + String.format("%.4f", hv1) + " cm\n" +
+                        "• HV2: " + String.format("%.4f", hv2) + " cm\n" +
+                        "• HV3: " + String.format("%.4f", hv3) + " cm";
                 tvHvData.setText(hvData);
 
                 // Hitung pergerakan untuk masing-masing H
@@ -869,39 +869,35 @@ public class InputdataElv625 extends AppCompatActivity {
                 double pergerakanH2 = hv2 * 10;
                 double pergerakanH3 = hv3 * 10;
 
-                // Data untuk H1
-                String ambangBatasH1 = "AMBANG BATAS HV1:\n" +
-                        "Aman: -21.66\n" +
-                        "Peringatan: -25.60\n" +
-                        "Bahaya: -28.50";
-                tvAmbangBatasH1.setText(ambangBatasH1);
-                tvPergerakanH1.setText("Pergerakan: " + String.format("%.4f", pergerakanH1));
+                // Data untuk H1 (satuan mm)
+                tvAmbangBatasH1.setText("AMBANG BATAS HV1:\n" +
+                        "Aman: -21.66 mm\n" +
+                        "Peringatan: -25.60 mm\n" +
+                        "Bahaya: -28.50 mm");
+                tvPergerakanH1.setText("Pergerakan: " + String.format("%.4f", pergerakanH1) + " mm");
                 String statusH1 = analyzeStatus(pergerakanH1, -21.66, -25.60, -28.50);
                 tvStatusH1.setText("KONDISI: " + statusH1);
 
                 // Data untuk H2
-                String ambangBatasH2 = "AMBANG BATAS HV2:\n" +
-                        "Aman: -9.02\n" +
-                        "Peringatan: -10.41\n" +
-                        "Bahaya: -12.30";
-                tvAmbangBatasH2.setText(ambangBatasH2);
-                tvPergerakanH2.setText("Pergerakan: " + String.format("%.4f", pergerakanH2));
+                tvAmbangBatasH2.setText("AMBANG BATAS HV2:\n" +
+                        "Aman: -9.02 mm\n" +
+                        "Peringatan: -10.41 mm\n" +
+                        "Bahaya: -12.30 mm");
+                tvPergerakanH2.setText("Pergerakan: " + String.format("%.4f", pergerakanH2) + " mm");
                 String statusH2 = analyzeStatus(pergerakanH2, -9.02, -10.41, -12.30);
                 tvStatusH2.setText("KONDISI: " + statusH2);
 
                 // Data untuk H3
-                String ambangBatasH3 = "AMBANG BATAS HV3:\n" +
-                        "Aman: -5.94\n" +
-                        "Peringatan: -6.85\n" +
-                        "Bahaya: -8.10";
-                tvAmbangBatasH3.setText(ambangBatasH3);
-                tvPergerakanH3.setText("Pergerakan: " + String.format("%.4f", pergerakanH3));
+                tvAmbangBatasH3.setText("AMBANG BATAS HV3:\n" +
+                        "Aman: -5.94 mm\n" +
+                        "Peringatan: -6.85 mm\n" +
+                        "Bahaya: -8.10 mm");
+                tvPergerakanH3.setText("Pergerakan: " + String.format("%.4f", pergerakanH3) + " mm");
                 String statusH3 = analyzeStatus(pergerakanH3, -5.94, -6.85, -8.10);
                 tvStatusH3.setText("KONDISI: " + statusH3);
 
                 // Rekomendasi berdasarkan status terburuk
                 String overallStatus = getOverallStatus(statusH1, statusH2, statusH3);
-
 
                 // Setup dialog
                 AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -911,12 +907,10 @@ public class InputdataElv625 extends AppCompatActivity {
                 AlertDialog dialog = builder.create();
                 dialog.show();
 
-                // Close button listener
                 btnClose.setOnClickListener(v -> dialog.dismiss());
 
             } catch (Exception e) {
                 Log.e("ELV625_DIALOG", "Error showing calculation dialog: " + e.getMessage());
-                // Fallback ke dialog sederhana
                 showSimpleResultDialog(tanggal, hv1, hv2, hv3);
             }
         });
