@@ -795,8 +795,8 @@ public class InputdataElv625 extends AppCompatActivity {
                                     double hv2 = data.optDouble("hv_2", 0.0);
                                     double hv3 = data.optDouble("hv_3", 0.0);
 
-                                    // ✅ TAMPILKAN DIALOG PERSISTENT dengan data dari database
-                                    showPersistentResultDialog(selectedTanggal, pergerakan, hv1, hv2, hv3);
+                                    // ✅ TAMPILKAN DIALOG HASIL PERHITUNGAN LENGKAP
+                                    showCalculationResultDialog(selectedTanggal, hv1, hv2, hv3);
                                 } else {
                                     showToast("✅ " + message);
                                 }
@@ -824,41 +824,166 @@ public class InputdataElv625 extends AppCompatActivity {
         }
     }
 
-    // ✅ UPDATED: Dialog persistent dengan data dari database
-    private void showPersistentResultDialog(String tanggal, double pergerakan, double hv1, double hv2, double hv3) {
+    // ✅ MODIFIED: Method untuk menampilkan dialog hasil perhitungan dengan susunan baru
+    private void showCalculationResultDialog(String tanggal, double hv1, double hv2, double hv3) {
         runOnUiThread(() -> {
             try {
+                // Inflate custom layout
+                LayoutInflater inflater = LayoutInflater.from(this);
+                View dialogView = inflater.inflate(R.layout.dialog_elv625_result, null);
+
+                // Initialize views
+                TextView tvTitle = dialogView.findViewById(R.id.tvTitle);
+                TextView tvTanggal = dialogView.findViewById(R.id.tvTanggal);
+                TextView tvHvData = dialogView.findViewById(R.id.tvHvData);
+
+                // Sections untuk H1, H2, H3
+                TextView tvAmbangBatasH1 = dialogView.findViewById(R.id.tvAmbangBatasH1);
+                TextView tvPergerakanH1 = dialogView.findViewById(R.id.tvPergerakanH1);
+                TextView tvStatusH1 = dialogView.findViewById(R.id.tvStatusH1);
+
+                TextView tvAmbangBatasH2 = dialogView.findViewById(R.id.tvAmbangBatasH2);
+                TextView tvPergerakanH2 = dialogView.findViewById(R.id.tvPergerakanH2);
+                TextView tvStatusH2 = dialogView.findViewById(R.id.tvStatusH2);
+
+                TextView tvAmbangBatasH3 = dialogView.findViewById(R.id.tvAmbangBatasH3);
+                TextView tvPergerakanH3 = dialogView.findViewById(R.id.tvPergerakanH3);
+                TextView tvStatusH3 = dialogView.findViewById(R.id.tvStatusH3);
+
+
+                Button btnClose = dialogView.findViewById(R.id.btnClose);
+
+                // Set data
+                tvTitle.setText("📊 Hasil Perhitungan ELV625");
+                tvTanggal.setText("Tanggal: " + tanggal);
+
+                // Format HV data
+                String hvData = "Data HV:\n" +
+                        "• HV1: " + String.format("%.4f", hv1) + "\n" +
+                        "• HV2: " + String.format("%.4f", hv2) + "\n" +
+                        "• HV3: " + String.format("%.4f", hv3);
+                tvHvData.setText(hvData);
+
+                // Hitung pergerakan untuk masing-masing H
+                double pergerakanH1 = hv1 * 10;
+                double pergerakanH2 = hv2 * 10;
+                double pergerakanH3 = hv3 * 10;
+
+                // Data untuk H1
+                String ambangBatasH1 = "AMBANG BATAS HV1:\n" +
+                        "Aman: -21.66\n" +
+                        "Peringatan: -25.60\n" +
+                        "Bahaya: -28.50";
+                tvAmbangBatasH1.setText(ambangBatasH1);
+                tvPergerakanH1.setText("Pergerakan: " + String.format("%.4f", pergerakanH1));
+                String statusH1 = analyzeStatus(pergerakanH1, -21.66, -25.60, -28.50);
+                tvStatusH1.setText("KONDISI: " + statusH1);
+
+                // Data untuk H2
+                String ambangBatasH2 = "AMBANG BATAS HV2:\n" +
+                        "Aman: -9.02\n" +
+                        "Peringatan: -10.41\n" +
+                        "Bahaya: -12.30";
+                tvAmbangBatasH2.setText(ambangBatasH2);
+                tvPergerakanH2.setText("Pergerakan: " + String.format("%.4f", pergerakanH2));
+                String statusH2 = analyzeStatus(pergerakanH2, -9.02, -10.41, -12.30);
+                tvStatusH2.setText("KONDISI: " + statusH2);
+
+                // Data untuk H3
+                String ambangBatasH3 = "AMBANG BATAS HV3:\n" +
+                        "Aman: -5.94\n" +
+                        "Peringatan: -6.85\n" +
+                        "Bahaya: -8.10";
+                tvAmbangBatasH3.setText(ambangBatasH3);
+                tvPergerakanH3.setText("Pergerakan: " + String.format("%.4f", pergerakanH3));
+                String statusH3 = analyzeStatus(pergerakanH3, -5.94, -6.85, -8.10);
+                tvStatusH3.setText("KONDISI: " + statusH3);
+
+                // Rekomendasi berdasarkan status terburuk
+                String overallStatus = getOverallStatus(statusH1, statusH2, statusH3);
+
+
+                // Setup dialog
                 AlertDialog.Builder builder = new AlertDialog.Builder(this);
-                builder.setTitle("📊 Hasil Perhitungan ELV625");
-
-                // Format pesan lengkap dengan data dari database
-                StringBuilder messageBuilder = new StringBuilder();
-                messageBuilder.append("📅 Tanggal: ").append(tanggal).append("\n\n");
-
-                // Tambahkan data HV dari database
-                messageBuilder.append("Data HV :\n");
-                messageBuilder.append("• HV 1: ").append(String.format("%.4f", hv1)).append("\n");
-                messageBuilder.append("• HV 2: ").append(String.format("%.4f", hv2)).append("\n");
-                messageBuilder.append("• HV 3: ").append(String.format("%.4f", hv3)).append("\n");
-
-
-
-                builder.setMessage(messageBuilder.toString());
+                builder.setView(dialogView);
                 builder.setCancelable(false);
-                builder.setPositiveButton("OK", (dialog, which) -> {
-                    dialog.dismiss();
-                });
 
                 AlertDialog dialog = builder.create();
                 dialog.show();
 
-                Log.d("ELV625_DIALOG", "Dialog ditampilkan dengan data dari DB");
+                // Close button listener
+                btnClose.setOnClickListener(v -> dialog.dismiss());
 
             } catch (Exception e) {
-                Log.e("ELV625_DIALOG", "Error showing dialog: " + e.getMessage());
-                showToast("✅ Perhitungan selesai untuk tanggal " + tanggal);
+                Log.e("ELV625_DIALOG", "Error showing calculation dialog: " + e.getMessage());
+                // Fallback ke dialog sederhana
+                showSimpleResultDialog(tanggal, hv1, hv2, hv3);
             }
         });
+    }
+
+    // ✅ Helper method untuk menganalisis status
+    private String analyzeStatus(double pergerakan, double aman, double peringatan, double bahaya) {
+        if (pergerakan > aman) {
+            return "✅ AMAN";
+        } else if (pergerakan > peringatan) {
+            return "⚠️ PERINGATAN";
+        } else {
+            return "🚨 BAHAYA";
+        }
+    }
+
+    // ✅ Helper method untuk analisis pergerakan
+    private String analyzeMovement(double pergerakan, double aman, double peringatan, double bahaya) {
+        StringBuilder analysis = new StringBuilder();
+
+        if (pergerakan > aman) {
+            analysis.append(" > AMAN (").append(aman).append(") ✅\n");
+        } else if (pergerakan > peringatan) {
+            analysis.append(" (MELEWATI AMAN ").append(aman).append(") ⚠️\n");
+        } else {
+            analysis.append(" (MELEWATI PERINGATAN ").append(peringatan).append(") 🚨\n");
+        }
+
+        return analysis.toString();
+    }
+
+    // ✅ Helper method untuk mendapatkan status keseluruhan
+    private String getOverallStatus(String statusH1, String statusH2, String statusH3) {
+        if (statusH1.contains("🚨") || statusH2.contains("🚨") || statusH3.contains("🚨")) {
+            return "BAHAYA";
+        } else if (statusH1.contains("⚠️") || statusH2.contains("⚠️") || statusH3.contains("⚠️")) {
+            return "PERINGATAN";
+        } else {
+            return "AMAN";
+        }
+    }
+
+
+    // ✅ Fallback method untuk dialog sederhana
+    private void showSimpleResultDialog(String tanggal, double hv1, double hv2, double hv3) {
+        StringBuilder message = new StringBuilder();
+        message.append("📅 Tanggal: ").append(tanggal).append("\n\n");
+        message.append("Data HV:\n");
+        message.append("• HV1: ").append(String.format("%.4f", hv1)).append("\n");
+        message.append("• HV2: ").append(String.format("%.4f", hv2)).append("\n");
+        message.append("• HV3: ").append(String.format("%.4f", hv3)).append("\n\n");
+
+        // Hitung dan analisis pergerakan
+        double pergerakanH1 = hv1 * 10;
+        double pergerakanH2 = hv2 * 10;
+        double pergerakanH3 = hv3 * 10;
+
+        message.append("Pergerakan:\n");
+        message.append("• H1: ").append(String.format("%.4f", pergerakanH1)).append(" - ").append(analyzeStatus(pergerakanH1, -21.66, -25.60, -28.50)).append("\n");
+        message.append("• H2: ").append(String.format("%.4f", pergerakanH2)).append(" - ").append(analyzeStatus(pergerakanH2, -9.02, -10.41, -12.30)).append("\n");
+        message.append("• H3: ").append(String.format("%.4f", pergerakanH3)).append(" - ").append(analyzeStatus(pergerakanH3, -5.94, -6.85, -8.10)).append("\n");
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("📊 Hasil ELV625");
+        builder.setMessage(message.toString());
+        builder.setPositiveButton("TUTUP", (dialog, which) -> dialog.dismiss());
+        builder.show();
     }
 
     // ✅ NEW: Method untuk mengirim data HV individual
