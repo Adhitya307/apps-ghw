@@ -607,7 +607,6 @@ public class InputdataElv600 extends AppCompatActivity {
                 TextView tvPergerakanH5 = dialogView.findViewById(R.id.tvPergerakanH5);
                 TextView tvStatusH5 = dialogView.findViewById(R.id.tvStatusH5);
 
-
                 Button btnClose = dialogView.findViewById(R.id.btnClose);
 
                 // Set data
@@ -632,7 +631,7 @@ public class InputdataElv600 extends AppCompatActivity {
 
                 // Ambang batas ELV600 yang benar untuk setiap HV
                 // HV1
-                double amanH1 = -44.29 , peringatanH1 = -60.40, bahayaH1 = -51.11;
+                double amanH1 = -44.29, peringatanH1 = -60.40, bahayaH1 = -51.11;
                 // HV2
                 double amanH2 = -39.75, peringatanH2 = -54.20, bahayaH2 = -45.86;
                 // HV3
@@ -643,29 +642,29 @@ public class InputdataElv600 extends AppCompatActivity {
                 double amanH5 = -11.22, peringatanH5 = -15.30, bahayaH5 = -12.95;
 
                 // Data untuk H1
-                String ambangBatasH1 = "AMBANG BATAS HV1:\n" +
-                        "Aman: " + amanH1 + "\n" +
-                        "Peringatan: " + peringatanH1 + "\n" +
-                        "Bahaya: " + bahayaH1;
                 tvAmbangBatasH1.setText("AMBANG BATAS HV1:\nAman: " + amanH1 + " mm\nPeringatan: " + peringatanH1 + " mm\nBahaya: " + bahayaH1 + " mm");
                 tvPergerakanH1.setText("Pergerakan: " + String.format("%.4f", pergerakanH1) + " mm");
-                tvStatusH1.setText("KONDISI: " + analyzeStatusELV600(pergerakanH1, amanH1, peringatanH1, bahayaH1));
+                tvStatusH1.setText("KONDISI: " + analyzeStatusELV600(pergerakanH1, amanH1, bahayaH1));
 
+                // Data untuk H2
                 tvAmbangBatasH2.setText("AMBANG BATAS HV2:\nAman: " + amanH2 + " mm\nPeringatan: " + peringatanH2 + " mm\nBahaya: " + bahayaH2 + " mm");
                 tvPergerakanH2.setText("Pergerakan: " + String.format("%.4f", pergerakanH2) + " mm");
-                tvStatusH2.setText("KONDISI: " + analyzeStatusELV600(pergerakanH2, amanH2, peringatanH2, bahayaH2));
+                tvStatusH2.setText("KONDISI: " + analyzeStatusELV600(pergerakanH2, amanH2, bahayaH2));
 
+                // Data untuk H3
                 tvAmbangBatasH3.setText("AMBANG BATAS HV3:\nAman: " + amanH3 + " mm\nPeringatan: " + peringatanH3 + " mm\nBahaya: " + bahayaH3 + " mm");
                 tvPergerakanH3.setText("Pergerakan: " + String.format("%.4f", pergerakanH3) + " mm");
-                tvStatusH3.setText("KONDISI: " + analyzeStatusELV600(pergerakanH3, amanH3, peringatanH3, bahayaH3));
+                tvStatusH3.setText("KONDISI: " + analyzeStatusELV600(pergerakanH3, amanH3, bahayaH3));
 
+                // Data untuk H4
                 tvAmbangBatasH4.setText("AMBANG BATAS HV4:\nAman: " + amanH4 + " mm\nPeringatan: " + peringatanH4 + " mm\nBahaya: " + bahayaH4 + " mm");
                 tvPergerakanH4.setText("Pergerakan: " + String.format("%.4f", pergerakanH4) + " mm");
-                tvStatusH4.setText("KONDISI: " + analyzeStatusELV600(pergerakanH4, amanH4, peringatanH4, bahayaH4));
+                tvStatusH4.setText("KONDISI: " + analyzeStatusELV600(pergerakanH4, amanH4, bahayaH4));
 
+                // Data untuk H5
                 tvAmbangBatasH5.setText("AMBANG BATAS HV5:\nAman: " + amanH5 + " mm\nPeringatan: " + peringatanH5 + " mm\nBahaya: " + bahayaH5 + " mm");
                 tvPergerakanH5.setText("Pergerakan: " + String.format("%.4f", pergerakanH5) + " mm");
-                tvStatusH5.setText("KONDISI: " + analyzeStatusELV600(pergerakanH5, amanH5, peringatanH5, bahayaH5));
+                tvStatusH5.setText("KONDISI: " + analyzeStatusELV600(pergerakanH5, amanH5, bahayaH5));
 
                 // Setup dialog
                 AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -683,14 +682,17 @@ public class InputdataElv600 extends AppCompatActivity {
             }
         });
     }
-    private String analyzeStatusELV600(double pergerakan, double aman, double peringatan, double bahaya) {
-        // PERBAIKAN: Urutan yang benar untuk nilai negatif
-        if (pergerakan >= peringatan) {
-            return "✅ AMAN";
+
+    // ✅ FIXED: Method untuk menganalisis status ELV600 dengan logika yang benar
+    private String analyzeStatusELV600(double pergerakan, double aman, double bahaya) {
+        // Logika yang benar untuk nilai negatif:
+        // Hijau: ≥ Aman | Kuning: Aman > x ≥ Bahaya | Merah: x < Bahaya
+        if (pergerakan >= aman) {
+            return "🟢 AMAN";
         } else if (pergerakan >= bahaya) {
-            return "⚠️ PERINGATAN";
+            return "🟡 PERINGATAN";
         } else {
-            return "🚨 BAHAYA";
+            return "🔴 BAHAYA";
         }
     }
 

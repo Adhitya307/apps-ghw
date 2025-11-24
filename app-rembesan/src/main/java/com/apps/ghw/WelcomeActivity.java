@@ -16,13 +16,14 @@ import com.example.app_dambody.DamBodyHomeActivity;
 import com.apps.bubbletilt.BubbleTiltHomeActivity;
 import com.example.app.exstenso.ExstensoHomeActivity;
 import com.example.app_leftpiezo.HomeLeftPiezoActivity;
+import com.example.app_rightpiezo.HomeRightPiezoActivity;
 
 public class WelcomeActivity extends AppCompatActivity {
 
     private View badgeContainer;
     private TextView welcomeText, subtitleText, sectionTitle;
     private LinearLayout statusIndicator;
-    private CardView cardMonitoringRembesan, cardMonitoringDamBody, cardBubbleTiltMeter, cardRodExtensoMeter, cardPiezometerKiri;
+    private CardView cardMonitoringRembesan, cardMonitoringDamBody, cardBubbleTiltMeter, cardRodExtensoMeter, cardPiezometerKiri, cardPiezometerKanan;
     private Handler handler = new Handler();
 
     @Override
@@ -47,6 +48,7 @@ public class WelcomeActivity extends AppCompatActivity {
         cardBubbleTiltMeter = findViewById(R.id.cardBubbleTiltMeter);
         cardRodExtensoMeter = findViewById(R.id.cardRodExtensoMeter);
         cardPiezometerKiri = findViewById(R.id.cardPiezometerKiri);
+        cardPiezometerKanan = findViewById(R.id.cardPiezometerKanan); // TAMBAHAN BARU
     }
 
     private void startStaggeredAnimation() {
@@ -75,12 +77,14 @@ public class WelcomeActivity extends AppCompatActivity {
             animateCardView(cardBubbleTiltMeter, 200);
             animateCardView(cardRodExtensoMeter, 300);
             animateCardView(cardPiezometerKiri, 400);
+            animateCardView(cardPiezometerKanan, 500); // TAMBAHAN BARU
         }, 1300);
     }
 
     private void resetViews() {
         View[] views = {badgeContainer, welcomeText, subtitleText, statusIndicator, sectionTitle,
-                cardMonitoringRembesan, cardMonitoringDamBody, cardBubbleTiltMeter, cardRodExtensoMeter, cardPiezometerKiri};
+                cardMonitoringRembesan, cardMonitoringDamBody, cardBubbleTiltMeter, cardRodExtensoMeter,
+                cardPiezometerKiri, cardPiezometerKanan}; // TAMBAHAN BARU
 
         for (View view : views) {
             if (view != null) {
@@ -164,6 +168,15 @@ public class WelcomeActivity extends AppCompatActivity {
         cardPiezometerKiri.setOnClickListener(v -> {
             animateClick(v, () -> {
                 Intent intent = new Intent(WelcomeActivity.this, HomeLeftPiezoActivity.class);
+                startActivity(intent);
+                overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+            });
+        });
+
+        // TAMBAHAN BARU: Piezometer Kanan
+        cardPiezometerKanan.setOnClickListener(v -> {
+            animateClick(v, () -> {
+                Intent intent = new Intent(WelcomeActivity.this, HomeRightPiezoActivity.class);
                 startActivity(intent);
                 overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
             });

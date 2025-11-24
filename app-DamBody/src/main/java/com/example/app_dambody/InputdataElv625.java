@@ -850,7 +850,6 @@ public class InputdataElv625 extends AppCompatActivity {
                 TextView tvPergerakanH3 = dialogView.findViewById(R.id.tvPergerakanH3);
                 TextView tvStatusH3 = dialogView.findViewById(R.id.tvStatusH3);
 
-
                 Button btnClose = dialogView.findViewById(R.id.btnClose);
 
                 // Set data
@@ -869,35 +868,24 @@ public class InputdataElv625 extends AppCompatActivity {
                 double pergerakanH2 = hv2 * 10;
                 double pergerakanH3 = hv3 * 10;
 
+                // ✅ CORRECTED: Ambang batas sesuai koreksi terakhir
                 // Data untuk H1 (satuan mm)
-                tvAmbangBatasH1.setText("AMBANG BATAS HV1:\n" +
-                        "Aman: -21.66 mm\n" +
-                        "Peringatan: -25.60 mm\n" +
-                        "Bahaya: -28.50 mm");
+                double amanH1 = -18.77, peringatanH1 = -21.66, bahayaH1 = -25.60;
+                tvAmbangBatasH1.setText("AMBANG BATAS HV1:\nAman: " + amanH1 + " mm\nPeringatan: " + peringatanH1 + " mm\nBahaya: " + bahayaH1 + " mm");
                 tvPergerakanH1.setText("Pergerakan: " + String.format("%.4f", pergerakanH1) + " mm");
-                String statusH1 = analyzeStatus(pergerakanH1, -21.66, -25.60, -28.50);
-                tvStatusH1.setText("KONDISI: " + statusH1);
+                tvStatusH1.setText("KONDISI: " + analyzeStatusELV625(pergerakanH1, amanH1, bahayaH1));
 
                 // Data untuk H2
-                tvAmbangBatasH2.setText("AMBANG BATAS HV2:\n" +
-                        "Aman: -9.02 mm\n" +
-                        "Peringatan: -10.41 mm\n" +
-                        "Bahaya: -12.30 mm");
+                double amanH2 = -9.02, peringatanH2 = -10.41, bahayaH2 = -12.30;
+                tvAmbangBatasH2.setText("AMBANG BATAS HV2:\nAman: " + amanH2 + " mm\nPeringatan: " + peringatanH2 + " mm\nBahaya: " + bahayaH2 + " mm");
                 tvPergerakanH2.setText("Pergerakan: " + String.format("%.4f", pergerakanH2) + " mm");
-                String statusH2 = analyzeStatus(pergerakanH2, -9.02, -10.41, -12.30);
-                tvStatusH2.setText("KONDISI: " + statusH2);
+                tvStatusH2.setText("KONDISI: " + analyzeStatusELV625(pergerakanH2, amanH2, bahayaH2));
 
                 // Data untuk H3
-                tvAmbangBatasH3.setText("AMBANG BATAS HV3:\n" +
-                        "Aman: -5.94 mm\n" +
-                        "Peringatan: -6.85 mm\n" +
-                        "Bahaya: -8.10 mm");
+                double amanH3 = -5.94, peringatanH3 = -6.85, bahayaH3 = -8.10;
+                tvAmbangBatasH3.setText("AMBANG BATAS HV3:\nAman: " + amanH3 + " mm\nPeringatan: " + peringatanH3 + " mm\nBahaya: " + bahayaH3 + " mm");
                 tvPergerakanH3.setText("Pergerakan: " + String.format("%.4f", pergerakanH3) + " mm");
-                String statusH3 = analyzeStatus(pergerakanH3, -5.94, -6.85, -8.10);
-                tvStatusH3.setText("KONDISI: " + statusH3);
-
-                // Rekomendasi berdasarkan status terburuk
-                String overallStatus = getOverallStatus(statusH1, statusH2, statusH3);
+                tvStatusH3.setText("KONDISI: " + analyzeStatusELV625(pergerakanH3, amanH3, bahayaH3));
 
                 // Setup dialog
                 AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -916,14 +904,16 @@ public class InputdataElv625 extends AppCompatActivity {
         });
     }
 
-    // ✅ Helper method untuk menganalisis status
-    private String analyzeStatus(double pergerakan, double aman, double peringatan, double bahaya) {
-        if (pergerakan > aman) {
-            return "✅ AMAN";
-        } else if (pergerakan > peringatan) {
-            return "⚠️ PERINGATAN";
+    // ✅ CORRECTED: Helper method untuk menganalisis status ELV625
+    private String analyzeStatusELV625(double pergerakan, double aman, double bahaya) {
+        // Logika yang sama seperti ELV600:
+        // Hijau: ≥ Aman | Kuning: Aman > x ≥ Bahaya | Merah: x < Bahaya
+        if (pergerakan >= aman) {
+            return "🟢 AMAN";
+        } else if (pergerakan >= bahaya) {
+            return "🟡 PERINGATAN";
         } else {
-            return "🚨 BAHAYA";
+            return "🔴 BAHAYA";
         }
     }
 
@@ -944,17 +934,16 @@ public class InputdataElv625 extends AppCompatActivity {
 
     // ✅ Helper method untuk mendapatkan status keseluruhan
     private String getOverallStatus(String statusH1, String statusH2, String statusH3) {
-        if (statusH1.contains("🚨") || statusH2.contains("🚨") || statusH3.contains("🚨")) {
-            return "BAHAYA";
-        } else if (statusH1.contains("⚠️") || statusH2.contains("⚠️") || statusH3.contains("⚠️")) {
-            return "PERINGATAN";
+        if (statusH1.contains("🔴") || statusH2.contains("🔴") || statusH3.contains("🔴")) {
+            return "🔴 STATUS OVERALL: BAHAYA";
+        } else if (statusH1.contains("🟡") || statusH2.contains("🟡") || statusH3.contains("🟡")) {
+            return "🟡 STATUS OVERALL: PERINGATAN";
         } else {
-            return "AMAN";
+            return "🟢 STATUS OVERALL: AMAN";
         }
     }
 
-
-    // ✅ Fallback method untuk dialog sederhana
+    // ✅ FIXED: Fallback method untuk dialog sederhana
     private void showSimpleResultDialog(String tanggal, double hv1, double hv2, double hv3) {
         StringBuilder message = new StringBuilder();
         message.append("📅 Tanggal: ").append(tanggal).append("\n\n");
@@ -968,10 +957,15 @@ public class InputdataElv625 extends AppCompatActivity {
         double pergerakanH2 = hv2 * 10;
         double pergerakanH3 = hv3 * 10;
 
+        // ✅ CORRECTED: Ambang batas sesuai koreksi terakhir
+        double amanH1 = -18.77, bahayaH1 = -25.60;
+        double amanH2 = -9.02, bahayaH2 = -12.30;
+        double amanH3 = -5.94, bahayaH3 = -8.10;
+
         message.append("Pergerakan:\n");
-        message.append("• H1: ").append(String.format("%.4f", pergerakanH1)).append(" - ").append(analyzeStatus(pergerakanH1, -21.66, -25.60, -28.50)).append("\n");
-        message.append("• H2: ").append(String.format("%.4f", pergerakanH2)).append(" - ").append(analyzeStatus(pergerakanH2, -9.02, -10.41, -12.30)).append("\n");
-        message.append("• H3: ").append(String.format("%.4f", pergerakanH3)).append(" - ").append(analyzeStatus(pergerakanH3, -5.94, -6.85, -8.10)).append("\n");
+        message.append("• H1: ").append(String.format("%.4f", pergerakanH1)).append(" - ").append(analyzeStatusELV625(pergerakanH1, amanH1, bahayaH1)).append("\n");
+        message.append("• H2: ").append(String.format("%.4f", pergerakanH2)).append(" - ").append(analyzeStatusELV625(pergerakanH2, amanH2, bahayaH2)).append("\n");
+        message.append("• H3: ").append(String.format("%.4f", pergerakanH3)).append(" - ").append(analyzeStatusELV625(pergerakanH3, amanH3, bahayaH3)).append("\n");
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("📊 Hasil ELV625");

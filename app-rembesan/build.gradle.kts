@@ -53,6 +53,7 @@ dependencies {
     implementation(project(":app-BubbleTilt"))
     implementation(project(":app-exstenso"))
     implementation(project(":app-LeftPiezo"))
+    implementation(project(":app-RightPiezo"))
 
     // ✅ Unit Testing
     testImplementation("junit:junit:4.13.2")

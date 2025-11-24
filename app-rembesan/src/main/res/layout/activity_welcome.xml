@@ -332,7 +332,7 @@
                     </LinearLayout>
                 </androidx.cardview.widget.CardView>
 
-                <!-- Card Piezometer Sandaran Bendungan Kiri (BARU) -->
+                <!-- Card Piezometer Sandaran Bendungan Kiri -->
                 <androidx.cardview.widget.CardView
                     android:id="@+id/cardPiezometerKiri"
                     android:layout_width="match_parent"
@@ -371,6 +371,54 @@
                             android:layout_marginTop="12dp"
                             android:gravity="center"
                             android:text="Piezometer Sandaran Bendungan Kiri"
+                            android:textColor="#FFFFFF"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:maxLines="2"
+                            android:lineSpacingExtra="2dp"
+                            android:minHeight="40dp" />
+                    </LinearLayout>
+                </androidx.cardview.widget.CardView>
+
+                <!-- TAMBAHAN BARU: Card Piezometer Sandaran Bendungan Kanan -->
+                <androidx.cardview.widget.CardView
+                    android:id="@+id/cardPiezometerKanan"
+                    android:layout_width="match_parent"
+                    android:layout_height="150dp"
+                    android:layout_margin="6dp"
+                    android:alpha="0"
+                    android:translationY="20dp"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="6dp"
+                    app:cardUseCompatPadding="true">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:background="@drawable/card_gradient_piezometer_kanan"
+                        android:padding="16dp">
+
+                        <LinearLayout
+                            android:layout_width="52dp"
+                            android:layout_height="52dp"
+                            android:background="@drawable/circle_white_20"
+                            android:gravity="center">
+
+                            <ImageView
+                                android:layout_width="26dp"
+                                android:layout_height="26dp"
+                                android:src="@drawable/ic_piezometer"
+                                android:tint="#1A237E" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:gravity="center"
+                            android:text="Piezometer Sandaran Bendungan Kanan"
                             android:textColor="#FFFFFF"
                             android:textSize="14sp"
                             android:textStyle="bold"

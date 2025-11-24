@@ -14,7 +14,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     private static final String TAG = "DatabaseHelper";
     public static final String DATABASE_NAME = "db_hdm.db";
-    private static final int DATABASE_VERSION = 5; // Updated version
+    private static final int DATABASE_VERSION = 6; // Updated version
 
     // Table names - EXISTING
     private static final String TABLE_PENGUKURAN = "t_pengukuran_hdm";
