@@ -752,7 +752,6 @@ public class InputDataRightPiezo extends AppCompatActivity {
         loadPengukuranData();
     }
 
-    // LOAD PENGUKURAN DATA
     private void loadPengukuranData() {
         if (!isInternetAvailable()) {
             showToast("📱 Tidak ada internet");
@@ -793,11 +792,18 @@ public class InputDataRightPiezo extends AppCompatActivity {
                             JSONObject item = dataArray.getJSONObject(i);
                             String tanggal = item.optString("tanggal", "");
                             int id = item.optInt("id_pengukuran", -1);
-                            String tempId = item.optString("temp_id", ""); // TAMBAHAN: baca temp_id
+                            String tempId = item.optString("temp_id", "");
 
-                            if (!tanggal.isEmpty() && id != -1) {
-                                // Gunakan temp_id jika ada, jika tidak gunakan tanggal
-                                String displayText = !tempId.isEmpty() ? tempId : tanggal;
+                            if (id != -1) {
+                                // PERBAIKAN: Selalu gunakan tanggal untuk display, temp_id hanya untuk backup
+                                String displayText = !tanggal.isEmpty() ? tanggal : tempId;
+
+                                // Jika tanggal kosong, format temp_id agar lebih rapi
+                                if (tanggal.isEmpty() && !tempId.isEmpty()) {
+                                    // Coba format temp_id: "RPZ_20251124_141533_2335" -> "2025-11-24"
+                                    displayText = formatTempIdToDate(tempId);
+                                }
+
                                 tanggalList.add(displayText);
                                 pengukuranMap.put(displayText, id);
                             }
@@ -831,6 +837,29 @@ public class InputDataRightPiezo extends AppCompatActivity {
                 if (conn != null) conn.disconnect();
             }
         }).start();
+    }
+
+    // METHOD BARU: Format temp_id menjadi tanggal yang lebih readable
+    private String formatTempIdToDate(String tempId) {
+        try {
+            // Format: "RPZ_20251124_141533_2335"
+            if (tempId.startsWith("RPZ_")) {
+                String[] parts = tempId.split("_");
+                if (parts.length >= 2) {
+                    String datePart = parts[1]; // "20251124"
+                    if (datePart.length() == 8) {
+                        // Format: YYYYMMDD -> YYYY-MM-DD
+                        String year = datePart.substring(0, 4);
+                        String month = datePart.substring(4, 6);
+                        String day = datePart.substring(6, 8);
+                        return year + "-" + month + "-" + day;
+                    }
+                }
+            }
+            return tempId; // Kembalikan as-is jika tidak bisa diformat
+        } catch (Exception e) {
+            return tempId;
+        }
     }
 
     // HANDLE MODAL PENGUKURAN
