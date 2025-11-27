@@ -15,5 +15,12 @@
             android:name=".InputDataRightPiezo"
             android:label="Input Data Piezometer Kanan"
             android:exported="false" />
+
+        <activity
+            android:name=".HistoryRightPiezoActivity"
+            android:label="History Piezometer Kanan"
+            android:exported="false" />
+
+
     </application>
 </manifest>

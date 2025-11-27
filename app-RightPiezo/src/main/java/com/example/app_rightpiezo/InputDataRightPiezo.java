@@ -2,9 +2,11 @@ package com.example.app_rightpiezo;
 
 import android.app.DatePickerDialog;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
+import android.os.Handler;
 import android.util.Log;
 import android.view.View;
 import android.widget.*;
@@ -64,18 +66,34 @@ public class InputDataRightPiezo extends AppCompatActivity {
     private ArrayAdapter<String> pengukuranAdapter;
     private ArrayAdapter<String> lokasiAdapter;
 
-    // Daftar lokasi piezometer RIGHT PIEZO - DIUBAH
+    // Daftar lokasi piezometer RIGHT PIEZO
     private final String[] LOKASI_PIEZOMETER = {
             "R-01", "R-02", "R-03", "R-04", "R-05", "R-06",
             "R-07", "R-08", "R-09", "R-10", "R-11", "R-12",
             "IPZ-01", "PZ-04"
     };
 
+    // FITUR OFFLINE & SINKRONISASI BARU
+    private OfflineDataHelperRightPiezo offlineDb;
+    private SharedPreferences syncPrefs;
+    private boolean isSyncInProgress = false;
+    private Handler networkCheckHandler = new Handler();
+    private Runnable networkCheckRunnable;
+    private boolean lastOnlineStatus = false;
+
+    // Interface untuk callback
+    interface HitungCallback {
+        void onComplete(boolean success);
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_input_data_rightpiezo);
 
+        // INISIALISASI FITUR OFFLINE BARU
+        offlineDb = new OfflineDataHelperRightPiezo(this);
+        syncPrefs = getSharedPreferences("rightpiezo_sync_prefs", MODE_PRIVATE);
         calendar = Calendar.getInstance();
 
         initModalComponents();
@@ -89,7 +107,801 @@ public class InputDataRightPiezo extends AppCompatActivity {
 
         // Modal muncul otomatis di awal
         showModal();
+
+        // START MONITORING JARINGAN
+        startNetworkMonitoring();
     }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        checkInternetAndShowToast();
+
+        if (isInternetAvailable()) {
+            if (offlineDb.hasUnsyncedDataRightPiezo()) {
+                syncAllOfflineData(() -> {
+                    if (!isAlreadySynced()) {
+                        showToast("✅ Sinkronisasi data offline selesai");
+                        markAsSynced();
+                    }
+                });
+            } else {
+                prosesPerhitunganTertunda();
+                loadPengukuranData();
+            }
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        stopNetworkMonitoring();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        stopNetworkMonitoring();
+        if (offlineDb != null) {
+            offlineDb.close();
+        }
+    }
+
+    // ==================== FITUR SINKRONISASI OTOMATIS ====================
+
+    private void startNetworkMonitoring() {
+        networkCheckRunnable = new Runnable() {
+            @Override
+            public void run() {
+                checkInternetAndShowToast();
+                networkCheckHandler.postDelayed(this, 5000);
+            }
+        };
+        networkCheckHandler.postDelayed(networkCheckRunnable, 5000);
+    }
+
+    private void stopNetworkMonitoring() {
+        if (networkCheckHandler != null && networkCheckRunnable != null) {
+            networkCheckHandler.removeCallbacks(networkCheckRunnable);
+        }
+    }
+
+    private void checkInternetAndShowToast() {
+        boolean isOnline = isInternetAvailable();
+        if (isOnline != lastOnlineStatus) {
+            if (isOnline) {
+                showToast("✅ Online - Koneksi tersedia");
+                startAutoSyncWhenOnline();
+            } else {
+                showToast("📱 Offline - Data disimpan lokal");
+            }
+            lastOnlineStatus = isOnline;
+        }
+    }
+
+    private void startAutoSyncWhenOnline() {
+        if (isSyncInProgress || !isInternetAvailable()) return;
+
+        int offlineCount = offlineDb.getOfflineDataCountRightPiezo();
+        boolean hasPendingCalc = hasPendingCalculations();
+
+        if (offlineCount > 0 || hasPendingCalc) {
+            Log.d("RIGHTPIEZO_AutoSync", "Found " + offlineCount + " offline data and " +
+                    (hasPendingCalc ? "pending calculations" : "no pending calculations"));
+            triggerAutoSync();
+        }
+    }
+
+    private boolean hasPendingCalculations() {
+        SharedPreferences prefs = getSharedPreferences("rightpiezo_pending_calc", MODE_PRIVATE);
+        Map<String, ?> allEntries = prefs.getAll();
+        return !allEntries.isEmpty();
+    }
+
+    private void triggerAutoSync() {
+        if (isSyncInProgress) return;
+
+        Log.d("RIGHTPIEZO_AutoSync", "Triggering auto-sync for offline data");
+        isSyncInProgress = true;
+        showToast("🔄 Auto-sync data offline...");
+
+        syncAllOfflineDataAuto(() -> {
+            isSyncInProgress = false;
+            Log.d("RIGHTPIEZO_AutoSync", "Auto-sync completed");
+            runOnUiThread(this::loadPengukuranData);
+        });
+    }
+
+    private void syncAllOfflineDataAuto(Runnable onComplete) {
+        int offlineCount = offlineDb.getOfflineDataCountRightPiezo();
+        if (offlineCount == 0) {
+            prosesPerhitunganTertunda();
+            if (onComplete != null) onComplete.run();
+            return;
+        }
+
+        syncDataSerialAuto("pengukuran", () ->
+                syncDataSerialAuto("data", () -> {
+                    showToast("✅ " + offlineCount + " data terkirim");
+                    prosesPerhitunganTertunda();
+                    if (onComplete != null) onComplete.run();
+                })
+        );
+    }
+
+    private void syncDataSerialAuto(String tableType, Runnable next) {
+        List<Map<String,String>> list = offlineDb.getUnsyncedDataRightPiezo(tableType);
+        if (list == null || list.isEmpty()) {
+            if (next != null) next.run();
+            return;
+        }
+        syncDataItemAuto(tableType, list, 0, next);
+    }
+
+    private void syncDataItemAuto(String tableType, List<Map<String,String>> dataList, int index, Runnable onFinish) {
+        if (index >= dataList.size()) {
+            if (onFinish != null) onFinish.run();
+            return;
+        }
+
+        Map<String,String> item = dataList.get(index);
+        String tempId = item.get("temp_id");
+        String jsonStr = item.get("json");
+
+        if (jsonStr == null || jsonStr.isEmpty()) {
+            offlineDb.deleteByTempIdRightPiezo(tableType, tempId);
+            syncDataItemAuto(tableType, dataList, index + 1, onFinish);
+            return;
+        }
+
+        new Thread(() -> {
+            try {
+                JSONObject json = new JSONObject(jsonStr);
+
+                HttpURLConnection conn = null;
+                try {
+                    URL url = new URL(INSERT_DATA_URL);
+                    conn = (HttpURLConnection) url.openConnection();
+                    conn.setRequestMethod("POST");
+                    conn.setDoOutput(true);
+                    conn.setConnectTimeout(8000);
+                    conn.setReadTimeout(8000);
+                    conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+                    conn.setRequestProperty("Accept", "application/json");
+
+                    OutputStream os = conn.getOutputStream();
+                    os.write(json.toString().getBytes("UTF-8"));
+                    os.flush();
+                    os.close();
+
+                    int code = conn.getResponseCode();
+                    if (code == 200) {
+                        offlineDb.deleteByTempIdRightPiezo(tableType, tempId);
+                        Log.d("RIGHTPIEZO_AutoSync", "Synced " + tableType + " tempId=" + tempId);
+
+                        // Tandai perlu perhitungan jika ini data pembacaan
+                        if (tableType.equals("data") && json.has("mode")) {
+                            String mode = json.optString("mode", "");
+                            if (mode.startsWith("pembacaan_")) {
+                                int pengukuranId = json.optInt("pengukuran_id", -1);
+                                String lokasi = mode.replace("pembacaan_", "").toUpperCase();
+                                if (pengukuranId != -1) {
+                                    tandaiPerluHitungPiezo(tempId, pengukuranId, lokasi);
+                                }
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    Log.e("RIGHTPIEZO_AutoSync", "Failed to sync tempId=" + tempId + ": " + e.getMessage());
+                } finally {
+                    if (conn != null) conn.disconnect();
+                }
+            } catch (Exception e) {
+                Log.e("RIGHTPIEZO_AutoSync", "JSON parse failed for tempId=" + tempId + ": " + e.getMessage());
+                offlineDb.deleteByTempIdRightPiezo(tableType, tempId);
+            }
+
+            runOnUiThread(() -> syncDataItemAuto(tableType, dataList, index + 1, onFinish));
+        }).start();
+    }
+
+    // ==================== STRATEGI SINKRONISASI GROUP BY PENGUKURAN ====================
+
+    private void syncAllOfflineData(Runnable onComplete) {
+        boolean adaData = offlineDb.hasUnsyncedDataRightPiezo();
+        if (!adaData) {
+            prosesPerhitunganTertunda();
+            if (onComplete != null) onComplete.run();
+            return;
+        }
+
+        syncDataSerial("pengukuran", () -> {
+            syncDataGroupedByPengukuran(onComplete);
+        });
+    }
+
+    private void syncDataGroupedByPengukuran(Runnable onComplete) {
+        new Thread(() -> {
+            try {
+                Map<Integer, List<Map<String, String>>> groupedData = offlineDb.getUnsyncedDataGroupedByPengukuran();
+
+                if (groupedData.isEmpty()) {
+                    runOnUiThread(() -> {
+                        if (onComplete != null) onComplete.run();
+                    });
+                    return;
+                }
+
+                Log.d("RIGHTPIEZO_Sync", "Syncing data for " + groupedData.size() + " pengukuran groups");
+
+                List<Integer> pengukuranIds = new ArrayList<>(groupedData.keySet());
+                syncPengukuranGroup(pengukuranIds, groupedData, 0, onComplete);
+
+            } catch (Exception e) {
+                Log.e("RIGHTPIEZO_Sync", "Error in grouped sync: " + e.getMessage());
+                runOnUiThread(() -> {
+                    if (onComplete != null) onComplete.run();
+                });
+            }
+        }).start();
+    }
+
+    private void syncPengukuranGroup(List<Integer> pengukuranIds,
+                                     Map<Integer, List<Map<String, String>>> groupedData,
+                                     int index, Runnable onComplete) {
+        if (index >= pengukuranIds.size()) {
+            runOnUiThread(() -> {
+                if (onComplete != null) onComplete.run();
+            });
+            return;
+        }
+
+        int pengukuranId = pengukuranIds.get(index);
+        List<Map<String, String>> dataList = groupedData.get(pengukuranId);
+
+        Log.d("RIGHTPIEZO_Sync", "Syncing group for pengukuran_id: " + pengukuranId + ", data count: " + dataList.size());
+
+        syncDataItemsInGroup(dataList, pengukuranId, 0, () -> {
+            syncPengukuranGroup(pengukuranIds, groupedData, index + 1, onComplete);
+        });
+    }
+
+    private void syncDataItemsInGroup(List<Map<String, String>> dataList, int pengukuranId,
+                                      int dataIndex, Runnable onGroupComplete) {
+        if (dataIndex >= dataList.size()) {
+            hitungPiezoUntukPengukuran(pengukuranId, onGroupComplete);
+            return;
+        }
+
+        Map<String, String> item = dataList.get(dataIndex);
+        String tempId = item.get("temp_id");
+        String jsonStr = item.get("json");
+        String mode = item.get("mode");
+
+        new Thread(() -> {
+            try {
+                JSONObject json = new JSONObject(jsonStr);
+
+                HttpURLConnection conn = null;
+                try {
+                    URL url = new URL(INSERT_DATA_URL);
+                    conn = (HttpURLConnection) url.openConnection();
+                    conn.setRequestMethod("POST");
+                    conn.setDoOutput(true);
+                    conn.setConnectTimeout(10000);
+                    conn.setReadTimeout(10000);
+                    conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+                    conn.setRequestProperty("Accept", "application/json");
+
+                    OutputStream os = conn.getOutputStream();
+                    os.write(json.toString().getBytes("UTF-8"));
+                    os.flush();
+                    os.close();
+
+                    int code = conn.getResponseCode();
+                    if (code == 200) {
+                        offlineDb.deleteByTempIdRightPiezo("data", tempId);
+                        Log.d("RIGHTPIEZO_Sync", "Synced data for pengukuran " + pengukuranId + ", mode: " + mode);
+
+                        // Tandai perlu perhitungan jika ini data pembacaan
+                        if (mode.startsWith("pembacaan_")) {
+                            String lokasi = mode.replace("pembacaan_", "").toUpperCase();
+                            tandaiPerluHitungPiezo(tempId, pengukuranId, lokasi);
+                        }
+                    }
+                } catch (Exception e) {
+                    Log.e("RIGHTPIEZO_Sync", "Failed to sync tempId=" + tempId + ": " + e.getMessage());
+                } finally {
+                    if (conn != null) conn.disconnect();
+                }
+            } catch (Exception e) {
+                Log.e("RIGHTPIEZO_Sync", "JSON parse failed for tempId=" + tempId + ": " + e.getMessage());
+            }
+
+            runOnUiThread(() -> syncDataItemsInGroup(dataList, pengukuranId, dataIndex + 1, onGroupComplete));
+        }).start();
+    }
+
+    private void hitungPiezoUntukPengukuran(int pengukuranId, Runnable onComplete) {
+        new Thread(() -> {
+            try {
+                List<String> lokasiList = offlineDb.getLokasiForPengukuran(pengukuranId);
+
+                Log.d("RIGHTPIEZO_Sync", "Calculating piezometer for pengukuran " + pengukuranId + ", lokasi: " + lokasiList);
+
+                hitungPiezoSequential(lokasiList, pengukuranId, 0, onComplete);
+
+            } catch (Exception e) {
+                Log.e("RIGHTPIEZO_Sync", "Error calculating piezometer for pengukuran " + pengukuranId + ": " + e.getMessage());
+                runOnUiThread(onComplete);
+            }
+        }).start();
+    }
+
+    private void hitungPiezoSequential(List<String> lokasiList, int pengukuranId, int lokasiIndex, Runnable onComplete) {
+        if (lokasiIndex >= lokasiList.size()) {
+            runOnUiThread(onComplete);
+            return;
+        }
+
+        String lokasi = lokasiList.get(lokasiIndex);
+        hitungPiezoSingle(lokasi, pengukuranId, (success) -> {
+            if (success) {
+                Log.d("RIGHTPIEZO_Sync", "Successfully calculated piezometer for " + lokasi + ", pengukuran " + pengukuranId);
+            }
+            hitungPiezoSequential(lokasiList, pengukuranId, lokasiIndex + 1, onComplete);
+        });
+    }
+
+    // ==================== FITUR PERHITUNGAN PIEZOMETER ====================
+
+    private void tandaiPerluHitungPiezo(String tempId, int pengukuranId, String lokasi) {
+        SharedPreferences prefs = getSharedPreferences("rightpiezo_pending_calc", MODE_PRIVATE);
+        String key = "pending_" + tempId;
+
+        Map<String, String> pendingData = new HashMap<>();
+        pendingData.put("pengukuran_id", String.valueOf(pengukuranId));
+        pendingData.put("lokasi", lokasi);
+        pendingData.put("temp_id", tempId);
+
+        try {
+            JSONObject json = new JSONObject(pendingData);
+            prefs.edit().putString(key, json.toString()).apply();
+            Log.d("PENDING_CALC_PIEZO", "Data ditandai perlu hitung: " + json.toString());
+        } catch (Exception e) {
+            Log.e("PENDING_CALC_PIEZO", "Gagal menyimpan pending calculation: " + e.getMessage());
+        }
+    }
+
+    private void prosesPerhitunganTertunda() {
+        if (!isInternetAvailable()) return;
+
+        SharedPreferences prefs = getSharedPreferences("rightpiezo_pending_calc", MODE_PRIVATE);
+        Map<String, ?> allEntries = prefs.getAll();
+
+        if (allEntries.isEmpty()) return;
+
+        Log.d("PENDING_CALC_PIEZO", "Processing " + allEntries.size() + " pending calculations");
+        showToast("🔄 Memproses " + allEntries.size() + " perhitungan tertunda...");
+
+        Map<Integer, List<String>> pendingByPengukuran = new HashMap<>();
+
+        for (Map.Entry<String, ?> entry : allEntries.entrySet()) {
+            if (entry.getKey().startsWith("pending_")) {
+                try {
+                    String jsonStr = (String) entry.getValue();
+                    JSONObject json = new JSONObject(jsonStr);
+
+                    int pendingPengukuranId = json.getInt("pengukuran_id");
+                    String pendingLokasi = json.getString("lokasi");
+                    String pendingTempId = json.getString("temp_id");
+
+                    if (!pendingByPengukuran.containsKey(pendingPengukuranId)) {
+                        pendingByPengukuran.put(pendingPengukuranId, new ArrayList<String>());
+                    }
+                    pendingByPengukuran.get(pendingPengukuranId).add(pendingLokasi);
+
+                } catch (Exception e) {
+                    Log.e("PENDING_CALC_PIEZO", "Error processing pending calculation: " + e.getMessage());
+                }
+            }
+        }
+
+        prosesPendingByPengukuran(new ArrayList<>(pendingByPengukuran.keySet()), pendingByPengukuran, 0);
+    }
+
+    private void prosesPendingByPengukuran(List<Integer> pengukuranIds,
+                                           Map<Integer, List<String>> pendingByPengukuran,
+                                           int index) {
+        if (index >= pengukuranIds.size()) {
+            showToast("✅ Semua perhitungan tertunda selesai");
+            return;
+        }
+
+        int pengukuranId = pengukuranIds.get(index);
+        List<String> lokasiList = pendingByPengukuran.get(pengukuranId);
+
+        Log.d("PENDING_CALC_PIEZO", "Processing pending calculations for pengukuran " + pengukuranId + ": " + lokasiList);
+
+        hitungPiezoSequential(lokasiList, pengukuranId, 0, () -> {
+            hapusPendingUntukPengukuran(pengukuranId);
+            prosesPendingByPengukuran(pengukuranIds, pendingByPengukuran, index + 1);
+        });
+    }
+
+    private void hapusPendingUntukPengukuran(int pengukuranId) {
+        SharedPreferences prefs = getSharedPreferences("rightpiezo_pending_calc", MODE_PRIVATE);
+        Map<String, ?> allEntries = prefs.getAll();
+
+        for (Map.Entry<String, ?> entry : allEntries.entrySet()) {
+            if (entry.getKey().startsWith("pending_")) {
+                try {
+                    String jsonStr = (String) entry.getValue();
+                    JSONObject json = new JSONObject(jsonStr);
+
+                    int pendingPengukuranId = json.getInt("pengukuran_id");
+                    if (pendingPengukuranId == pengukuranId) {
+                        prefs.edit().remove(entry.getKey()).apply();
+                    }
+                } catch (Exception e) {
+                    Log.e("PENDING_CALC_PIEZO", "Error removing pending calculation: " + e.getMessage());
+                }
+            }
+        }
+    }
+
+    private void hitungPiezoSingle(String lokasi, int pengukuranId, HitungCallback callback) {
+        new Thread(() -> {
+            boolean success = false;
+            HttpURLConnection conn = null;
+            try {
+                // Gunakan endpoint yang sesuai untuk Right Piezo
+                String url = HITUNG_URL + "/lokasi?pengukuran_id=" + pengukuranId + "&lokasi=" + lokasi;
+                conn = (HttpURLConnection) new URL(url).openConnection();
+                conn.setRequestMethod("GET");
+                conn.setRequestProperty("Accept", "application/json");
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(10000);
+
+                int responseCode = conn.getResponseCode();
+                success = (responseCode == 200);
+
+                if (success) {
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) sb.append(line);
+                    reader.close();
+
+                    JSONObject response = new JSONObject(sb.toString());
+                    String status = response.optString("status", "");
+                    success = "success".equals(status);
+
+                    if (success) {
+                        Log.d("HITUNG_PIEZO", "Berhasil hitung " + lokasi + " untuk pengukuran " + pengukuranId);
+                    } else {
+                        Log.e("HITUNG_PIEZO", "Gagal hitung " + lokasi + ", response: " + response.toString());
+                    }
+                } else {
+                    Log.e("HITUNG_PIEZO", "Gagal hitung " + lokasi + ", response code: " + responseCode);
+                }
+
+            } catch (Exception e) {
+                Log.e("HITUNG_PIEZO", "Error hitung " + lokasi + " untuk pengukuran " + pengukuranId + ": " + e.getMessage());
+            } finally {
+                if (conn != null) conn.disconnect();
+                callback.onComplete(success);
+            }
+        }).start();
+    }
+
+    // ==================== HANDLER INPUT DATA DENGAN OFFLINE SUPPORT ====================
+
+    private void handleSimpanPembacaan() {
+        if (pengukuranId == -1) {
+            showToast("❌ Harap buat/pilih pengukuran terlebih dahulu");
+            return;
+        }
+
+        if (!validatePembacaanFields()) {
+            showToast("❌ Harap isi minimal satu field pembacaan");
+            return;
+        }
+
+        // CEK DATA EXISTING SEBELUM SIMPAN
+        cekDataExistingSebelumSimpan();
+    }
+
+    private void cekDataExistingSebelumSimpan() {
+        if (!isInternetAvailable()) {
+            // Jika offline, langsung simpan offline tanpa cek existing
+            simpanPembacaanOffline();
+            return;
+        }
+
+        new Thread(() -> {
+            try {
+                String url = GET_DATA_URL + "?pengukuran_id=" + pengukuranId + "&lokasi=" + selectedLokasi;
+                HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+                conn.setRequestMethod("GET");
+                conn.setRequestProperty("Accept", "application/json");
+                conn.setConnectTimeout(8000);
+                conn.setReadTimeout(8000);
+
+                int responseCode = conn.getResponseCode();
+                if (responseCode == 200) {
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) sb.append(line);
+                    reader.close();
+
+                    JSONObject response = new JSONObject(sb.toString());
+                    if (response.getString("status").equals("success")) {
+                        JSONObject data = response.optJSONObject("data");
+
+                        // Jika data sudah ada, tampilkan pesan error dan batalkan
+                        if (data != null && (data.has("feet") || data.has("inch"))) {
+                            runOnUiThread(() -> {
+                                showToast("❌ Data pembacaan " + selectedLokasi + " sudah ada! Tidak dapat menambah data baru.");
+                                clearPembacaanSection();
+                            });
+                            return;
+                        }
+                    }
+                }
+
+                // Jika data belum ada, lanjutkan dengan penyimpanan
+                runOnUiThread(() -> {
+                    if (isInternetAvailable()) {
+                        simpanDanHitungPembacaan();
+                    } else {
+                        simpanPembacaanOffline();
+                    }
+                });
+
+            } catch (Exception e) {
+                Log.e("CEK_DATA", "Error cek data: " + e.getMessage());
+                // Jika error saat cek, tetap lanjutkan penyimpanan
+                runOnUiThread(() -> {
+                    if (isInternetAvailable()) {
+                        simpanDanHitungPembacaan();
+                    } else {
+                        simpanPembacaanOffline();
+                    }
+                });
+            }
+        }).start();
+    }
+
+    private void simpanDanHitungPembacaan() {
+        Map<String, String> data = new HashMap<>();
+        data.put("mode", "pembacaan_" + selectedLokasi.toLowerCase());
+        data.put("pengukuran_id", String.valueOf(pengukuranId));
+
+        // FEET: Bisa angka atau teks (tidak perlu validasi khusus)
+        String feetValue = inputFeet.getText().toString().trim();
+        if (!feetValue.isEmpty()) {
+            data.put("feet", feetValue);
+        }
+
+        // INCH: Tetap angka (validasi opsional)
+        String inchValue = inputInch.getText().toString().trim();
+        if (!inchValue.isEmpty()) {
+            if (isNumeric(inchValue)) {
+                data.put("inch", inchValue);
+            } else {
+                showToast("❌ Nilai inch harus angka");
+                return;
+            }
+        }
+
+        Log.d("RIGHTPIEZO_API", "Menyimpan & menghitung data " + selectedLokasi + ": " + data.toString());
+        sendToServerWithCalculation(data, "Pembacaan");
+    }
+
+    private void simpanPembacaanOffline() {
+        Map<String, String> data = new HashMap<>();
+        data.put("mode", "pembacaan_" + selectedLokasi.toLowerCase());
+        data.put("pengukuran_id", String.valueOf(pengukuranId));
+
+        String feetValue = inputFeet.getText().toString().trim();
+        if (!feetValue.isEmpty()) {
+            data.put("feet", feetValue);
+        }
+
+        String inchValue = inputInch.getText().toString().trim();
+        if (!inchValue.isEmpty() && isNumeric(inchValue)) {
+            data.put("inch", inchValue);
+        }
+
+        String localTempId = "local_" + System.currentTimeMillis() + "_" + selectedLokasi.toLowerCase();
+        data.put("temp_id", localTempId);
+
+        boolean success = saveOffline("data", localTempId, data);
+        if (success) {
+            showToast("📱 Data " + selectedLokasi + " disimpan offline\n⚠️ Perhitungan akan dilakukan saat online");
+            clearPembacaanSection();
+            tandaiPerluHitungPiezo(localTempId, pengukuranId, selectedLokasi);
+        } else {
+            showToast("❌ Gagal menyimpan data offline");
+        }
+    }
+
+    private void handleSimpanTMA() {
+        if (pengukuranId == -1) {
+            showToast("❌ Harap buat/pilih pengukuran terlebih dahulu");
+            return;
+        }
+
+        if (!validateTMAFields()) {
+            showToast("❌ Harap isi field TMA");
+            return;
+        }
+
+        if (isInternetAvailable()) {
+            updateTMAPengukuran();
+        } else {
+            simpanTMAOffline();
+        }
+    }
+
+    private void simpanTMAOffline() {
+        Map<String, String> data = new HashMap<>();
+        data.put("mode", "update_tma");
+        data.put("pengukuran_id", String.valueOf(pengukuranId));
+        data.put("tma", inputTMA.getText().toString().trim());
+        data.put("ch_hujan", inputChHujan.getText().toString().trim());
+
+        String localTempId = "local_" + System.currentTimeMillis() + "_tma";
+        data.put("temp_id", localTempId);
+
+        boolean success = saveOffline("data", localTempId, data);
+        if (success) {
+            showToast("📱 Data TMA disimpan offline");
+            clearTMASection();
+        } else {
+            showToast("❌ Gagal menyimpan data TMA offline");
+        }
+    }
+
+    private boolean saveOffline(String tableType, String tempId, Map<String, String> data) {
+        try {
+            JSONObject json = new JSONObject(data);
+
+            if (tableType.equals("data") && data.containsKey("mode")) {
+                String mode = data.get("mode");
+                boolean success = offlineDb.insertDataRightPiezoWithMode(tableType, tempId, json.toString(),
+                        pengukuranId, mode);
+                return success;
+            } else {
+                boolean success = offlineDb.insertDataRightPiezo(tableType, tempId, json.toString());
+                return success;
+            }
+
+        } catch (Exception e) {
+            Log.e("RIGHTPIEZO_Offline", "Gagal simpan offline: " + e.getMessage());
+            showToast("❌ Gagal simpan offline: " + e.getMessage());
+            return false;
+        }
+    }
+
+    private void handleModalPengukuran() {
+        if (modalInputTahun == null || modalInputBulan == null || modalInputPeriode == null || modalInputTanggal == null) {
+            showToast("Form modal belum siap");
+            return;
+        }
+
+        String tahun = modalInputTahun.getText().toString().trim();
+        String bulan = modalInputBulan.getText().toString().trim();
+        String periode = modalInputPeriode.getText().toString().trim();
+        String tanggal = modalInputTanggal.getText().toString().trim();
+
+        if (tahun.isEmpty() || bulan.isEmpty() || periode.isEmpty() || tanggal.isEmpty()) {
+            showToast("Harap isi semua field yang wajib");
+            return;
+        }
+
+        String bulanAngka = convertBulanToNumber(bulan);
+        Map<String, String> data = new HashMap<>();
+        data.put("mode", "pengukuran");
+        data.put("tahun", tahun);
+        data.put("bulan", bulanAngka);
+        data.put("periode", periode);
+        data.put("tanggal", tanggal);
+
+        Log.d("RIGHTPIEZO_API", "Mengirim data pengukuran: " + data.toString());
+
+        if (isInternetAvailable()) {
+            sendPengukuranToServer(data);
+        } else {
+            String localTempId = "local_" + System.currentTimeMillis();
+            data.put("temp_id", localTempId);
+            boolean success = saveOffline("pengukuran", localTempId, data);
+            if (success) {
+                showToast("📱 Data pengukuran disimpan offline");
+                hideModal();
+            } else {
+                showToast("❌ Gagal menyimpan data pengukuran offline");
+            }
+        }
+    }
+
+    // ==================== METHOD UTILITAS SINKRONISASI ====================
+
+    private boolean isAlreadySynced() {
+        SharedPreferences prefs = getSharedPreferences("rightpiezo_app_prefs", MODE_PRIVATE);
+        String lastSyncDate = prefs.getString("last_sync_date", "");
+        String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+        return today.equals(lastSyncDate);
+    }
+
+    private void markAsSynced() {
+        SharedPreferences prefs = getSharedPreferences("rightpiezo_app_prefs", MODE_PRIVATE);
+        String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+        prefs.edit().putString("last_sync_date", today).apply();
+    }
+
+    private void syncDataSerial(String tableType, Runnable next) {
+        List<Map<String, String>> dataList = offlineDb.getUnsyncedDataRightPiezo(tableType);
+        if (dataList.isEmpty()) {
+            if (next != null) next.run();
+            return;
+        }
+        syncDataItem(tableType, dataList, 0, next);
+    }
+
+    private void syncDataItem(String tableType, List<Map<String, String>> dataList, int index, Runnable onFinish) {
+        if (index >= dataList.size()) {
+            if (onFinish != null) onFinish.run();
+            return;
+        }
+
+        Map<String, String> item = dataList.get(index);
+        String tempId = item.get("temp_id");
+        String jsonStr = item.get("json");
+
+        try {
+            JSONObject jsonData = new JSONObject(jsonStr);
+
+            new Thread(() -> {
+                HttpURLConnection conn = null;
+                try {
+                    URL url = new URL(INSERT_DATA_URL);
+                    conn = (HttpURLConnection) url.openConnection();
+                    conn.setRequestMethod("POST");
+                    conn.setDoOutput(true);
+                    conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+                    conn.setRequestProperty("Accept", "application/json");
+                    conn.setConnectTimeout(9000);
+                    conn.setReadTimeout(9000);
+
+                    OutputStream os = conn.getOutputStream();
+                    os.write(jsonData.toString().getBytes("UTF-8"));
+                    os.flush();
+                    os.close();
+
+                    int responseCode = conn.getResponseCode();
+                    if (responseCode == 200) {
+                        offlineDb.deleteByTempIdRightPiezo(tableType, tempId);
+                        Log.d("RIGHTPIEZO_Sync", "Data " + tableType + " tempId=" + tempId + " berhasil disinkronisasi");
+                    }
+                } catch (Exception e) {
+                    Log.e("RIGHTPIEZO_Sync", "Error sync " + tableType + " tempId=" + tempId, e);
+                } finally {
+                    if (conn != null) conn.disconnect();
+                }
+
+                runOnUiThread(() -> syncDataItem(tableType, dataList, index + 1, onFinish));
+            }).start();
+
+        } catch (Exception e) {
+            Log.e("RIGHTPIEZO_Sync", "JSON parse error untuk data " + tableType + " tempId=" + tempId, e);
+            runOnUiThread(() -> syncDataItem(tableType, dataList, index + 1, onFinish));
+        }
+    }
+
+    // ==================== METHOD-METHOD YANG SUDAH ADA (DIMODIFIKASI SEDIKIT) ====================
 
     // INIT COMPONENTS
     private void initModalComponents() {
@@ -107,6 +919,7 @@ public class InputDataRightPiezo extends AppCompatActivity {
         // Set click listeners untuk modal
         if (modalBtnSubmitPengukuran != null) modalBtnSubmitPengukuran.setOnClickListener(v -> handleModalPengukuran());
         if (btnCloseModal != null) btnCloseModal.setOnClickListener(v -> hideModal());
+        if (modalOverlay != null) modalOverlay.setOnClickListener(v -> hideModal());
     }
 
     private void initFormComponents() {
@@ -144,21 +957,18 @@ public class InputDataRightPiezo extends AppCompatActivity {
             if (selected != null && pengukuranMap.containsKey(selected.toString())) {
                 pengukuranId = pengukuranMap.get(selected.toString());
                 showToast("✅ Pengukuran dipilih: " + selected);
-                loadExistingData(); // Hanya load ketika tombol ditekan
+                loadExistingData();
             } else {
                 showToast("❌ Pilih tanggal pengukuran terlebih dahulu");
             }
         });
 
-        // Auto-load saat spinner berubah - DIKOMENTARI
         spinnerPengukuran.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                // JANGAN panggil loadExistingData() di sini
                 String selected = position >= 0 && position < tanggalList.size() ? tanggalList.get(position) : null;
                 if (selected != null && pengukuranMap.containsKey(selected)) {
                     pengukuranId = pengukuranMap.get(selected);
-                    // loadExistingData(); // ⚠️ COMMENT BARIS INI
                 }
             }
 
@@ -171,7 +981,6 @@ public class InputDataRightPiezo extends AppCompatActivity {
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 selectedLokasi = LOKASI_PIEZOMETER[position];
                 updateTitle();
-                // loadExistingData(); // ⚠️ COMMENT BARIS INI
             }
 
             @Override
@@ -202,6 +1011,14 @@ public class InputDataRightPiezo extends AppCompatActivity {
     private void loadExistingData() {
         if (pengukuranId == -1) return;
 
+        if (isInternetAvailable()) {
+            loadDataFromServer();
+        } else {
+            loadDataFromOffline();
+        }
+    }
+
+    private void loadDataFromServer() {
         new Thread(() -> {
             try {
                 String url = GET_DATA_URL + "?pengukuran_id=" + pengukuranId + "&lokasi=" + selectedLokasi;
@@ -228,6 +1045,21 @@ public class InputDataRightPiezo extends AppCompatActivity {
         }).start();
     }
 
+    private void loadDataFromOffline() {
+        Map<String, String> data = offlineDb.getRightPiezoData(pengukuranId, selectedLokasi);
+        if (data != null) {
+            try {
+                JSONObject jsonData = new JSONObject();
+                for (Map.Entry<String, String> entry : data.entrySet()) {
+                    jsonData.put(entry.getKey(), entry.getValue());
+                }
+                populateForm(jsonData);
+            } catch (Exception e) {
+                Log.e("LOAD_OFFLINE", "Error parsing offline data: " + e.getMessage());
+            }
+        }
+    }
+
     private void populateForm(JSONObject data) {
         try {
             if (data.has("feet")) inputFeet.setText(data.getString("feet"));
@@ -235,35 +1067,6 @@ public class InputDataRightPiezo extends AppCompatActivity {
         } catch (Exception e) {
             Log.e("POPULATE_FORM", "Error populating form: " + e.getMessage());
         }
-    }
-
-    // HANDLE SIMPAN DATA
-    private void handleSimpanTMA() {
-        if (pengukuranId == -1) {
-            showToast("❌ Harap buat/pilih pengukuran terlebih dahulu");
-            return;
-        }
-
-        if (!validateTMAFields()) {
-            showToast("❌ Harap isi field TMA");
-            return;
-        }
-
-        updateTMAPengukuran();
-    }
-
-    private void handleSimpanPembacaan() {
-        if (pengukuranId == -1) {
-            showToast("❌ Harap buat/pilih pengukuran terlebih dahulu");
-            return;
-        }
-
-        if (!validatePembacaanFields()) {
-            showToast("❌ Harap isi minimal satu field pembacaan");
-            return;
-        }
-
-        simpanDataPembacaan();
     }
 
     private void updateTMAPengukuran() {
@@ -277,83 +1080,7 @@ public class InputDataRightPiezo extends AppCompatActivity {
         sendToServer(data, "TMA");
     }
 
-    private void simpanDataPembacaan() {
-        // CEK DATA EXISTING SEBELUM SIMPAN
-        new Thread(() -> {
-            try {
-                String url = GET_DATA_URL + "?pengukuran_id=" + pengukuranId + "&lokasi=" + selectedLokasi;
-                HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
-                conn.setRequestMethod("GET");
-                conn.setRequestProperty("Accept", "application/json");
-                conn.setConnectTimeout(8000);
-                conn.setReadTimeout(8000);
-
-                int responseCode = conn.getResponseCode();
-                if (responseCode == 200) {
-                    BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                    StringBuilder sb = new StringBuilder();
-                    String line;
-                    while ((line = reader.readLine()) != null) sb.append(line);
-                    reader.close();
-
-                    JSONObject response = new JSONObject(sb.toString());
-                    if (response.getString("status").equals("success")) {
-                        JSONObject data = response.optJSONObject("data");
-
-                        // Jika data sudah ada, tampilkan pesan error dan batalkan
-                        if (data != null && (data.has("feet") || data.has("inch"))) {
-                            runOnUiThread(() -> {
-                                showToast("❌ Data pembacaan " + selectedLokasi + " sudah ada! Tidak dapat menambah data baru.");
-                                clearPembacaanSection();
-                            });
-                            return;
-                        }
-                    }
-                }
-
-                // Jika data belum ada, lanjutkan dengan penyimpanan
-                runOnUiThread(() -> {
-                    simpanDataPembacaanToServer();
-                });
-
-            } catch (Exception e) {
-                Log.e("CEK_DATA", "Error cek data: " + e.getMessage());
-                // Jika error saat cek, tetap lanjutkan penyimpanan
-                runOnUiThread(() -> {
-                    simpanDataPembacaanToServer();
-                });
-            }
-        }).start();
-    }
-
-    private void simpanDataPembacaanToServer() {
-        Map<String, String> data = new HashMap<>();
-        data.put("mode", "pembacaan_" + selectedLokasi.toLowerCase());
-        data.put("pengukuran_id", String.valueOf(pengukuranId));
-
-        // FEET: Bisa angka atau teks (tidak perlu validasi khusus)
-        String feetValue = inputFeet.getText().toString().trim();
-        if (!feetValue.isEmpty()) {
-            data.put("feet", feetValue);
-        }
-
-        // INCH: Tetap angka (validasi opsional)
-        String inchValue = inputInch.getText().toString().trim();
-        if (!inchValue.isEmpty()) {
-            // Validasi inch harus angka (opsional)
-            if (isNumeric(inchValue)) {
-                data.put("inch", inchValue);
-            } else {
-                showToast("❌ Nilai inch harus angka");
-                return;
-            }
-        }
-
-        Log.d("RIGHTPIEZO_API", "Menyimpan data " + selectedLokasi + ": " + data.toString());
-        sendToServerWithCalculation(data, "Pembacaan"); // GUNAKAN METHOD BARU
-    }
-
-    // METHOD BARU: Kirim data ke server dan trigger perhitungan setelah sukses
+    // METHOD: Kirim data dengan perhitungan (untuk Pembacaan)
     private void sendToServerWithCalculation(Map<String, String> dataMap, String dataType) {
         new Thread(() -> {
             HttpURLConnection conn = null;
@@ -420,6 +1147,12 @@ public class InputDataRightPiezo extends AppCompatActivity {
                         case "error":
                         default:
                             showToast("❌ " + message);
+                            // JIKA GAGAL, SIMPAN OFFLINE
+                            if (!dataMap.containsKey("temp_id")) {
+                                String localTempId = "local_" + System.currentTimeMillis();
+                                dataMap.put("temp_id", localTempId);
+                                saveOffline("data", localTempId, dataMap);
+                            }
                             break;
                     }
                 });
@@ -427,7 +1160,12 @@ public class InputDataRightPiezo extends AppCompatActivity {
             } catch (Exception e) {
                 Log.e("SEND_TO_SERVER", "Error (" + dataType + "): " + e.getMessage(), e);
                 runOnUiThread(() -> {
-                    showToast("❌ Gagal kirim " + dataType + ": " + e.getMessage());
+                    showToast("❌ Gagal kirim " + dataType + ": " + e.getMessage() + ". Data disimpan offline.");
+                    if (!dataMap.containsKey("temp_id")) {
+                        String localTempId = "local_" + System.currentTimeMillis();
+                        dataMap.put("temp_id", localTempId);
+                        saveOffline("data", localTempId, dataMap);
+                    }
                 });
             } finally {
                 if (conn != null) conn.disconnect();
@@ -435,18 +1173,7 @@ public class InputDataRightPiezo extends AppCompatActivity {
         }).start();
     }
 
-    // METHOD BARU: Validasi angka untuk inch
-    private boolean isNumeric(String str) {
-        if (str == null || str.isEmpty()) return false;
-        try {
-            Double.parseDouble(str);
-            return true;
-        } catch (NumberFormatException e) {
-            return false;
-        }
-    }
-
-    // METHOD: Kirim data ke server
+    // METHOD: Kirim data tanpa perhitungan (untuk TMA)
     private void sendToServer(Map<String, String> dataMap, String dataType) {
         new Thread(() -> {
             HttpURLConnection conn = null;
@@ -496,22 +1223,19 @@ public class InputDataRightPiezo extends AppCompatActivity {
                             showToast("✅ " + message);
                             if (dataType.equals("TMA")) {
                                 clearTMASection();
-                            } else if (dataType.equals("Pembacaan")) {
-                                clearPembacaanSection();
-                                // Trigger perhitungan setelah simpan berhasil
-                                triggerPerhitungan();
                             }
                             break;
                         case "info":
                             showToast("ℹ️ " + message);
-                            if (dataType.equals("Pembacaan")) {
-                                clearPembacaanSection();
-                                triggerPerhitungan();
-                            }
                             break;
                         case "error":
                         default:
                             showToast("❌ " + message);
+                            if (!dataMap.containsKey("temp_id")) {
+                                String localTempId = "local_" + System.currentTimeMillis();
+                                dataMap.put("temp_id", localTempId);
+                                saveOffline("data", localTempId, dataMap);
+                            }
                             break;
                     }
                 });
@@ -519,7 +1243,12 @@ public class InputDataRightPiezo extends AppCompatActivity {
             } catch (Exception e) {
                 Log.e("SEND_TO_SERVER", "Error (" + dataType + "): " + e.getMessage(), e);
                 runOnUiThread(() -> {
-                    showToast("❌ Gagal kirim " + dataType + ": " + e.getMessage());
+                    showToast("❌ Gagal kirim " + dataType + ": " + e.getMessage() + ". Data disimpan offline.");
+                    if (!dataMap.containsKey("temp_id")) {
+                        String localTempId = "local_" + System.currentTimeMillis();
+                        dataMap.put("temp_id", localTempId);
+                        saveOffline("data", localTempId, dataMap);
+                    }
                 });
             } finally {
                 if (conn != null) conn.disconnect();
@@ -527,7 +1256,7 @@ public class InputDataRightPiezo extends AppCompatActivity {
         }).start();
     }
 
-    // METHOD: Trigger perhitungan setelah simpan pembacaan berhasil - DIUPDATE LENGKAP
+    // METHOD: Trigger perhitungan setelah simpan pembacaan berhasil
     private void triggerPerhitungan() {
         if (pengukuranId == -1) {
             showToast("⚠️ Pengukuran ID tidak valid untuk perhitungan");
@@ -539,11 +1268,7 @@ public class InputDataRightPiezo extends AppCompatActivity {
         new Thread(() -> {
             HttpURLConnection conn = null;
             try {
-                // Pilih salah satu endpoint perhitungan:
-                // 1. Hitung semua lokasi sekaligus
-                // String url = HITUNG_URL + "/all?pengukuran_id=" + pengukuranId;
-
-                // 2. Hitung lokasi spesifik (RECOMMENDED)
+                // Hitung lokasi spesifik
                 String url = HITUNG_URL + "/lokasi?pengukuran_id=" + pengukuranId + "&lokasi=" + selectedLokasi;
 
                 Log.d("RIGHTPIEZO_HITUNG", "URL Perhitungan: " + url);
@@ -613,9 +1338,19 @@ public class InputDataRightPiezo extends AppCompatActivity {
     }
 
     private boolean validatePembacaanFields() {
-        // FEET bisa teks atau angka, INCH harus angka (tapi opsional)
         return !inputFeet.getText().toString().trim().isEmpty() ||
                 !inputInch.getText().toString().trim().isEmpty();
+    }
+
+    // METHOD BARU: Validasi angka untuk inch
+    private boolean isNumeric(String str) {
+        if (str == null || str.isEmpty()) return false;
+        try {
+            Double.parseDouble(str);
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 
     // MODAL METHODS
@@ -752,9 +1487,11 @@ public class InputDataRightPiezo extends AppCompatActivity {
         loadPengukuranData();
     }
 
+    // LOAD PENGUKURAN DATA
     private void loadPengukuranData() {
         if (!isInternetAvailable()) {
-            showToast("📱 Tidak ada internet");
+            showToast("📱 Tidak ada internet, load data dari lokal");
+            loadTanggalOffline();
             return;
         }
 
@@ -792,20 +1529,10 @@ public class InputDataRightPiezo extends AppCompatActivity {
                             JSONObject item = dataArray.getJSONObject(i);
                             String tanggal = item.optString("tanggal", "");
                             int id = item.optInt("id_pengukuran", -1);
-                            String tempId = item.optString("temp_id", "");
 
-                            if (id != -1) {
-                                // PERBAIKAN: Selalu gunakan tanggal untuk display, temp_id hanya untuk backup
-                                String displayText = !tanggal.isEmpty() ? tanggal : tempId;
-
-                                // Jika tanggal kosong, format temp_id agar lebih rapi
-                                if (tanggal.isEmpty() && !tempId.isEmpty()) {
-                                    // Coba format temp_id: "RPZ_20251124_141533_2335" -> "2025-11-24"
-                                    displayText = formatTempIdToDate(tempId);
-                                }
-
-                                tanggalList.add(displayText);
-                                pengukuranMap.put(displayText, id);
+                            if (!tanggal.isEmpty() && id != -1) {
+                                tanggalList.add(tanggal);
+                                pengukuranMap.put(tanggal, id);
                             }
                         }
                         runOnUiThread(() -> {
@@ -819,12 +1546,14 @@ public class InputDataRightPiezo extends AppCompatActivity {
                     } else {
                         runOnUiThread(() -> {
                             showToast("ℹ️ Tidak ada data pengukuran tersedia");
+                            loadTanggalOffline();
                         });
                     }
                 } else {
                     String message = response.optString("message", "Gagal load data");
                     runOnUiThread(() -> {
                         showToast("❌ Error: " + message);
+                        loadTanggalOffline();
                     });
                 }
 
@@ -832,6 +1561,7 @@ public class InputDataRightPiezo extends AppCompatActivity {
                 Log.e("LOAD_PENGUKURAN", "Error: ", e);
                 runOnUiThread(() -> {
                     showToast("❌ Gagal load data pengukuran: " + e.getMessage());
+                    loadTanggalOffline();
                 });
             } finally {
                 if (conn != null) conn.disconnect();
@@ -839,75 +1569,40 @@ public class InputDataRightPiezo extends AppCompatActivity {
         }).start();
     }
 
-    // METHOD BARU: Format temp_id menjadi tanggal yang lebih readable
-    private String formatTempIdToDate(String tempId) {
+    private void loadTanggalOffline() {
         try {
-            // Format: "RPZ_20251124_141533_2335"
-            if (tempId.startsWith("RPZ_")) {
-                String[] parts = tempId.split("_");
-                if (parts.length >= 2) {
-                    String datePart = parts[1]; // "20251124"
-                    if (datePart.length() == 8) {
-                        // Format: YYYYMMDD -> YYYY-MM-DD
-                        String year = datePart.substring(0, 4);
-                        String month = datePart.substring(4, 6);
-                        String day = datePart.substring(6, 8);
-                        return year + "-" + month + "-" + day;
+            List<Map<String,String>> rows = offlineDb.getPengukuranMasterRightPiezo();
+            List<String> list = new ArrayList<>();
+            pengukuranMap.clear();
+
+            if (rows != null && !rows.isEmpty()) {
+                for (Map<String,String> r : rows) {
+                    String tanggal = r.get("tanggal");
+                    String idStr = r.get("id_pengukuran");
+                    if (tanggal != null) {
+                        list.add(tanggal);
+                        try {
+                            if (idStr != null && !idStr.startsWith("local_")) {
+                                pengukuranMap.put(tanggal, Integer.parseInt(idStr));
+                            }
+                        } catch (Exception ignored) {}
                     }
                 }
+            } else {
+                list.add("Belum ada pengukuran (offline)");
             }
-            return tempId; // Kembalikan as-is jika tidak bisa diformat
+
+            runOnUiThread(() -> {
+                tanggalList.clear();
+                tanggalList.addAll(list);
+                pengukuranAdapter.notifyDataSetChanged();
+                if (!list.isEmpty()) {
+                    spinnerPengukuran.setSelection(0);
+                }
+            });
         } catch (Exception e) {
-            return tempId;
+            Log.e("RIGHTPIEZO_Offline", "Error load offline master: " + e.getMessage());
         }
-    }
-
-    // HANDLE MODAL PENGUKURAN
-    private void handleModalPengukuran() {
-        if (modalInputTahun == null || modalInputBulan == null || modalInputPeriode == null || modalInputTanggal == null) {
-            showToast("Form modal belum siap");
-            return;
-        }
-
-        String tahun = modalInputTahun.getText().toString().trim();
-        String bulan = modalInputBulan.getText().toString().trim();
-        String periode = modalInputPeriode.getText().toString().trim();
-        String tanggal = modalInputTanggal.getText().toString().trim();
-
-        if (tahun.isEmpty() || bulan.isEmpty() || periode.isEmpty() || tanggal.isEmpty()) {
-            showToast("Harap isi semua field yang wajib");
-            return;
-        }
-
-        String bulanAngka = convertBulanToNumber(bulan);
-        Map<String, String> data = new HashMap<>();
-        data.put("mode", "pengukuran");
-        data.put("tahun", tahun);
-        data.put("bulan", bulanAngka);
-        data.put("periode", periode);
-        data.put("tanggal", tanggal);
-
-        Log.d("RIGHTPIEZO_API", "Mengirim data pengukuran: " + data.toString());
-        sendPengukuranToServer(data);
-    }
-
-    private String convertBulanToNumber(String bulanName) {
-        Map<String, String> bulanMap = new HashMap<>();
-        bulanMap.put("JANUARI", "01"); bulanMap.put("JAN", "01");
-        bulanMap.put("FEBRUARI", "02"); bulanMap.put("FEB", "02");
-        bulanMap.put("MARET", "03"); bulanMap.put("MAR", "03");
-        bulanMap.put("APRIL", "04"); bulanMap.put("APR", "04");
-        bulanMap.put("MEI", "05");
-        bulanMap.put("JUNI", "06"); bulanMap.put("JUN", "06");
-        bulanMap.put("JULI", "07"); bulanMap.put("JUL", "07");
-        bulanMap.put("AGUSTUS", "08"); bulanMap.put("AGS", "08"); bulanMap.put("AGT", "08");
-        bulanMap.put("SEPTEMBER", "09"); bulanMap.put("SEP", "09");
-        bulanMap.put("OKTOBER", "10"); bulanMap.put("OKT", "10");
-        bulanMap.put("NOVEMBER", "11"); bulanMap.put("NOV", "11");
-        bulanMap.put("DESEMBER", "12"); bulanMap.put("DES", "12");
-
-        String upperBulan = bulanName.toUpperCase();
-        return bulanMap.getOrDefault(upperBulan, "01");
     }
 
     private void sendPengukuranToServer(Map<String, String> dataMap) {
@@ -978,6 +1673,11 @@ public class InputDataRightPiezo extends AppCompatActivity {
                         case "error":
                         default:
                             showToast("❌ " + message);
+                            if (!dataMap.containsKey("temp_id")) {
+                                String localTempId = "local_" + System.currentTimeMillis();
+                                dataMap.put("temp_id", localTempId);
+                                saveOffline("pengukuran", localTempId, dataMap);
+                            }
                             break;
                     }
                 });
@@ -985,12 +1685,36 @@ public class InputDataRightPiezo extends AppCompatActivity {
             } catch (Exception e) {
                 Log.e("SEND_PENGUKURAN", "Error: " + e.getMessage(), e);
                 runOnUiThread(() -> {
-                    showToast("❌ Gagal kirim: " + e.getMessage());
+                    showToast("❌ Gagal kirim: " + e.getMessage() + ". Data disimpan offline.");
+                    if (!dataMap.containsKey("temp_id")) {
+                        String localTempId = "local_" + System.currentTimeMillis();
+                        dataMap.put("temp_id", localTempId);
+                        saveOffline("pengukuran", localTempId, dataMap);
+                    }
                 });
             } finally {
                 if (conn != null) conn.disconnect();
             }
         }).start();
+    }
+
+    private String convertBulanToNumber(String bulanName) {
+        Map<String, String> bulanMap = new HashMap<>();
+        bulanMap.put("JANUARI", "01"); bulanMap.put("JAN", "01");
+        bulanMap.put("FEBRUARI", "02"); bulanMap.put("FEB", "02");
+        bulanMap.put("MARET", "03"); bulanMap.put("MAR", "03");
+        bulanMap.put("APRIL", "04"); bulanMap.put("APR", "04");
+        bulanMap.put("MEI", "05");
+        bulanMap.put("JUNI", "06"); bulanMap.put("JUN", "06");
+        bulanMap.put("JULI", "07"); bulanMap.put("JUL", "07");
+        bulanMap.put("AGUSTUS", "08"); bulanMap.put("AGS", "08"); bulanMap.put("AGT", "08");
+        bulanMap.put("SEPTEMBER", "09"); bulanMap.put("SEP", "09");
+        bulanMap.put("OKTOBER", "10"); bulanMap.put("OKT", "10");
+        bulanMap.put("NOVEMBER", "11"); bulanMap.put("NOV", "11");
+        bulanMap.put("DESEMBER", "12"); bulanMap.put("DES", "12");
+
+        String upperBulan = bulanName.toUpperCase();
+        return bulanMap.getOrDefault(upperBulan, "01");
     }
 
     // UTILITY METHODS
