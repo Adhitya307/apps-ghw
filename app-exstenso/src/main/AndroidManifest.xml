@@ -20,6 +20,9 @@
             android:name=".ExstensoHomeActivity"
             android:exported="true" />
 
+        <activity
+            android:name="HistoryExstensoActivity"
+            android:label="History Exstenso" />
 
 
     </application>

@@ -2,9 +2,11 @@ package com.example.app.exstenso;
 
 import android.app.DatePickerDialog;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
+import android.os.Handler;
 import android.util.Log;
 import android.view.View;
 import android.widget.*;
@@ -28,19 +30,19 @@ import java.util.*;
 
 public class InputDataExstenso extends AppCompatActivity {
 
-    // Modal pengukuran
+    // Komponen modal pengukuran
     private CardView modalPengukuran;
     private View modalOverlay;
     private ImageButton btnCloseModal;
     private ScrollView mainContent;
 
-    // Input modal
+    // Input field dalam modal
     private EditText modalInputTahun;
     private AutoCompleteTextView modalInputBulan, modalInputPeriode;
     private EditText modalInputTanggal;
     private Button modalBtnSubmitPengukuran;
 
-    // Form utama Exstenso
+    // Komponen form utama Exstenso
     private TextInputEditText inputDMA, inputPembacaan10, inputPembacaan20, inputPembacaan30;
     private Button btnSimpanDMA, btnSimpanPembacaan;
     private Spinner spinnerPengukuran, spinnerExType;
@@ -53,27 +55,37 @@ public class InputDataExstenso extends AppCompatActivity {
 
     private static final String BASE_URL = "http://192.168.1.12/GHW/api-apps/public/exstenso/";
     private static final String INSERT_DATA_URL = BASE_URL + "inputdata";
-    private static final String GET_PENGUKURAN_URL = BASE_URL + "getpengukuran"; // Data bulan ini
-    private static final String GET_ALL_PENGUKURAN_URL = BASE_URL + "getpengukuran/getAll"; // Semua data
+    private static final String GET_PENGUKURAN_URL = BASE_URL + "getpengukuran";
     private static final String GET_DATA_URL = BASE_URL + "getdata";
-    private static final String GET_ALL_DATA_URL = BASE_URL + "getalldata"; // Jika ada endpoint ini
 
-    // Data pengukuran
     private final Map<String, Integer> pengukuranMap = new HashMap<>();
     private final List<String> tanggalList = new ArrayList<>();
     private ArrayAdapter<String> pengukuranAdapter;
     private ArrayAdapter<String> exTypeAdapter;
 
-    // Data pengukuran untuk DMA
     private String currentTahun = "";
     private String currentTanggal = "";
     private String currentPeriode = "";
+
+    private OfflineDataHelperExstenso offlineDb;
+    private SharedPreferences syncPrefs;
+    private boolean isSyncInProgress = false;
+    private Handler networkCheckHandler = new Handler();
+    private Runnable networkCheckRunnable;
+    private boolean lastOnlineStatus = false;
+
+    // Interface untuk callback
+    interface HitungCallback {
+        void onComplete(boolean success);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_input_data_exstenso);
 
+        offlineDb = new OfflineDataHelperExstenso(this);
+        syncPrefs = getSharedPreferences("exstenso_sync_prefs", MODE_PRIVATE);
         calendar = Calendar.getInstance();
 
         initModalComponents();
@@ -82,14 +94,618 @@ public class InputDataExstenso extends AppCompatActivity {
         setupModalDropdowns();
         setupModalCalendar();
 
-        // Load data pengukuran
         loadPengukuranData();
-
-        // Tampilkan modal di awal
         showModal();
+        startNetworkMonitoring();
     }
 
-    // INIT COMPONENTS
+    @Override
+    protected void onResume() {
+        super.onResume();
+        checkInternetAndShowToast();
+
+        if (isInternetAvailable()) {
+            if (offlineDb.hasUnsyncedDataExstenso()) {
+                syncAllOfflineData(() -> {
+                    if (!isAlreadySynced()) {
+                        showToast("✅ Sinkronisasi data offline selesai");
+                        markAsSynced();
+                    }
+                });
+            } else {
+                prosesPerhitunganTertunda();
+                loadPengukuranData();
+            }
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        stopNetworkMonitoring();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        stopNetworkMonitoring();
+        if (offlineDb != null) {
+            offlineDb.close();
+        }
+    }
+
+    // ==================== FITUR SINKRONISASI OTOMATIS ====================
+
+    private void startNetworkMonitoring() {
+        networkCheckRunnable = new Runnable() {
+            @Override
+            public void run() {
+                checkInternetAndShowToast();
+                networkCheckHandler.postDelayed(this, 5000);
+            }
+        };
+        networkCheckHandler.postDelayed(networkCheckRunnable, 5000);
+    }
+
+    private void stopNetworkMonitoring() {
+        if (networkCheckHandler != null && networkCheckRunnable != null) {
+            networkCheckHandler.removeCallbacks(networkCheckRunnable);
+        }
+    }
+
+    private void checkInternetAndShowToast() {
+        boolean isOnline = isInternetAvailable();
+        if (isOnline != lastOnlineStatus) {
+            if (isOnline) {
+                showToast("✅ Online - Koneksi tersedia");
+                startAutoSyncWhenOnline();
+            } else {
+                showToast("📱 Offline - Data disimpan lokal");
+            }
+            lastOnlineStatus = isOnline;
+        }
+    }
+
+    private void startAutoSyncWhenOnline() {
+        if (isSyncInProgress || !isInternetAvailable()) return;
+
+        int offlineCount = offlineDb.getOfflineDataCountExstenso();
+        boolean hasPendingCalc = hasPendingCalculations();
+
+        if (offlineCount > 0 || hasPendingCalc) {
+            Log.d("EXSTENSO_AutoSync", "Found " + offlineCount + " offline data and " +
+                    (hasPendingCalc ? "pending calculations" : "no pending calculations"));
+            triggerAutoSync();
+        }
+    }
+
+    private boolean hasPendingCalculations() {
+        SharedPreferences prefs = getSharedPreferences("exstenso_pending_calc", MODE_PRIVATE);
+        Map<String, ?> allEntries = prefs.getAll();
+        return !allEntries.isEmpty();
+    }
+
+    private void triggerAutoSync() {
+        if (isSyncInProgress) return;
+
+        Log.d("EXSTENSO_AutoSync", "Triggering auto-sync for offline data");
+        isSyncInProgress = true;
+        showToast("🔄 Auto-sync data offline...");
+
+        syncAllOfflineDataAuto(() -> {
+            isSyncInProgress = false;
+            Log.d("EXSTENSO_AutoSync", "Auto-sync completed");
+            runOnUiThread(this::loadPengukuranData);
+        });
+    }
+
+    private void syncAllOfflineDataAuto(Runnable onComplete) {
+        int offlineCount = offlineDb.getOfflineDataCountExstenso();
+        if (offlineCount == 0) {
+            prosesPerhitunganTertunda();
+            if (onComplete != null) onComplete.run();
+            return;
+        }
+
+        syncDataSerialAuto("pengukuran", () ->
+                syncDataSerialAuto("data", () -> {
+                    showToast("✅ " + offlineCount + " data terkirim");
+                    prosesPerhitunganTertunda();
+                    if (onComplete != null) onComplete.run();
+                })
+        );
+    }
+
+    private void syncDataSerialAuto(String tableType, Runnable next) {
+        List<Map<String,String>> list = offlineDb.getUnsyncedDataExstenso(tableType);
+        if (list == null || list.isEmpty()) {
+            if (next != null) next.run();
+            return;
+        }
+        syncDataItemAuto(tableType, list, 0, next);
+    }
+
+    private void syncDataItemAuto(String tableType, List<Map<String,String>> dataList, int index, Runnable onFinish) {
+        if (index >= dataList.size()) {
+            if (onFinish != null) onFinish.run();
+            return;
+        }
+
+        Map<String,String> item = dataList.get(index);
+        String tempId = item.get("temp_id");
+        String jsonStr = item.get("json");
+
+        if (jsonStr == null || jsonStr.isEmpty()) {
+            offlineDb.deleteByTempIdExstenso(tableType, tempId);
+            syncDataItemAuto(tableType, dataList, index + 1, onFinish);
+            return;
+        }
+
+        new Thread(() -> {
+            try {
+                JSONObject json = new JSONObject(jsonStr);
+
+                HttpURLConnection conn = null;
+                try {
+                    URL url = new URL(INSERT_DATA_URL);
+                    conn = (HttpURLConnection) url.openConnection();
+                    conn.setRequestMethod("POST");
+                    conn.setDoOutput(true);
+                    conn.setConnectTimeout(8000);
+                    conn.setReadTimeout(8000);
+                    conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+                    conn.setRequestProperty("Accept", "application/json");
+
+                    OutputStream os = conn.getOutputStream();
+                    os.write(json.toString().getBytes("UTF-8"));
+                    os.flush();
+                    os.close();
+
+                    int code = conn.getResponseCode();
+                    if (code == 200) {
+                        offlineDb.deleteByTempIdExstenso(tableType, tempId);
+                        Log.d("EXSTENSO_AutoSync", "Synced " + tableType + " tempId=" + tempId);
+
+                        if (tableType.equals("data") && json.has("mode")) {
+                            String mode = json.optString("mode", "");
+                            if (mode.startsWith("pembacaan_ex")) {
+                                int pengukuranId = json.optInt("pengukuran_id", -1);
+                                if (pengukuranId != -1) {
+                                    tandaiPerluHitungDeformasi(tempId, pengukuranId, mode);
+                                }
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    Log.e("EXSTENSO_AutoSync", "Failed to sync tempId=" + tempId + ": " + e.getMessage());
+                } finally {
+                    if (conn != null) conn.disconnect();
+                }
+            } catch (Exception e) {
+                Log.e("EXSTENSO_AutoSync", "JSON parse failed for tempId=" + tempId + ": " + e.getMessage());
+                offlineDb.deleteByTempIdExstenso(tableType, tempId);
+            }
+
+            runOnUiThread(() -> syncDataItemAuto(tableType, dataList, index + 1, onFinish));
+        }).start();
+    }
+
+    private boolean isAlreadySynced() {
+        SharedPreferences prefs = getSharedPreferences("exstenso_app_prefs", MODE_PRIVATE);
+        String lastSyncDate = prefs.getString("last_sync_date", "");
+        String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+        return today.equals(lastSyncDate);
+    }
+
+    private void markAsSynced() {
+        SharedPreferences prefs = getSharedPreferences("exstenso_app_prefs", MODE_PRIVATE);
+        String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+        prefs.edit().putString("last_sync_date", today).apply();
+    }
+
+    // ==================== STRATEGI SINKRONISASI GROUP BY PENGUKURAN ====================
+
+    private void syncAllOfflineData(Runnable onComplete) {
+        boolean adaData = offlineDb.hasUnsyncedDataExstenso();
+        if (!adaData) {
+            prosesPerhitunganTertunda();
+            if (onComplete != null) onComplete.run();
+            return;
+        }
+
+        syncDataSerial("pengukuran", () -> {
+            syncDataGroupedByPengukuran(onComplete);
+        });
+    }
+
+    private void syncDataGroupedByPengukuran(Runnable onComplete) {
+        new Thread(() -> {
+            try {
+                Map<Integer, List<Map<String, String>>> groupedData = offlineDb.getUnsyncedDataGroupedByPengukuran();
+
+                if (groupedData.isEmpty()) {
+                    runOnUiThread(() -> {
+                        if (onComplete != null) onComplete.run();
+                    });
+                    return;
+                }
+
+                Log.d("EXSTENSO_Sync", "Syncing data for " + groupedData.size() + " pengukuran groups");
+
+                List<Integer> pengukuranIds = new ArrayList<>(groupedData.keySet());
+                syncPengukuranGroup(pengukuranIds, groupedData, 0, onComplete);
+
+            } catch (Exception e) {
+                Log.e("EXSTENSO_Sync", "Error in grouped sync: " + e.getMessage());
+                runOnUiThread(() -> {
+                    if (onComplete != null) onComplete.run();
+                });
+            }
+        }).start();
+    }
+
+    private void syncPengukuranGroup(List<Integer> pengukuranIds,
+                                     Map<Integer, List<Map<String, String>>> groupedData,
+                                     int index, Runnable onComplete) {
+        if (index >= pengukuranIds.size()) {
+            runOnUiThread(() -> {
+                if (onComplete != null) onComplete.run();
+            });
+            return;
+        }
+
+        int pengukuranId = pengukuranIds.get(index);
+        List<Map<String, String>> dataList = groupedData.get(pengukuranId);
+
+        Log.d("EXSTENSO_Sync", "Syncing group for pengukuran_id: " + pengukuranId + ", data count: " + dataList.size());
+
+        syncDataItemsInGroup(dataList, pengukuranId, 0, () -> {
+            syncPengukuranGroup(pengukuranIds, groupedData, index + 1, onComplete);
+        });
+    }
+
+    private void syncDataItemsInGroup(List<Map<String, String>> dataList, int pengukuranId,
+                                      int dataIndex, Runnable onGroupComplete) {
+        if (dataIndex >= dataList.size()) {
+            hitungDeformasiUntukPengukuran(pengukuranId, onGroupComplete);
+            return;
+        }
+
+        Map<String, String> item = dataList.get(dataIndex);
+        String tempId = item.get("temp_id");
+        String jsonStr = item.get("json");
+        String exType = item.get("ex_type");
+
+        new Thread(() -> {
+            try {
+                JSONObject json = new JSONObject(jsonStr);
+
+                HttpURLConnection conn = null;
+                try {
+                    URL url = new URL(INSERT_DATA_URL);
+                    conn = (HttpURLConnection) url.openConnection();
+                    conn.setRequestMethod("POST");
+                    conn.setDoOutput(true);
+                    conn.setConnectTimeout(10000);
+                    conn.setReadTimeout(10000);
+                    conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+                    conn.setRequestProperty("Accept", "application/json");
+
+                    OutputStream os = conn.getOutputStream();
+                    os.write(json.toString().getBytes("UTF-8"));
+                    os.flush();
+                    os.close();
+
+                    int code = conn.getResponseCode();
+                    if (code == 200) {
+                        offlineDb.deleteByTempIdExstenso("data", tempId);
+                        Log.d("EXSTENSO_Sync", "Synced data for pengukuran " + pengukuranId + ", exType: " + exType);
+
+                        if (exType.startsWith("pembacaan_ex")) {
+                            tandaiPerluHitungDeformasi(tempId, pengukuranId, exType);
+                        }
+                    }
+                } catch (Exception e) {
+                    Log.e("EXSTENSO_Sync", "Failed to sync tempId=" + tempId + ": " + e.getMessage());
+                } finally {
+                    if (conn != null) conn.disconnect();
+                }
+            } catch (Exception e) {
+                Log.e("EXSTENSO_Sync", "JSON parse failed for tempId=" + tempId + ": " + e.getMessage());
+            }
+
+            runOnUiThread(() -> syncDataItemsInGroup(dataList, pengukuranId, dataIndex + 1, onGroupComplete));
+        }).start();
+    }
+
+    private void hitungDeformasiUntukPengukuran(int pengukuranId, Runnable onComplete) {
+        new Thread(() -> {
+            try {
+                List<String> exTypes = offlineDb.getExTypesForPengukuran(pengukuranId);
+
+                Log.d("EXSTENSO_Sync", "Calculating deformasi for pengukuran " + pengukuranId + ", types: " + exTypes);
+
+                hitungDeformasiSequential(exTypes, pengukuranId, 0, onComplete);
+
+            } catch (Exception e) {
+                Log.e("EXSTENSO_Sync", "Error calculating deformasi for pengukuran " + pengukuranId + ": " + e.getMessage());
+                runOnUiThread(onComplete);
+            }
+        }).start();
+    }
+
+    private void hitungDeformasiSequential(List<String> exTypes, int pengukuranId, int typeIndex, Runnable onComplete) {
+        if (typeIndex >= exTypes.size()) {
+            runOnUiThread(onComplete);
+            return;
+        }
+
+        String exType = exTypes.get(typeIndex);
+        if (!exType.startsWith("pembacaan_ex")) {
+            hitungDeformasiSequential(exTypes, pengukuranId, typeIndex + 1, onComplete);
+            return;
+        }
+
+        hitungDeformasiSingle(exType, pengukuranId, (success) -> {
+            if (success) {
+                Log.d("EXSTENSO_Sync", "Successfully calculated deformasi for " + exType + ", pengukuran " + pengukuranId);
+            }
+            hitungDeformasiSequential(exTypes, pengukuranId, typeIndex + 1, onComplete);
+        });
+    }
+
+    // ==================== FITUR PERHITUNGAN DEFORMASI ====================
+
+    private void tandaiPerluHitungDeformasi(String tempId, int pengukuranId, String exType) {
+        SharedPreferences prefs = getSharedPreferences("exstenso_pending_calc", MODE_PRIVATE);
+        String key = "pending_" + tempId;
+
+        Map<String, String> pendingData = new HashMap<>();
+        pendingData.put("pengukuran_id", String.valueOf(pengukuranId));
+        pendingData.put("ex_type", exType);
+        pendingData.put("temp_id", tempId);
+
+        try {
+            JSONObject json = new JSONObject(pendingData);
+            prefs.edit().putString(key, json.toString()).apply();
+            Log.d("PENDING_CALC", "Data ditandai perlu hitung: " + json.toString());
+        } catch (Exception e) {
+            Log.e("PENDING_CALC", "Gagal menyimpan pending calculation: " + e.getMessage());
+        }
+    }
+
+    private void prosesPerhitunganTertunda() {
+        if (!isInternetAvailable()) return;
+
+        SharedPreferences prefs = getSharedPreferences("exstenso_pending_calc", MODE_PRIVATE);
+        Map<String, ?> allEntries = prefs.getAll();
+
+        if (allEntries.isEmpty()) return;
+
+        Log.d("PENDING_CALC", "Processing " + allEntries.size() + " pending calculations");
+        showToast("🔄 Memproses " + allEntries.size() + " perhitungan tertunda...");
+
+        Map<Integer, List<String>> pendingByPengukuran = new HashMap<>();
+
+        for (Map.Entry<String, ?> entry : allEntries.entrySet()) {
+            if (entry.getKey().startsWith("pending_")) {
+                try {
+                    String jsonStr = (String) entry.getValue();
+                    JSONObject json = new JSONObject(jsonStr);
+
+                    int pendingPengukuranId = json.getInt("pengukuran_id");
+                    String pendingExType = json.getString("ex_type");
+                    String pendingTempId = json.getString("temp_id");
+
+                    if (!pendingByPengukuran.containsKey(pendingPengukuranId)) {
+                        pendingByPengukuran.put(pendingPengukuranId, new ArrayList<String>());
+                    }
+                    pendingByPengukuran.get(pendingPengukuranId).add(pendingExType);
+
+                } catch (Exception e) {
+                    Log.e("PENDING_CALC", "Error processing pending calculation: " + e.getMessage());
+                }
+            }
+        }
+
+        prosesPendingByPengukuran(new ArrayList<>(pendingByPengukuran.keySet()), pendingByPengukuran, 0);
+    }
+
+    private void prosesPendingByPengukuran(List<Integer> pengukuranIds,
+                                           Map<Integer, List<String>> pendingByPengukuran,
+                                           int index) {
+        if (index >= pengukuranIds.size()) {
+            showToast("✅ Semua perhitungan tertunda selesai");
+            return;
+        }
+
+        int pengukuranId = pengukuranIds.get(index);
+        List<String> exTypes = pendingByPengukuran.get(pengukuranId);
+
+        Log.d("PENDING_CALC", "Processing pending calculations for pengukuran " + pengukuranId + ": " + exTypes);
+
+        hitungDeformasiSequential(exTypes, pengukuranId, 0, () -> {
+            hapusPendingUntukPengukuran(pengukuranId);
+            prosesPendingByPengukuran(pengukuranIds, pendingByPengukuran, index + 1);
+        });
+    }
+
+    private void hapusPendingUntukPengukuran(int pengukuranId) {
+        SharedPreferences prefs = getSharedPreferences("exstenso_pending_calc", MODE_PRIVATE);
+        Map<String, ?> allEntries = prefs.getAll();
+
+        for (Map.Entry<String, ?> entry : allEntries.entrySet()) {
+            if (entry.getKey().startsWith("pending_")) {
+                try {
+                    String jsonStr = (String) entry.getValue();
+                    JSONObject json = new JSONObject(jsonStr);
+
+                    int pendingPengukuranId = json.getInt("pengukuran_id");
+                    if (pendingPengukuranId == pengukuranId) {
+                        prefs.edit().remove(entry.getKey()).apply();
+                    }
+                } catch (Exception e) {
+                    Log.e("PENDING_CALC", "Error removing pending calculation: " + e.getMessage());
+                }
+            }
+        }
+    }
+
+    private void hitungDeformasiSingle(String exType, int pengukuranId, HitungCallback callback) {
+        new Thread(() -> {
+            boolean success = false;
+            HttpURLConnection conn = null;
+            try {
+                String hitungEndpoint = getHitungEndpoint(exType);
+                String url = BASE_URL + hitungEndpoint;
+
+                conn = (HttpURLConnection) new URL(url).openConnection();
+                conn.setRequestMethod("POST");
+                conn.setDoOutput(true);
+                conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+                conn.setRequestProperty("Accept", "application/json");
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(10000);
+
+                JSONObject jsonData = new JSONObject();
+                jsonData.put("id_pengukuran", pengukuranId);
+
+                String jsonString = jsonData.toString();
+                Log.d("HITUNG_DEFORMASI", "Hitung " + exType + " untuk pengukuran " + pengukuranId + ": " + jsonString);
+
+                OutputStream os = conn.getOutputStream();
+                os.write(jsonString.getBytes("UTF-8"));
+                os.flush();
+                os.close();
+
+                int responseCode = conn.getResponseCode();
+                success = (responseCode == 200);
+
+                if (success) {
+                    Log.d("HITUNG_DEFORMASI", "Berhasil hitung " + exType + " untuk pengukuran " + pengukuranId);
+                } else {
+                    Log.e("HITUNG_DEFORMASI", "Gagal hitung " + exType + ", response code: " + responseCode);
+                }
+
+            } catch (Exception e) {
+                Log.e("HITUNG_DEFORMASI", "Error hitung " + exType + " untuk pengukuran " + pengukuranId + ": " + e.getMessage());
+            } finally {
+                if (conn != null) conn.disconnect();
+                callback.onComplete(success);
+            }
+        }).start();
+    }
+
+    private void hitungDeformasiUntukDataTertunda(int pengukuranId, String exType, String tempId) {
+        hitungDeformasiSingle(exType, pengukuranId, (success) -> {
+            if (success) {
+                SharedPreferences prefs = getSharedPreferences("exstenso_pending_calc", MODE_PRIVATE);
+                prefs.edit().remove("pending_" + tempId).apply();
+                Log.d("PENDING_CALC", "Berhasil hitung deformasi untuk tempId: " + tempId);
+            }
+        });
+    }
+
+    private String getHitungEndpoint(String exType) {
+        switch (exType) {
+            case "pembacaan_ex1": return "hitung-deformasi-ex1";
+            case "pembacaan_ex2": return "hitung-deformasi-ex2";
+            case "pembacaan_ex3": return "hitung-deformasi-ex3";
+            case "pembacaan_ex4": return "hitung-deformasi-ex4";
+            default: return "hitung-deformasi-ex1";
+        }
+    }
+
+    // ==================== HANDLER INPUT DATA ====================
+
+    private void handleSimpanPembacaan() {
+        if (pengukuranId == -1) {
+            showToast("❌ Harap buat/pilih pengukuran terlebih dahulu");
+            return;
+        }
+
+        if (!validatePembacaanFields()) {
+            showToast("❌ Harap isi minimal satu field pembacaan");
+            return;
+        }
+
+        if (isInternetAvailable()) {
+            simpanDanHitungPembacaan();
+        } else {
+            simpanPembacaanOffline();
+        }
+    }
+
+    private void simpanDanHitungPembacaan() {
+        Map<String, String> data = new HashMap<>();
+        data.put("mode", selectedExType);
+        data.put("pengukuran_id", String.valueOf(pengukuranId));
+
+        if (!inputPembacaan10.getText().toString().trim().isEmpty()) {
+            data.put("pembacaan_10", inputPembacaan10.getText().toString().trim());
+        }
+        if (!inputPembacaan20.getText().toString().trim().isEmpty()) {
+            data.put("pembacaan_20", inputPembacaan20.getText().toString().trim());
+        }
+        if (!inputPembacaan30.getText().toString().trim().isEmpty()) {
+            data.put("pembacaan_30", inputPembacaan30.getText().toString().trim());
+        }
+
+        Log.d("EXSTENSO_API", "Menyimpan & menghitung data " + selectedExType + ": " + data.toString());
+        sendToServerWithHitung(data, "Pembacaan");
+    }
+
+    private void simpanPembacaanOffline() {
+        Map<String, String> data = new HashMap<>();
+        data.put("mode", selectedExType);
+        data.put("pengukuran_id", String.valueOf(pengukuranId));
+
+        if (!inputPembacaan10.getText().toString().trim().isEmpty()) {
+            data.put("pembacaan_10", inputPembacaan10.getText().toString().trim());
+        }
+        if (!inputPembacaan20.getText().toString().trim().isEmpty()) {
+            data.put("pembacaan_20", inputPembacaan20.getText().toString().trim());
+        }
+        if (!inputPembacaan30.getText().toString().trim().isEmpty()) {
+            data.put("pembacaan_30", inputPembacaan30.getText().toString().trim());
+        }
+
+        String localTempId = "local_" + System.currentTimeMillis() + "_" + selectedExType;
+        data.put("temp_id", localTempId);
+
+        boolean success = saveOffline("data", localTempId, data);
+        if (success) {
+            showToast("📱 Data " + selectedExType + " disimpan offline\n⚠️ Hitung deformasi akan dilakukan saat online");
+            clearPembacaanSection();
+            tandaiPerluHitungDeformasi(localTempId, pengukuranId, selectedExType);
+        } else {
+            showToast("❌ Gagal menyimpan data offline");
+        }
+    }
+
+    private boolean saveOffline(String tableType, String tempId, Map<String, String> data) {
+        try {
+            JSONObject json = new JSONObject(data);
+
+            if (tableType.equals("data") && data.containsKey("mode")) {
+                String exType = data.get("mode");
+                boolean success = offlineDb.insertDataExstensoWithType(tableType, tempId, json.toString(),
+                        pengukuranId, exType);
+                return success;
+            } else {
+                boolean success = offlineDb.insertDataExstenso(tableType, tempId, json.toString());
+                return success;
+            }
+
+        } catch (Exception e) {
+            Log.e("EXSTENSO_Offline", "Gagal simpan offline: " + e.getMessage());
+            showToast("❌ Gagal simpan offline: " + e.getMessage());
+            return false;
+        }
+    }
+
+    // ==================== METHOD UI DAN UTILITAS ====================
+
     private void initModalComponents() {
         modalPengukuran = findViewById(R.id.modalPengukuran);
         modalOverlay = findViewById(R.id.modalOverlay);
@@ -121,18 +737,15 @@ public class InputDataExstenso extends AppCompatActivity {
         btnPilihPengukuran = findViewById(R.id.btnPilihPengukuran);
         titleExstenso = findViewById(R.id.titleExstenso);
 
-        // Set click listeners
         btnSimpanDMA.setOnClickListener(v -> handleSimpanDMA());
         btnSimpanPembacaan.setOnClickListener(v -> handleSimpanPembacaan());
     }
 
     private void initSpinnerComponents() {
-        // Adapter untuk spinner pengukuran
         pengukuranAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, tanggalList);
         pengukuranAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerPengukuran.setAdapter(pengukuranAdapter);
 
-        // Adapter untuk spinner Ex Type
         String[] exTypeOptions = {
                 "Pembacaan Ex1", "Pembacaan Ex2", "Pembacaan Ex3", "Pembacaan Ex4"
         };
@@ -146,7 +759,6 @@ public class InputDataExstenso extends AppCompatActivity {
                 pengukuranId = pengukuranMap.get(selected.toString());
                 showToast("✅ Pengukuran dipilih: " + selected);
                 loadExistingData();
-                // Ambil data pengukuran untuk DMA
                 getPengukuranDataForDMA();
             } else {
                 showToast("❌ Pilih tanggal pengukuran terlebih dahulu");
@@ -160,7 +772,6 @@ public class InputDataExstenso extends AppCompatActivity {
                 if (selected != null && pengukuranMap.containsKey(selected)) {
                     pengukuranId = pengukuranMap.get(selected);
                     loadExistingData();
-                    // Ambil data pengukuran untuk DMA
                     getPengukuranDataForDMA();
                 }
             }
@@ -208,400 +819,6 @@ public class InputDataExstenso extends AppCompatActivity {
         });
     }
 
-    private void loadExistingData() {
-        if (pengukuranId == -1) return;
-
-        new Thread(() -> {
-            try {
-                String url = BASE_URL + "getdata?pengukuran_id=" + pengukuranId + "&type=" + selectedExType;
-                HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
-                conn.setRequestMethod("GET");
-                conn.setRequestProperty("Accept", "application/json");
-
-                if (conn.getResponseCode() == 200) {
-                    BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                    StringBuilder sb = new StringBuilder();
-                    String line;
-                    while ((line = reader.readLine()) != null) sb.append(line);
-                    reader.close();
-
-                    JSONObject response = new JSONObject(sb.toString());
-                    if (response.getString("status").equals("success")) {
-                        JSONObject data = response.getJSONObject("data");
-                        runOnUiThread(() -> populateForm(data));
-                    }
-                }
-            } catch (Exception e) {
-                Log.e("LOAD_DATA", "Error loading data: " + e.getMessage());
-            }
-        }).start();
-    }
-
-    private void populateForm(JSONObject data) {
-        try {
-            if (data.has("dma")) inputDMA.setText(data.getString("dma"));
-            if (data.has("pembacaan_10")) inputPembacaan10.setText(data.getString("pembacaan_10"));
-            if (data.has("pembacaan_20")) inputPembacaan20.setText(data.getString("pembacaan_20"));
-            if (data.has("pembacaan_30")) inputPembacaan30.setText(data.getString("pembacaan_30"));
-        } catch (Exception e) {
-            Log.e("POPULATE_FORM", "Error populating form: " + e.getMessage());
-        }
-    }
-
-    // HANDLE SIMPAN DATA
-    private void handleSimpanDMA() {
-        if (pengukuranId == -1) {
-            showToast("❌ Harap buat/pilih pengukuran terlebih dahulu");
-            return;
-        }
-
-        if (!validateDMAFields()) {
-            showToast("❌ Harap isi field DMA");
-            return;
-        }
-
-        // Gunakan data pengukuran yang sudah ada untuk update DMA
-        if (currentTahun.isEmpty() || currentTanggal.isEmpty()) {
-            showToast("❌ Data pengukuran belum lengkap, harap tunggu...");
-            getPengukuranDataForDMA();
-            return;
-        }
-
-        updateDMAPengukuran();
-    }
-
-    private void handleSimpanPembacaan() {
-        if (pengukuranId == -1) {
-            showToast("❌ Harap buat/pilih pengukuran terlebih dahulu");
-            return;
-        }
-
-        if (!validatePembacaanFields()) {
-            showToast("❌ Harap isi minimal satu field pembacaan");
-            return;
-        }
-
-        simpanDataPembacaan();
-    }
-
-    private void getPengukuranDataForDMA() {
-        new Thread(() -> {
-            try {
-                String url = GET_PENGUKURAN_URL;
-                HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
-                conn.setRequestMethod("GET");
-                conn.setRequestProperty("Accept", "application/json");
-
-                if (conn.getResponseCode() == 200) {
-                    BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                    StringBuilder sb = new StringBuilder();
-                    String line;
-                    while ((line = reader.readLine()) != null) sb.append(line);
-                    reader.close();
-
-                    JSONObject response = new JSONObject(sb.toString());
-                    if (response.getString("status").equals("success")) {
-                        JSONArray dataArray = response.getJSONArray("data");
-
-                        // Cari data pengukuran dengan ID yang sesuai
-                        for (int i = 0; i < dataArray.length(); i++) {
-                            JSONObject item = dataArray.getJSONObject(i);
-                            int id = item.getInt("id_pengukuran");
-
-                            if (id == pengukuranId) {
-                                currentTahun = item.getString("tahun");
-                                currentTanggal = item.getString("tanggal");
-                                currentPeriode = item.optString("periode", "TW-1");
-
-                                Log.d("EXSTENSO_API", "Data pengukuran untuk DMA: tahun=" + currentTahun +
-                                        ", tanggal=" + currentTanggal + ", periode=" + currentPeriode);
-                                return;
-                            }
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                Log.e("GET_PENGUKURAN_DMA", "Error: " + e.getMessage());
-            }
-        }).start();
-    }
-
-    private void updateDMAPengukuran() {
-        Map<String, String> data = new HashMap<>();
-        data.put("mode", "update_dma");
-        data.put("pengukuran_id", String.valueOf(pengukuranId));
-        data.put("dma", inputDMA.getText().toString().trim());
-
-        Log.d("EXSTENSO_API", "Mengupdate DMA pengukuran: " + data.toString());
-        sendToServer(data, "DMA");
-    }
-
-    private void simpanDataPembacaan() {
-        Map<String, String> data = new HashMap<>();
-        data.put("mode", selectedExType);
-        data.put("pengukuran_id", String.valueOf(pengukuranId));
-
-        if (!inputPembacaan10.getText().toString().trim().isEmpty()) {
-            data.put("pembacaan_10", inputPembacaan10.getText().toString().trim());
-        }
-        if (!inputPembacaan20.getText().toString().trim().isEmpty()) {
-            data.put("pembacaan_20", inputPembacaan20.getText().toString().trim());
-        }
-        if (!inputPembacaan30.getText().toString().trim().isEmpty()) {
-            data.put("pembacaan_30", inputPembacaan30.getText().toString().trim());
-        }
-
-        Log.d("EXSTENSO_API", "Menyimpan data " + selectedExType + ": " + data.toString());
-        sendToServerWithHitung(data, "Pembacaan");
-    }
-
-    private void sendToServerWithHitung(Map<String, String> dataMap, String dataType) {
-        new Thread(() -> {
-            HttpURLConnection conn = null;
-            try {
-                // 1. Simpan data pembacaan terlebih dahulu
-                URL url = new URL(INSERT_DATA_URL);
-                conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setDoOutput(true);
-                conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-                conn.setRequestProperty("Accept", "application/json");
-                conn.setConnectTimeout(10000);
-                conn.setReadTimeout(10000);
-
-                JSONObject jsonData = new JSONObject();
-                for (Map.Entry<String, String> entry : dataMap.entrySet()) {
-                    jsonData.put(entry.getKey(), entry.getValue());
-                }
-
-                String jsonString = jsonData.toString();
-                Log.d("EXSTENSO_API", "JSON yang dikirim (" + dataType + "): " + jsonString);
-
-                OutputStream os = conn.getOutputStream();
-                os.write(jsonString.getBytes("UTF-8"));
-                os.flush();
-                os.close();
-
-                int responseCode = conn.getResponseCode();
-                Log.d("EXSTENSO_API", "Response Code (" + dataType + "): " + responseCode);
-
-                InputStream is = (responseCode == 200) ? conn.getInputStream() : conn.getErrorStream();
-                BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-                StringBuilder sb = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) sb.append(line);
-                reader.close();
-
-                String responseBody = sb.toString();
-                Log.d("EXSTENSO_API", "Response Body (" + dataType + "): " + responseBody);
-
-                JSONObject response = new JSONObject(responseBody);
-                String status = response.optString("status", "");
-                String message = response.optString("message", "");
-
-                // 2. Jika berhasil simpan pembacaan, hitung deformasi
-                if (status.equals("success") && dataType.equals("Pembacaan")) {
-                    hitungDeformasiOtomatis();
-                }
-
-                runOnUiThread(() -> {
-                    switch (status.toLowerCase()) {
-                        case "success":
-                            showToast("✅ " + message);
-                            if (dataType.equals("DMA")) {
-                                clearDMASection();
-                            } else {
-                                clearPembacaanSection();
-                            }
-                            break;
-                        case "info":
-                            showToast("ℹ️ " + message);
-                            break;
-                        case "error":
-                        default:
-                            showToast("❌ " + message);
-                            break;
-                    }
-                });
-
-            } catch (Exception e) {
-                Log.e("SEND_TO_SERVER", "Error (" + dataType + "): " + e.getMessage(), e);
-                runOnUiThread(() -> {
-                    showToast("❌ Gagal kirim " + dataType + ": " + e.getMessage());
-                });
-            } finally {
-                if (conn != null) conn.disconnect();
-            }
-        }).start();
-    }
-
-    private void sendToServer(Map<String, String> dataMap, String dataType) {
-        new Thread(() -> {
-            HttpURLConnection conn = null;
-            try {
-                URL url = new URL(INSERT_DATA_URL);
-                conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setDoOutput(true);
-                conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-                conn.setRequestProperty("Accept", "application/json");
-                conn.setConnectTimeout(10000);
-                conn.setReadTimeout(10000);
-
-                JSONObject jsonData = new JSONObject();
-                for (Map.Entry<String, String> entry : dataMap.entrySet()) {
-                    jsonData.put(entry.getKey(), entry.getValue());
-                }
-
-                String jsonString = jsonData.toString();
-                Log.d("EXSTENSO_API", "JSON yang dikirim (" + dataType + "): " + jsonString);
-
-                OutputStream os = conn.getOutputStream();
-                os.write(jsonString.getBytes("UTF-8"));
-                os.flush();
-                os.close();
-
-                int responseCode = conn.getResponseCode();
-                Log.d("EXSTENSO_API", "Response Code (" + dataType + "): " + responseCode);
-
-                InputStream is = (responseCode == 200) ? conn.getInputStream() : conn.getErrorStream();
-                BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-                StringBuilder sb = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) sb.append(line);
-                reader.close();
-
-                String responseBody = sb.toString();
-                Log.d("EXSTENSO_API", "Response Body (" + dataType + "): " + responseBody);
-
-                JSONObject response = new JSONObject(responseBody);
-                String status = response.optString("status", "");
-                String message = response.optString("message", "");
-
-                runOnUiThread(() -> {
-                    switch (status.toLowerCase()) {
-                        case "success":
-                            showToast("✅ " + message);
-                            if (dataType.equals("DMA")) {
-                                clearDMASection();
-                            } else {
-                                clearPembacaanSection();
-                            }
-                            break;
-                        case "info":
-                            showToast("ℹ️ " + message);
-                            break;
-                        case "error":
-                        default:
-                            showToast("❌ " + message);
-                            break;
-                    }
-                });
-
-            } catch (Exception e) {
-                Log.e("SEND_TO_SERVER", "Error (" + dataType + "): " + e.getMessage(), e);
-                runOnUiThread(() -> {
-                    showToast("❌ Gagal kirim " + dataType + ": " + e.getMessage());
-                });
-            } finally {
-                if (conn != null) conn.disconnect();
-            }
-        }).start();
-    }
-
-    // METHOD UNTUK HITUNG DEFORMASI OTOMATIS
-    private void hitungDeformasiOtomatis() {
-        new Thread(() -> {
-            HttpURLConnection conn = null;
-            try {
-                // Tentukan endpoint berdasarkan selectedExType
-                String hitungEndpoint = "";
-                switch (selectedExType) {
-                    case "pembacaan_ex1":
-                        hitungEndpoint = "hitung-deformasi-ex1";
-                        break;
-                    case "pembacaan_ex2":
-                        hitungEndpoint = "hitung-deformasi-ex2";
-                        break;
-                    case "pembacaan_ex3":
-                        hitungEndpoint = "hitung-deformasi-ex3";
-                        break;
-                    case "pembacaan_ex4":
-                        hitungEndpoint = "hitung-deformasi-ex4";
-                        break;
-                    default:
-                        hitungEndpoint = "hitung-deformasi-ex1";
-                }
-
-                String url = BASE_URL + hitungEndpoint;
-                conn = (HttpURLConnection) new URL(url).openConnection();
-                conn.setRequestMethod("POST");
-                conn.setDoOutput(true);
-                conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-                conn.setRequestProperty("Accept", "application/json");
-                conn.setConnectTimeout(10000);
-                conn.setReadTimeout(10000);
-
-                // Data untuk hitung deformasi
-                JSONObject jsonData = new JSONObject();
-                jsonData.put("id_pengukuran", pengukuranId);
-
-                String jsonString = jsonData.toString();
-                Log.d("EXSTENSO_API", "Hitung deformasi " + selectedExType + ": " + jsonString);
-
-                OutputStream os = conn.getOutputStream();
-                os.write(jsonString.getBytes("UTF-8"));
-                os.flush();
-                os.close();
-
-                int responseCode = conn.getResponseCode();
-                Log.d("EXSTENSO_API", "Response Code (Hitung): " + responseCode);
-
-                InputStream is = (responseCode == 200) ? conn.getInputStream() : conn.getErrorStream();
-                BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-                StringBuilder sb = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) sb.append(line);
-                reader.close();
-
-                String responseBody = sb.toString();
-                Log.d("EXSTENSO_API", "Response Body (Hitung): " + responseBody);
-
-                JSONObject response = new JSONObject(responseBody);
-                String status = response.optString("status", "");
-                String message = response.optString("message", "");
-
-                // TAMBAHKAN NOTIFIKASI
-                runOnUiThread(() -> {
-                    if (status.equals("success")) {
-                        showToast("🧮 Deformasi berhasil dihitung!");
-                    } else {
-                        showToast("❌ Gagal hitung deformasi");
-                    }
-                });
-
-            } catch (Exception e) {
-                runOnUiThread(() -> {
-                    showToast("❌ Error hitung deformasi");
-                });
-            } finally {
-                if (conn != null) conn.disconnect();
-            }
-        }).start();
-    }
-
-    // VALIDATION METHODS
-    private boolean validateDMAFields() {
-        return !inputDMA.getText().toString().trim().isEmpty();
-    }
-
-    private boolean validatePembacaanFields() {
-        return !inputPembacaan10.getText().toString().trim().isEmpty() ||
-                !inputPembacaan20.getText().toString().trim().isEmpty() ||
-                !inputPembacaan30.getText().toString().trim().isEmpty();
-    }
-
-    // MODAL METHODS
     private void setupModalDropdowns() {
         try {
             String[] bulanArray = getResources().getStringArray(R.array.bulan_options);
@@ -701,10 +918,10 @@ public class InputDataExstenso extends AppCompatActivity {
         mainContent.setVisibility(View.VISIBLE);
     }
 
-    // LOAD PENGUKURAN DATA
     private void loadPengukuranData() {
         if (!isInternetAvailable()) {
-            showToast("📱 Tidak ada internet");
+            showToast("📱 Tidak ada internet, load data dari lokal");
+            loadTanggalOffline();
             return;
         }
 
@@ -753,7 +970,6 @@ public class InputDataExstenso extends AppCompatActivity {
                             if (!tanggalList.isEmpty()) {
                                 spinnerPengukuran.setSelection(0);
                                 pengukuranId = pengukuranMap.get(tanggalList.get(0));
-                                // Ambil data pengukuran untuk DMA
                                 getPengukuranDataForDMA();
                                 showToast("📅 Load " + tanggalList.size() + " data pengukuran");
                             }
@@ -761,12 +977,14 @@ public class InputDataExstenso extends AppCompatActivity {
                     } else {
                         runOnUiThread(() -> {
                             showToast("ℹ️ Tidak ada data pengukuran tersedia");
+                            loadTanggalOffline();
                         });
                     }
                 } else {
                     String message = response.optString("message", "Gagal load data");
                     runOnUiThread(() -> {
                         showToast("❌ Error: " + message);
+                        loadTanggalOffline();
                     });
                 }
 
@@ -774,6 +992,7 @@ public class InputDataExstenso extends AppCompatActivity {
                 Log.e("LOAD_PENGUKURAN", "Error: ", e);
                 runOnUiThread(() -> {
                     showToast("❌ Gagal load data pengukuran: " + e.getMessage());
+                    loadTanggalOffline();
                 });
             } finally {
                 if (conn != null) conn.disconnect();
@@ -781,7 +1000,444 @@ public class InputDataExstenso extends AppCompatActivity {
         }).start();
     }
 
-    // HANDLE MODAL PENGUKURAN
+    private void loadTanggalOffline() {
+        try {
+            List<Map<String,String>> rows = offlineDb.getPengukuranMasterExstenso();
+            List<String> list = new ArrayList<>();
+            pengukuranMap.clear();
+
+            if (rows != null && !rows.isEmpty()) {
+                for (Map<String,String> r : rows) {
+                    String tanggal = r.get("tanggal");
+                    String idStr = r.get("id_pengukuran");
+                    if (tanggal != null) {
+                        list.add(tanggal);
+                        try {
+                            if (idStr != null && !idStr.startsWith("local_")) {
+                                pengukuranMap.put(tanggal, Integer.parseInt(idStr));
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                }
+            } else {
+                list.add("Belum ada pengukuran (offline)");
+            }
+
+            runOnUiThread(() -> {
+                tanggalList.clear();
+                tanggalList.addAll(list);
+                pengukuranAdapter.notifyDataSetChanged();
+                if (!list.isEmpty()) {
+                    spinnerPengukuran.setSelection(0);
+                }
+            });
+        } catch (Exception e) {
+            Log.e("EXSTENSO_Offline", "Error load offline master: " + e.getMessage());
+        }
+    }
+
+    private void loadExistingData() {
+        if (pengukuranId == -1) return;
+
+        if (isInternetAvailable()) {
+            loadDataFromServer();
+        } else {
+            loadDataFromOffline();
+        }
+    }
+
+    private void loadDataFromServer() {
+        new Thread(() -> {
+            try {
+                String url = GET_DATA_URL + "?pengukuran_id=" + pengukuranId + "&type=" + selectedExType;
+                HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+                conn.setRequestMethod("GET");
+                conn.setRequestProperty("Accept", "application/json");
+
+                if (conn.getResponseCode() == 200) {
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) sb.append(line);
+                    reader.close();
+
+                    JSONObject response = new JSONObject(sb.toString());
+                    if (response.getString("status").equals("success")) {
+                        JSONObject data = response.getJSONObject("data");
+                        runOnUiThread(() -> populateForm(data));
+                    }
+                }
+            } catch (Exception e) {
+                Log.e("LOAD_DATA", "Error loading data: " + e.getMessage());
+            }
+        }).start();
+    }
+
+    private void loadDataFromOffline() {
+        Map<String, String> data = offlineDb.getExstensoData(pengukuranId, selectedExType);
+        if (data != null) {
+            try {
+                JSONObject jsonData = new JSONObject();
+                for (Map.Entry<String, String> entry : data.entrySet()) {
+                    jsonData.put(entry.getKey(), entry.getValue());
+                }
+                populateForm(jsonData);
+            } catch (Exception e) {
+                Log.e("LOAD_OFFLINE", "Error parsing offline data: " + e.getMessage());
+            }
+        }
+    }
+
+    private void populateForm(JSONObject data) {
+        try {
+            if (data.has("dma")) inputDMA.setText(data.getString("dma"));
+            if (data.has("pembacaan_10")) inputPembacaan10.setText(data.getString("pembacaan_10"));
+            if (data.has("pembacaan_20")) inputPembacaan20.setText(data.getString("pembacaan_20"));
+            if (data.has("pembacaan_30")) inputPembacaan30.setText(data.getString("pembacaan_30"));
+        } catch (Exception e) {
+            Log.e("POPULATE_FORM", "Error populating form: " + e.getMessage());
+        }
+    }
+
+    private void getPengukuranDataForDMA() {
+        new Thread(() -> {
+            try {
+                String url = GET_PENGUKURAN_URL;
+                HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+                conn.setRequestMethod("GET");
+                conn.setRequestProperty("Accept", "application/json");
+
+                if (conn.getResponseCode() == 200) {
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) sb.append(line);
+                    reader.close();
+
+                    JSONObject response = new JSONObject(sb.toString());
+                    if (response.getString("status").equals("success")) {
+                        JSONArray dataArray = response.getJSONArray("data");
+
+                        for (int i = 0; i < dataArray.length(); i++) {
+                            JSONObject item = dataArray.getJSONObject(i);
+                            int id = item.getInt("id_pengukuran");
+
+                            if (id == pengukuranId) {
+                                currentTahun = item.getString("tahun");
+                                currentTanggal = item.getString("tanggal");
+                                currentPeriode = item.optString("periode", "TW-1");
+
+                                Log.d("EXSTENSO_API", "Data pengukuran untuk DMA: tahun=" + currentTahun +
+                                        ", tanggal=" + currentTanggal + ", periode=" + currentPeriode);
+                                return;
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                Log.e("GET_PENGUKURAN_DMA", "Error: " + e.getMessage());
+            }
+        }).start();
+    }
+
+    private void handleSimpanDMA() {
+        if (pengukuranId == -1) {
+            showToast("❌ Harap buat/pilih pengukuran terlebih dahulu");
+            return;
+        }
+
+        if (!validateDMAFields()) {
+            showToast("❌ Harap isi field DMA");
+            return;
+        }
+
+        if (currentTahun.isEmpty() || currentTanggal.isEmpty()) {
+            showToast("❌ Data pengukuran belum lengkap, harap tunggu...");
+            getPengukuranDataForDMA();
+            return;
+        }
+
+        updateDMAPengukuran();
+    }
+
+    private boolean validateDMAFields() {
+        return !inputDMA.getText().toString().trim().isEmpty();
+    }
+
+    private boolean validatePembacaanFields() {
+        return !inputPembacaan10.getText().toString().trim().isEmpty() ||
+                !inputPembacaan20.getText().toString().trim().isEmpty() ||
+                !inputPembacaan30.getText().toString().trim().isEmpty();
+    }
+
+    private void updateDMAPengukuran() {
+        Map<String, String> data = new HashMap<>();
+        data.put("mode", "update_dma");
+        data.put("pengukuran_id", String.valueOf(pengukuranId));
+        data.put("dma", inputDMA.getText().toString().trim());
+
+        Log.d("EXSTENSO_API", "Mengupdate DMA pengukuran: " + data.toString());
+
+        if (isInternetAvailable()) {
+            sendToServer(data, "DMA");
+        } else {
+            String localTempId = "local_" + System.currentTimeMillis() + "_dma";
+            data.put("temp_id", localTempId);
+            saveOffline("data", localTempId, data);
+            showToast("📱 Data DMA disimpan offline");
+        }
+    }
+
+    private void sendToServerWithHitung(Map<String, String> dataMap, String dataType) {
+        new Thread(() -> {
+            HttpURLConnection conn = null;
+            try {
+                URL url = new URL(INSERT_DATA_URL);
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setDoOutput(true);
+                conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+                conn.setRequestProperty("Accept", "application/json");
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(10000);
+
+                JSONObject jsonData = new JSONObject();
+                for (Map.Entry<String, String> entry : dataMap.entrySet()) {
+                    jsonData.put(entry.getKey(), entry.getValue());
+                }
+
+                String jsonString = jsonData.toString();
+                Log.d("EXSTENSO_API", "JSON yang dikirim (" + dataType + "): " + jsonString);
+
+                OutputStream os = conn.getOutputStream();
+                os.write(jsonString.getBytes("UTF-8"));
+                os.flush();
+                os.close();
+
+                int responseCode = conn.getResponseCode();
+                Log.d("EXSTENSO_API", "Response Code (" + dataType + "): " + responseCode);
+
+                InputStream is = (responseCode == 200) ? conn.getInputStream() : conn.getErrorStream();
+                BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) sb.append(line);
+                reader.close();
+
+                String responseBody = sb.toString();
+                Log.d("EXSTENSO_API", "Response Body (" + dataType + "): " + responseBody);
+
+                JSONObject response = new JSONObject(responseBody);
+                String status = response.optString("status", "");
+                String message = response.optString("message", "");
+
+                if (status.equals("success") && dataType.equals("Pembacaan")) {
+                    hitungDeformasiOtomatis();
+                }
+
+                runOnUiThread(() -> {
+                    switch (status.toLowerCase()) {
+                        case "success":
+                            showToast("✅ " + message);
+                            if (dataType.equals("DMA")) {
+                                clearDMASection();
+                            } else {
+                                clearPembacaanSection();
+                            }
+                            break;
+                        case "info":
+                            showToast("ℹ️ " + message);
+                            break;
+                        case "error":
+                        default:
+                            showToast("❌ " + message);
+                            if (!dataMap.containsKey("temp_id")) {
+                                String localTempId = "local_" + System.currentTimeMillis();
+                                dataMap.put("temp_id", localTempId);
+                                saveOffline("data", localTempId, dataMap);
+                            }
+                            break;
+                    }
+                });
+
+            } catch (Exception e) {
+                Log.e("SEND_TO_SERVER", "Error (" + dataType + "): " + e.getMessage(), e);
+                runOnUiThread(() -> {
+                    showToast("❌ Gagal kirim " + dataType + ": " + e.getMessage() + ". Data disimpan offline.");
+                    if (!dataMap.containsKey("temp_id")) {
+                        String localTempId = "local_" + System.currentTimeMillis();
+                        dataMap.put("temp_id", localTempId);
+                        saveOffline("data", localTempId, dataMap);
+                    }
+                });
+            } finally {
+                if (conn != null) conn.disconnect();
+            }
+        }).start();
+    }
+
+    private void sendToServer(Map<String, String> dataMap, String dataType) {
+        new Thread(() -> {
+            HttpURLConnection conn = null;
+            try {
+                URL url = new URL(INSERT_DATA_URL);
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setDoOutput(true);
+                conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+                conn.setRequestProperty("Accept", "application/json");
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(10000);
+
+                JSONObject jsonData = new JSONObject();
+                for (Map.Entry<String, String> entry : dataMap.entrySet()) {
+                    jsonData.put(entry.getKey(), entry.getValue());
+                }
+
+                String jsonString = jsonData.toString();
+                Log.d("EXSTENSO_API", "JSON yang dikirim (" + dataType + "): " + jsonString);
+
+                OutputStream os = conn.getOutputStream();
+                os.write(jsonString.getBytes("UTF-8"));
+                os.flush();
+                os.close();
+
+                int responseCode = conn.getResponseCode();
+                Log.d("EXSTENSO_API", "Response Code (" + dataType + "): " + responseCode);
+
+                InputStream is = (responseCode == 200) ? conn.getInputStream() : conn.getErrorStream();
+                BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) sb.append(line);
+                reader.close();
+
+                String responseBody = sb.toString();
+                Log.d("EXSTENSO_API", "Response Body (" + dataType + "): " + responseBody);
+
+                JSONObject response = new JSONObject(responseBody);
+                String status = response.optString("status", "");
+                String message = response.optString("message", "");
+
+                runOnUiThread(() -> {
+                    switch (status.toLowerCase()) {
+                        case "success":
+                            showToast("✅ " + message);
+                            if (dataType.equals("DMA")) {
+                                clearDMASection();
+                            } else {
+                                clearPembacaanSection();
+                            }
+                            break;
+                        case "info":
+                            showToast("ℹ️ " + message);
+                            break;
+                        case "error":
+                        default:
+                            showToast("❌ " + message);
+                            if (!dataMap.containsKey("temp_id")) {
+                                String localTempId = "local_" + System.currentTimeMillis();
+                                dataMap.put("temp_id", localTempId);
+                                saveOffline("data", localTempId, dataMap);
+                            }
+                            break;
+                    }
+                });
+
+            } catch (Exception e) {
+                Log.e("SEND_TO_SERVER", "Error (" + dataType + "): " + e.getMessage(), e);
+                runOnUiThread(() -> {
+                    showToast("❌ Gagal kirim " + dataType + ": " + e.getMessage() + ". Data disimpan offline.");
+                    if (!dataMap.containsKey("temp_id")) {
+                        String localTempId = "local_" + System.currentTimeMillis();
+                        dataMap.put("temp_id", localTempId);
+                        saveOffline("data", localTempId, dataMap);
+                    }
+                });
+            } finally {
+                if (conn != null) conn.disconnect();
+            }
+        }).start();
+    }
+
+    private void hitungDeformasiOtomatis() {
+        new Thread(() -> {
+            HttpURLConnection conn = null;
+            try {
+                String hitungEndpoint = "";
+                switch (selectedExType) {
+                    case "pembacaan_ex1":
+                        hitungEndpoint = "hitung-deformasi-ex1";
+                        break;
+                    case "pembacaan_ex2":
+                        hitungEndpoint = "hitung-deformasi-ex2";
+                        break;
+                    case "pembacaan_ex3":
+                        hitungEndpoint = "hitung-deformasi-ex3";
+                        break;
+                    case "pembacaan_ex4":
+                        hitungEndpoint = "hitung-deformasi-ex4";
+                        break;
+                    default:
+                        hitungEndpoint = "hitung-deformasi-ex1";
+                }
+
+                String url = BASE_URL + hitungEndpoint;
+                conn = (HttpURLConnection) new URL(url).openConnection();
+                conn.setRequestMethod("POST");
+                conn.setDoOutput(true);
+                conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+                conn.setRequestProperty("Accept", "application/json");
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(10000);
+
+                JSONObject jsonData = new JSONObject();
+                jsonData.put("id_pengukuran", pengukuranId);
+
+                String jsonString = jsonData.toString();
+                Log.d("EXSTENSO_API", "Hitung deformasi " + selectedExType + ": " + jsonString);
+
+                OutputStream os = conn.getOutputStream();
+                os.write(jsonString.getBytes("UTF-8"));
+                os.flush();
+                os.close();
+
+                int responseCode = conn.getResponseCode();
+                Log.d("EXSTENSO_API", "Response Code (Hitung): " + responseCode);
+
+                InputStream is = (responseCode == 200) ? conn.getInputStream() : conn.getErrorStream();
+                BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) sb.append(line);
+                reader.close();
+
+                String responseBody = sb.toString();
+                Log.d("EXSTENSO_API", "Response Body (Hitung): " + responseBody);
+
+                JSONObject response = new JSONObject(responseBody);
+                String status = response.optString("status", "");
+                String message = response.optString("message", "");
+
+                runOnUiThread(() -> {
+                    if (status.equals("success")) {
+                        showToast("🧮 Deformasi berhasil dihitung!");
+                    } else {
+                        showToast("❌ Gagal hitung deformasi");
+                    }
+                });
+
+            } catch (Exception e) {
+                Log.e("HITUNG_DEFORMASI", "Error hitung deformasi: " + e.getMessage());
+                runOnUiThread(() -> {
+                    showToast("❌ Error hitung deformasi");
+                });
+            } finally {
+                if (conn != null) conn.disconnect();
+            }
+        }).start();
+    }
+
     private void handleModalPengukuran() {
         if (modalInputTahun == null || modalInputBulan == null || modalInputPeriode == null || modalInputTanggal == null) {
             showToast("Form modal belum siap");
@@ -807,7 +1463,15 @@ public class InputDataExstenso extends AppCompatActivity {
         data.put("tanggal", tanggal);
 
         Log.d("EXSTENSO_API", "Mengirim data pengukuran: " + data.toString());
-        sendPengukuranToServer(data);
+
+        if (isInternetAvailable()) {
+            sendPengukuranToServer(data);
+        } else {
+            String localTempId = "local_" + System.currentTimeMillis();
+            data.put("temp_id", localTempId);
+            saveOffline("pengukuran", localTempId, data);
+            hideModal();
+        }
     }
 
     private String convertBulanToNumber(String bulanName) {
@@ -895,6 +1559,11 @@ public class InputDataExstenso extends AppCompatActivity {
                         case "error":
                         default:
                             showToast("❌ " + message);
+                            if (!dataMap.containsKey("temp_id")) {
+                                String localTempId = "local_" + System.currentTimeMillis();
+                                dataMap.put("temp_id", localTempId);
+                                saveOffline("pengukuran", localTempId, dataMap);
+                            }
                             break;
                     }
                 });
@@ -902,7 +1571,12 @@ public class InputDataExstenso extends AppCompatActivity {
             } catch (Exception e) {
                 Log.e("SEND_PENGUKURAN", "Error: " + e.getMessage(), e);
                 runOnUiThread(() -> {
-                    showToast("❌ Gagal kirim: " + e.getMessage());
+                    showToast("❌ Gagal kirim: " + e.getMessage() + ". Data disimpan offline.");
+                    if (!dataMap.containsKey("temp_id")) {
+                        String localTempId = "local_" + System.currentTimeMillis();
+                        dataMap.put("temp_id", localTempId);
+                        saveOffline("pengukuran", localTempId, dataMap);
+                    }
                 });
             } finally {
                 if (conn != null) conn.disconnect();
@@ -910,7 +1584,65 @@ public class InputDataExstenso extends AppCompatActivity {
         }).start();
     }
 
-    // UTILITY METHODS
+    private void syncDataSerial(String tableType, Runnable next) {
+        List<Map<String, String>> dataList = offlineDb.getUnsyncedDataExstenso(tableType);
+        if (dataList.isEmpty()) {
+            if (next != null) next.run();
+            return;
+        }
+        syncDataItem(tableType, dataList, 0, next);
+    }
+
+    private void syncDataItem(String tableType, List<Map<String, String>> dataList, int index, Runnable onFinish) {
+        if (index >= dataList.size()) {
+            if (onFinish != null) onFinish.run();
+            return;
+        }
+
+        Map<String, String> item = dataList.get(index);
+        String tempId = item.get("temp_id");
+        String jsonStr = item.get("json");
+
+        try {
+            JSONObject jsonData = new JSONObject(jsonStr);
+
+            new Thread(() -> {
+                HttpURLConnection conn = null;
+                try {
+                    URL url = new URL(INSERT_DATA_URL);
+                    conn = (HttpURLConnection) url.openConnection();
+                    conn.setRequestMethod("POST");
+                    conn.setDoOutput(true);
+                    conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+                    conn.setRequestProperty("Accept", "application/json");
+                    conn.setConnectTimeout(9000);
+                    conn.setReadTimeout(9000);
+
+                    OutputStream os = conn.getOutputStream();
+                    os.write(jsonData.toString().getBytes("UTF-8"));
+                    os.flush();
+                    os.close();
+
+                    int responseCode = conn.getResponseCode();
+                    if (responseCode == 200) {
+                        offlineDb.deleteByTempIdExstenso(tableType, tempId);
+                        Log.d("EXSTENSO_Sync", "Data " + tableType + " tempId=" + tempId + " berhasil disinkronisasi");
+                    }
+                } catch (Exception e) {
+                    Log.e("EXSTENSO_Sync", "Error sync " + tableType + " tempId=" + tempId, e);
+                } finally {
+                    if (conn != null) conn.disconnect();
+                }
+
+                runOnUiThread(() -> syncDataItem(tableType, dataList, index + 1, onFinish));
+            }).start();
+
+        } catch (Exception e) {
+            Log.e("EXSTENSO_Sync", "JSON parse error untuk data " + tableType + " tempId=" + tempId, e);
+            runOnUiThread(() -> syncDataItem(tableType, dataList, index + 1, onFinish));
+        }
+    }
+
     private void showToast(String message) {
         try {
             Toast.makeText(this, message, Toast.LENGTH_LONG).show();

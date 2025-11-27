@@ -6,7 +6,8 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:fitsSystemWindows="true">
+    android:fitsSystemWindows="true"
+    android:background="#f5f5f5">
 
     <!-- Header dengan AppBar Material Design -->
     <LinearLayout
@@ -51,7 +52,8 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:fillViewport="true">
+        android:fillViewport="true"
+        android:background="#f5f5f5">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -59,19 +61,22 @@
             android:orientation="vertical"
             android:padding="16dp">
 
+
+
             <!-- Welcome Card -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
                 app:cardCornerRadius="8dp"
-                app:cardElevation="4dp">
+                app:cardElevation="2dp"
+                app:cardBackgroundColor="@android:color/white">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="24dp"
+                    android:padding="20dp"
                     android:gravity="center">
 
                     <TextView
@@ -114,7 +119,7 @@
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Menu Utama:"
+                        android:text="Menu Utama"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp"
                         android:textStyle="bold"/>
@@ -127,7 +132,8 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
                 app:cardCornerRadius="8dp"
-                app:cardElevation="4dp">
+                app:cardElevation="2dp"
+                app:cardBackgroundColor="@android:color/white">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -141,7 +147,7 @@
                         android:layout_height="wrap_content"
                         android:layout_margin="8dp"
                         app:cardCornerRadius="4dp"
-                        app:cardElevation="2dp"
+                        app:cardElevation="1dp"
                         app:cardBackgroundColor="@android:color/white">
 
                         <LinearLayout
@@ -177,7 +183,7 @@
                         android:layout_height="wrap_content"
                         android:layout_margin="8dp"
                         app:cardCornerRadius="4dp"
-                        app:cardElevation="2dp"
+                        app:cardElevation="1dp"
                         app:cardBackgroundColor="@android:color/white">
 
                         <LinearLayout
@@ -214,7 +220,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:cardCornerRadius="8dp"
-                app:cardElevation="4dp">
+                app:cardElevation="2dp"
+                app:cardBackgroundColor="@android:color/white">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -256,7 +263,8 @@
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal">
+                        android:orientation="horizontal"
+                        android:layout_marginBottom="12dp">
 
                         <ImageView
                             android:layout_width="16dp"
@@ -270,6 +278,27 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:text="Segera laporkan jika ditemukan pergerakan atau deformasi yang signifikan pada struktur"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="12sp"/>
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:src="@drawable/ic_sync"
+                            android:layout_marginEnd="12dp"
+                            android:contentDescription="Sync"/>
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Data akan tersinkronisasi otomatis ketika perangkat online"
                             android:textColor="@color/text_secondary"
                             android:textSize="12sp"/>
                     </LinearLayout>
