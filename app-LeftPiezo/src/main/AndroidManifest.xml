@@ -15,5 +15,11 @@
             android:name=".InputDataLeftPiezo"
             android:label="Input Data Piezometer"
             android:exported="false" />
+
+        <!-- Input Data Activity -->
+        <activity
+            android:name=".HistoryLeftPiezoActivity"
+            android:label="History Left Piezometer"
+            android:exported="false" />
     </application>
 </manifest>
