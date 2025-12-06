@@ -54,7 +54,7 @@ public class InputDataRightPiezo extends AppCompatActivity {
     private String selectedLokasi = "R-01";
 
     // API URLs untuk Right Piezo
-    private static final String BASE_URL = "http://192.168.1.12/GHW/api-apps/public/rightpiezo/";
+    private static final String BASE_URL = "http://10.73.69.30/GHW/api-apps/public/rightpiezo/";
     private static final String INSERT_DATA_URL = BASE_URL + "input";
     private static final String GET_PENGUKURAN_URL = BASE_URL + "get/pengukuran";
     private static final String GET_DATA_URL = BASE_URL + "input/data";

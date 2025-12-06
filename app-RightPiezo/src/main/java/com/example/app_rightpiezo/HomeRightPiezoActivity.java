@@ -38,7 +38,7 @@ public class HomeRightPiezoActivity extends AppCompatActivity {
     private int successCount = 0;
     private int failureCount = 0;
 
-    private static final String BASE_URL = "http://192.168.1.12/GHW/api-apps/public/api/rightpiezo/";
+    private static final String BASE_URL = "http://10.73.69.30/GHW/api-apps/public/api/rightpiezo/";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

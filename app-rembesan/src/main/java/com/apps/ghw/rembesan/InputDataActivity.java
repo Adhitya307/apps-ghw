@@ -660,8 +660,14 @@ public class InputDataActivity extends AppCompatActivity {
 
     private void handleTmaWaduk() {
         Map<String, String> data = new HashMap<>();
-        data.put("mode", "pengukuran");
+        data.put("mode", "pengukuran");  // ✅ Mode untuk update TMA
         data.put("tma_waduk", inputTmaWaduk != null ? inputTmaWaduk.getText().toString().trim() : "");
+
+        // Cek jika TMA kosong
+        if (data.get("tma_waduk").isEmpty()) {
+            showElegantToast("Masukkan nilai TMA Waduk terlebih dahulu.", "warning");
+            return;
+        }
 
         String selected = spinnerPengukuran != null && spinnerPengukuran.getSelectedItem() != null
                 ? spinnerPengukuran.getSelectedItem().toString() : null;
@@ -680,10 +686,18 @@ public class InputDataActivity extends AppCompatActivity {
             }
         }
 
+        // LOGGING untuk debug
+        logInfo("handleTmaWaduk", "Mode: " + data.get("mode") +
+                ", TMA: " + data.get("tma_waduk") +
+                ", pengukuran_id: " + (data.containsKey("pengukuran_id") ? data.get("pengukuran_id") : "null"));
+
         if (isInternetAvailable() && data.containsKey("pengukuran_id")) {
-            cekDanSimpanData("tma_waduk", data, false);
+            // ✅ PERBAIKAN: Gunakan "pengukuran" bukan "tma_waduk"
+            cekDanSimpanData("pengukuran", data, false);
         } else {
-            saveOffline("tma_waduk", data.getOrDefault("temp_id", "local_" + System.currentTimeMillis()), data);
+            // ✅ PERBAIKAN: Simpan ke tabel "pengukuran" bukan "tma_waduk"
+            String localTempId = data.containsKey("temp_id") ? data.get("temp_id") : "local_" + System.currentTimeMillis();
+            saveOffline("pengukuran", localTempId, data);
         }
     }
 
@@ -1131,11 +1145,10 @@ public class InputDataActivity extends AppCompatActivity {
         }
 
         syncDataSerial("pengukuran", () ->
-                syncDataSerial("tma_waduk", () ->
                         syncDataSerial("thomson", () ->
                                 syncDataSerial("sr", onComplete)
                         )
-                )
+
         );
     }
 

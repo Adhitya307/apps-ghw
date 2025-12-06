@@ -32,6 +32,6 @@ public class ApiClient {
 
     // ✅ METHOD LAMA: tanpa parameter (backward compatibility)
     public static Retrofit getClient() {
-        return getClient("http://192.168.1.12/GHW/api-apps/public/api/rightpiezo/");
+        return getClient("http://10.73.69.30/GHW/api-apps/public/api/rightpiezo/");
     }
 }

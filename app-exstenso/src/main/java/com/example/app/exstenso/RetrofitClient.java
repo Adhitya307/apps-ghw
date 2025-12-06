@@ -10,7 +10,7 @@ public class RetrofitClient {
     private static final String TAG = "RetrofitClient";
 
     // Ganti dengan URL API Anda yang sebenarnya
-    public static final String BASE_URL = "http://192.168.1.12/GHW/api-apps/public/";
+    public static final String BASE_URL = "http://192.168.1.11/GHW/api-apps/public/";
     private static Retrofit retrofit = null;
 
     public static Retrofit getClient() {

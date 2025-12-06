@@ -3,16 +3,23 @@ package com.example.app.exstenso;
 import android.app.DatePickerDialog;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.*;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
 
+import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 
@@ -25,6 +32,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -53,7 +61,7 @@ public class InputDataExstenso extends AppCompatActivity {
     private int pengukuranId = -1;
     private String selectedExType = "pembacaan_ex1";
 
-    private static final String BASE_URL = "http://192.168.1.12/GHW/api-apps/public/exstenso/";
+    private static final String BASE_URL = "http://192.168.1.11/GHW/api-apps/public/exstenso/";
     private static final String INSERT_DATA_URL = BASE_URL + "inputdata";
     private static final String GET_PENGUKURAN_URL = BASE_URL + "getpengukuran";
     private static final String GET_DATA_URL = BASE_URL + "getdata";
@@ -74,9 +82,57 @@ public class InputDataExstenso extends AppCompatActivity {
     private Runnable networkCheckRunnable;
     private boolean lastOnlineStatus = false;
 
+    // Untuk sinkronisasi dengan popup berurutan
+    private List<PopupData> pendingPopups = new ArrayList<>();
+    private boolean isShowingPopup = false;
+
+    // Konstanta untuk nilai ambang batas dan pembacaan awal
+    private static final Map<String, Double[]> EX_THRESHOLDS = new HashMap<>();
+    private static final Map<String, double[]> EX_INITIAL_READINGS = new HashMap<>();
+    private static final Map<String, String> EX_NAMES = new HashMap<>();
+
+    static {
+        // Data untuk EX1
+        Double[] ex1Thresholds = {80.10, 104.00, 110.90};
+        EX_THRESHOLDS.put("pembacaan_ex1", ex1Thresholds);
+        EX_INITIAL_READINGS.put("pembacaan_ex1", new double[]{35.0, 40.95, 29.80});
+        EX_NAMES.put("pembacaan_ex1", "EX1");
+
+        // Data untuk EX2
+        Double[] ex2Thresholds = {46.0, 80.0, 81.0};
+        EX_THRESHOLDS.put("pembacaan_ex2", ex2Thresholds);
+        EX_INITIAL_READINGS.put("pembacaan_ex2", new double[]{22.60, 23.70, 30.75});
+        EX_NAMES.put("pembacaan_ex2", "EX2");
+
+        // Data untuk EX3
+        Double[] ex3Thresholds = {80.10, 104.0, 110.90};
+        EX_THRESHOLDS.put("pembacaan_ex3", ex3Thresholds);
+        EX_INITIAL_READINGS.put("pembacaan_ex3", new double[]{37.75, 39.15, 41.40});
+        EX_NAMES.put("pembacaan_ex3", "EX3");
+
+        // Data untuk EX4
+        Double[] ex4Thresholds = {46.0, 80.0, 81.0};
+        EX_THRESHOLDS.put("pembacaan_ex4", ex4Thresholds);
+        EX_INITIAL_READINGS.put("pembacaan_ex4", new double[]{33.80, 29.30, 48.95});
+        EX_NAMES.put("pembacaan_ex4", "EX4");
+    }
+
     // Interface untuk callback
     interface HitungCallback {
-        void onComplete(boolean success);
+        void onComplete(boolean success, JSONObject data);
+    }
+
+    // Data class untuk popup antrian
+    private static class PopupData {
+        String tanggal;
+        String exType;
+        JSONObject data;
+
+        PopupData(String tanggal, String exType, JSONObject data) {
+            this.tanggal = tanggal;
+            this.exType = exType;
+            this.data = data;
+        }
     }
 
     @Override
@@ -132,6 +188,595 @@ public class InputDataExstenso extends AppCompatActivity {
         if (offlineDb != null) {
             offlineDb.close();
         }
+    }
+
+    // ==================== MODIFIKASI showDeformationResultPopup ====================
+
+    private void showDeformationResultPopup(String tanggal, String exType, JSONObject data, Runnable onPopupClosed) {
+        try {
+            // Inflate custom layout
+            View dialogView = getLayoutInflater().inflate(R.layout.dialog_deformation_result, null);
+
+            // Setup dialog dengan custom theme
+            AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.CustomDialogTheme);
+            builder.setView(dialogView);
+
+            AlertDialog dialog = builder.create();
+            dialog.setCancelable(false);
+
+            // Setup window properties
+            Window window = dialog.getWindow();
+            if (window != null) {
+                window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+                window.setLayout(
+                        WindowManager.LayoutParams.MATCH_PARENT,
+                        WindowManager.LayoutParams.WRAP_CONTENT
+                );
+
+                // Set gravity to center
+                WindowManager.LayoutParams params = window.getAttributes();
+                params.gravity = Gravity.CENTER;
+                params.width = WindowManager.LayoutParams.MATCH_PARENT;
+                params.height = WindowManager.LayoutParams.WRAP_CONTENT;
+                window.setAttributes(params);
+            }
+
+            // Bind all views
+            TextView tvExtInfo = dialogView.findViewById(R.id.tvExtInfo);
+            TextView tvThresholdAman = dialogView.findViewById(R.id.tvThresholdAman);
+            TextView tvThresholdPeringatan = dialogView.findViewById(R.id.tvThresholdPeringatan);
+            TextView tvThresholdBahaya = dialogView.findViewById(R.id.tvThresholdBahaya);
+
+            // 10 Meter views
+            TextView tvDeformasi10 = dialogView.findViewById(R.id.tvDeformasi10);
+            TextView tvPembAwal10 = dialogView.findViewById(R.id.tvPembAwal10);
+            TextView tvBacaanAkhir10 = dialogView.findViewById(R.id.tvBacaanAkhir10);
+            TextView tvStatus10 = dialogView.findViewById(R.id.tvStatus10);
+
+            // 20 Meter views
+            TextView tvDeformasi20 = dialogView.findViewById(R.id.tvDeformasi20);
+            TextView tvPembAwal20 = dialogView.findViewById(R.id.tvPembAwal20);
+            TextView tvBacaanAkhir20 = dialogView.findViewById(R.id.tvBacaanAkhir20);
+            TextView tvStatus20 = dialogView.findViewById(R.id.tvStatus20);
+
+            // 30 Meter views
+            TextView tvDeformasi30 = dialogView.findViewById(R.id.tvDeformasi30);
+            TextView tvPembAwal30 = dialogView.findViewById(R.id.tvPembAwal30);
+            TextView tvBacaanAkhir30 = dialogView.findViewById(R.id.tvBacaanAkhir30);
+            TextView tvStatus30 = dialogView.findViewById(R.id.tvStatus30);
+
+            // Buttons
+            ImageView btnCloseDialog = dialogView.findViewById(R.id.btnCloseDialog);
+            MaterialButton btnOK = dialogView.findViewById(R.id.btnOK);
+
+
+            // Set data
+            String exName = EX_NAMES.get(exType);
+            tvExtInfo.setText(String.format("%s - Tanggal: %s", exName, tanggal));
+
+            // Get thresholds
+            Double[] thresholds = EX_THRESHOLDS.get(exType);
+            if (thresholds != null) {
+                tvThresholdAman.setText(String.format("≤ %.2f", thresholds[0]));
+                tvThresholdPeringatan.setText(String.format("%.2f - %.2f", thresholds[0] + 0.01, thresholds[1]));
+                tvThresholdBahaya.setText(String.format("≥ %.2f", thresholds[1] + 0.01));
+            }
+
+            // Format angka dengan 2 desimal
+            DecimalFormat df = new DecimalFormat("#0.00");
+
+            // Process and display 10 meter data
+            processAndDisplayData(
+                    data, exType, 10,
+                    tvDeformasi10, tvPembAwal10, tvBacaanAkhir10, tvStatus10, df
+            );
+
+            // Process and display 20 meter data
+            processAndDisplayData(
+                    data, exType, 20,
+                    tvDeformasi20, tvPembAwal20, tvBacaanAkhir20, tvStatus20, df
+            );
+
+            // Process and display 30 meter data
+            processAndDisplayData(
+                    data, exType, 30,
+                    tvDeformasi30, tvPembAwal30, tvBacaanAkhir30, tvStatus30, df
+            );
+
+            // Setup click listeners
+            btnCloseDialog.setOnClickListener(v -> {
+                dialog.dismiss();
+                handlePopupClose(onPopupClosed);
+            });
+
+            btnOK.setOnClickListener(v -> {
+                dialog.dismiss();
+                handlePopupClose(onPopupClosed);
+            });
+
+
+
+            dialog.setOnDismissListener(d -> {
+                handlePopupClose(onPopupClosed);
+            });
+
+            // Show dialog
+            dialog.show();
+            isShowingPopup = true;
+
+        } catch (Exception e) {
+            Log.e("DEFORMATION_DIALOG", "Error showing dialog: " + e.getMessage());
+            showToast("❌ Gagal menampilkan hasil");
+            handlePopupClose(onPopupClosed);
+        }
+    }
+
+    private void processAndDisplayData(JSONObject data, String exType, int meter,
+                                       TextView tvDeformasi, TextView tvPembAwal,
+                                       TextView tvBacaanAkhir, TextView tvStatus,
+                                       DecimalFormat df) {
+        try {
+            // Get keys based on data structure
+            String deformasiKey = "deformasi_" + meter;
+            String pembacaanAwalKey = "pembacaan_awal" + meter;
+
+            // Try alternative keys if main keys not found
+            if (!data.has(deformasiKey)) {
+                deformasiKey = "deformasi" + meter;
+            }
+            if (!data.has(pembacaanAwalKey)) {
+                pembacaanAwalKey = "pemb_awal" + meter;
+            }
+
+            // Get values
+            double deformasi = data.optDouble(deformasiKey, 0);
+            double[] initialReadings = EX_INITIAL_READINGS.get(exType);
+            double pembacaanAwal;
+
+            if (initialReadings != null && meter == 10) {
+                pembacaanAwal = data.optDouble(pembacaanAwalKey, initialReadings[0]);
+            } else if (initialReadings != null && meter == 20) {
+                pembacaanAwal = data.optDouble(pembacaanAwalKey, initialReadings[1]);
+            } else if (initialReadings != null && meter == 30) {
+                pembacaanAwal = data.optDouble(pembacaanAwalKey, initialReadings[2]);
+            } else {
+                pembacaanAwal = data.optDouble(pembacaanAwalKey, 0);
+            }
+
+            double bacaanAkhir = pembacaanAwal + deformasi;
+
+            // Set text
+            tvDeformasi.setText(df.format(deformasi));
+            tvPembAwal.setText(df.format(pembacaanAwal));
+            tvBacaanAkhir.setText(df.format(bacaanAkhir));
+
+            // Determine status
+            Double[] thresholds = EX_THRESHOLDS.get(exType);
+            if (thresholds != null) {
+                String status = getStatus(bacaanAkhir, thresholds[1], thresholds[2]);
+                tvStatus.setText(status);
+                setStatusBackground(tvStatus, status);
+            }
+
+        } catch (Exception e) {
+            Log.e("PROCESS_DATA", "Error processing data for " + meter + "m: " + e.getMessage());
+        }
+    }
+
+    private void setStatusBackground(TextView tvStatus, String status) {
+        switch (status) {
+            case "AMAN":
+                tvStatus.setBackgroundResource(R.drawable.status_aman_bg);
+                break;
+            case "PERINGATAN":
+                tvStatus.setBackgroundResource(R.drawable.status_warning_bg);
+                break;
+            case "BAHAYA":
+                tvStatus.setBackgroundResource(R.drawable.status_danger_bg);
+                break;
+        }
+    }
+
+    private void handlePopupClose(Runnable onPopupClosed) {
+        isShowingPopup = false;
+        if (onPopupClosed != null) {
+            onPopupClosed.run();
+        }
+    }
+
+    private View createSeparator() {
+        View separator = new View(this);
+        separator.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 1));
+        separator.setBackgroundColor(Color.LTGRAY);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 1);
+        params.setMargins(0, 10, 0, 10);
+        separator.setLayoutParams(params);
+        return separator;
+    }
+
+    private LinearLayout createResultCard(String title, double deformasi, double pembacaanAwal,
+                                          double aman, double peringatan, double bahaya,
+                                          double bacaanAkhir) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(15, 15, 15, 15);
+        card.setBackgroundColor(Color.WHITE);
+
+        // Tambahkan border
+        try {
+            card.setBackground(getResources().getDrawable(R.drawable.border));
+        } catch (Exception e) {
+            card.setElevation(4f);
+        }
+
+        // Title
+        TextView tvTitle = new TextView(this);
+        tvTitle.setText(title);
+        tvTitle.setTextSize(16);
+        tvTitle.setTextColor(Color.BLACK);
+        tvTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+        tvTitle.setPadding(0, 0, 0, 10);
+        card.addView(tvTitle);
+
+        // Deformasi
+        TextView tvDeformasi = new TextView(this);
+        tvDeformasi.setText("        DEFORMASI = " + String.format("%.2f", deformasi));
+        tvDeformasi.setTextSize(14);
+        tvDeformasi.setPadding(20, 0, 0, 5);
+        card.addView(tvDeformasi);
+
+        // Pembacaan Awal
+        TextView tvAwal = new TextView(this);
+        tvAwal.setText("        PEMBACAAN AWAL = " + String.format("%.2f", pembacaanAwal));
+        tvAwal.setTextSize(14);
+        tvAwal.setPadding(20, 0, 0, 5);
+        card.addView(tvAwal);
+
+        // Ambang Batas
+        TextView tvAmbang = new TextView(this);
+        tvAmbang.setText("        AMAN = " + String.format("%.2f", aman));
+        tvAmbang.setTextSize(14);
+        tvAmbang.setPadding(20, 0, 0, 5);
+        card.addView(tvAmbang);
+
+        TextView tvPeringatan = new TextView(this);
+        tvPeringatan.setText("        PERINGATAN = " + String.format("%.2f", peringatan));
+        tvPeringatan.setTextSize(14);
+        tvPeringatan.setPadding(20, 0, 0, 5);
+        card.addView(tvPeringatan);
+
+        TextView tvBahaya = new TextView(this);
+        tvBahaya.setText("        BAHAYA = " + String.format("%.2f", bahaya));
+        tvBahaya.setTextSize(14);
+        tvBahaya.setPadding(20, 0, 0, 5);
+        card.addView(tvBahaya);
+
+        // Bacaan Akhir
+        TextView tvBacaan = new TextView(this);
+        tvBacaan.setText("        BACAAN = PEMBACAAN AWAL + DEFORMASI");
+        tvBacaan.setTextSize(14);
+        tvBacaan.setPadding(20, 0, 0, 5);
+        card.addView(tvBacaan);
+
+        TextView tvPerhitungan = new TextView(this);
+        tvPerhitungan.setText("                = " + String.format("%.2f", pembacaanAwal) + " + " +
+                String.format("%.2f", deformasi) + " = " +
+                String.format("%.2f", bacaanAkhir));
+        tvPerhitungan.setTextSize(14);
+        tvPerhitungan.setPadding(30, 0, 0, 5);
+        card.addView(tvPerhitungan);
+
+        // Status - menggunakan logika lama
+        String status = getStatus(bacaanAkhir, peringatan, bahaya);
+        TextView tvStatus = new TextView(this);
+        tvStatus.setText("        STATUS = " + status);
+        tvStatus.setTextSize(14);
+        tvStatus.setPadding(20, 0, 0, 0);
+        tvStatus.setTextColor(getStatusColor(status));
+        tvStatus.setTypeface(null, android.graphics.Typeface.BOLD);
+        card.addView(tvStatus);
+
+        return card;
+    }
+
+    private String getStatus(double bacaanAkhir, double peringatan, double bahaya) {
+        if (bacaanAkhir <= peringatan) {
+            return "AMAN";
+        } else if (bacaanAkhir <= bahaya) {
+            return "PERINGATAN";
+        } else {
+            return "BAHAYA";
+        }
+    }
+
+    private int getStatusColor(String status) {
+        if (status.contains("BAHAYA")) {
+            return Color.RED;
+        } else if (status.contains("PERINGATAN")) {
+            return Color.parseColor("#FFA500"); // Orange
+        } else {
+            return Color.GREEN;
+        }
+    }
+
+    // ==================== METODE UNTUK SINKRONISASI DENGAN POPUP BERURUTAN ====================
+
+    private void showNextPendingPopup() {
+        if (pendingPopups.isEmpty() || isShowingPopup) {
+            return;
+        }
+
+        // Ambil popup pertama dari antrian
+        PopupData popupData = pendingPopups.remove(0);
+
+        // Tampilkan popup dengan callback untuk lanjut ke berikutnya
+        showDeformationResultPopup(popupData.tanggal, popupData.exType, popupData.data, () -> {
+            // Setelah popup ditutup, tampilkan popup berikutnya
+            showNextPendingPopup();
+        });
+
+        // Jika masih ada popup lain, tampilkan toast info
+        if (!pendingPopups.isEmpty()) {
+            showToast("📊 Masih ada " + pendingPopups.size() + " hasil perhitungan yang akan ditampilkan");
+        }
+    }
+
+    private void addToPopupQueue(String tanggal, String exType, JSONObject data) {
+        pendingPopups.add(new PopupData(tanggal, exType, data));
+
+        // Jika tidak sedang menampilkan popup, langsung tampilkan
+        if (!isShowingPopup) {
+            showNextPendingPopup();
+        }
+    }
+
+    // ==================== hitungDeformasiOtomatis (UNTUK ONLINE LANGSUNG) ====================
+
+    private void hitungDeformasiOtomatis() {
+        new Thread(() -> {
+            HttpURLConnection conn = null;
+            try {
+                String hitungEndpoint = getHitungEndpoint(selectedExType);
+                String url = BASE_URL + hitungEndpoint;
+                conn = (HttpURLConnection) new URL(url).openConnection();
+                conn.setRequestMethod("POST");
+                conn.setDoOutput(true);
+                conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+                conn.setRequestProperty("Accept", "application/json");
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(10000);
+
+                JSONObject jsonData = new JSONObject();
+                jsonData.put("id_pengukuran", pengukuranId);
+
+                String jsonString = jsonData.toString();
+                Log.d("EXSTENSO_API", "Hitung deformasi " + selectedExType + ": " + jsonString);
+
+                OutputStream os = conn.getOutputStream();
+                os.write(jsonString.getBytes("UTF-8"));
+                os.flush();
+                os.close();
+
+                int responseCode = conn.getResponseCode();
+                Log.d("EXSTENSO_API", "Response Code (Hitung): " + responseCode);
+
+                InputStream is = (responseCode == 200) ? conn.getInputStream() : conn.getErrorStream();
+                BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) sb.append(line);
+                reader.close();
+
+                String responseBody = sb.toString();
+                Log.d("EXSTENSO_API", "Response Body (Hitung): " + responseBody);
+
+                JSONObject response = new JSONObject(responseBody);
+                String status = response.optString("status", "");
+                String message = response.optString("message", "");
+
+                runOnUiThread(() -> {
+                    if (status.equals("success")) {
+                        showToast("🧮 Deformasi berhasil dihitung!");
+
+                        // AMBIL DATA LANGSUNG DARI RESPONSE HITUNG DEFORMASI
+                        try {
+                            JSONObject data = response.getJSONObject("data");
+                            String tanggal = spinnerPengukuran.getSelectedItem().toString();
+
+                            // Tampilkan popup langsung (tanpa antrian untuk input langsung)
+                            showDeformationResultPopup(tanggal, selectedExType, data, null);
+
+                            // Clear field setelah berhasil
+                            clearPembacaanSection();
+
+                        } catch (Exception e) {
+                            Log.e("HITUNG_DEFORMASI", "Error parsing data: " + e.getMessage());
+                            showToast("✅ Data tersimpan, tapi gagal parsing hasil");
+                        }
+                    } else {
+                        showToast("❌ Gagal hitung deformasi: " + message);
+                    }
+                });
+
+            } catch (Exception e) {
+                Log.e("HITUNG_DEFORMASI", "Error hitung deformasi: " + e.getMessage());
+                runOnUiThread(() -> {
+                    showToast("❌ Error hitung deformasi: " + e.getMessage());
+                });
+            } finally {
+                if (conn != null) conn.disconnect();
+            }
+        }).start();
+    }
+
+    // ==================== hitungDeformasiSingle (UNTUK SINKRONISASI) ====================
+
+    private void hitungDeformasiSingle(String exType, int pengukuranId, boolean addToQueue, HitungCallback callback) {
+        new Thread(() -> {
+            boolean success = false;
+            JSONObject resultData = null;
+            HttpURLConnection conn = null;
+            try {
+                String hitungEndpoint = getHitungEndpoint(exType);
+                String url = BASE_URL + hitungEndpoint;
+
+                conn = (HttpURLConnection) new URL(url).openConnection();
+                conn.setRequestMethod("POST");
+                conn.setDoOutput(true);
+                conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+                conn.setRequestProperty("Accept", "application/json");
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(10000);
+
+                JSONObject jsonData = new JSONObject();
+                jsonData.put("id_pengukuran", pengukuranId);
+
+                String jsonString = jsonData.toString();
+                Log.d("HITUNG_DEFORMASI", "Hitung " + exType + " untuk pengukuran " + pengukuranId + ": " + jsonString);
+
+                OutputStream os = conn.getOutputStream();
+                os.write(jsonString.getBytes("UTF-8"));
+                os.flush();
+                os.close();
+
+                int responseCode = conn.getResponseCode();
+
+                if (responseCode == 200) {
+                    success = true;
+
+                    // BACA RESPONSE UNTUK DAPATKAN DATA
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) sb.append(line);
+                    reader.close();
+
+                    String responseBody = sb.toString();
+                    JSONObject response = new JSONObject(responseBody);
+
+                    if (response.has("data")) {
+                        resultData = response.getJSONObject("data");
+
+                        // Jika perlu ditambahkan ke antrian popup
+                        if (addToQueue && resultData != null) {
+                            // BUAT VARIABLE FINAL COPY untuk digunakan di lambda
+                            final JSONObject finalResultData = resultData;
+                            String tanggal = spinnerPengukuran.getSelectedItem() != null ?
+                                    spinnerPengukuran.getSelectedItem().toString() :
+                                    "Tanggal tidak tersedia";
+
+                            // Copy variabel untuk keamanan
+                            final String finalTanggal = tanggal;
+                            final String finalExType = exType;
+
+                            runOnUiThread(() -> {
+                                addToPopupQueue(finalTanggal, finalExType, finalResultData);
+                            });
+                        }
+                    }
+
+                    Log.d("HITUNG_DEFORMASI", "Berhasil hitung " + exType + " untuk pengukuran " + pengukuranId);
+                } else {
+                    Log.e("HITUNG_DEFORMASI", "Gagal hitung " + exType + ", response code: " + responseCode);
+                }
+
+            } catch (Exception e) {
+                Log.e("HITUNG_DEFORMASI", "Error hitung " + exType + " untuk pengukuran " + pengukuranId + ": " + e.getMessage());
+            } finally {
+                if (conn != null) conn.disconnect();
+                callback.onComplete(success, resultData);
+            }
+        }).start();
+    }
+
+    // ==================== MODIFIKASI sendToServerWithHitung ====================
+
+    private void sendToServerWithHitung(Map<String, String> dataMap, String dataType) {
+        new Thread(() -> {
+            HttpURLConnection conn = null;
+            try {
+                URL url = new URL(INSERT_DATA_URL);
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setDoOutput(true);
+                conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+                conn.setRequestProperty("Accept", "application/json");
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(10000);
+
+                JSONObject jsonData = new JSONObject();
+                for (Map.Entry<String, String> entry : dataMap.entrySet()) {
+                    jsonData.put(entry.getKey(), entry.getValue());
+                }
+
+                String jsonString = jsonData.toString();
+                Log.d("EXSTENSO_API", "JSON yang dikirim (" + dataType + "): " + jsonString);
+
+                OutputStream os = conn.getOutputStream();
+                os.write(jsonString.getBytes("UTF-8"));
+                os.flush();
+                os.close();
+
+                int responseCode = conn.getResponseCode();
+                Log.d("EXSTENSO_API", "Response Code (" + dataType + "): " + responseCode);
+
+                InputStream is = (responseCode == 200) ? conn.getInputStream() : conn.getErrorStream();
+                BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) sb.append(line);
+                reader.close();
+
+                String responseBody = sb.toString();
+                Log.d("EXSTENSO_API", "Response Body (" + dataType + "): " + responseBody);
+
+                JSONObject response = new JSONObject(responseBody);
+                String status = response.optString("status", "");
+                String message = response.optString("message", "");
+
+                runOnUiThread(() -> {
+                    switch (status.toLowerCase()) {
+                        case "success":
+                            showToast("✅ " + message);
+
+                            // HITUNG DEFORMASI SETELAH SIMPAN DATA PEMBACAAN
+                            if (dataType.equals("Pembacaan")) {
+                                hitungDeformasiOtomatis(); // Online langsung, tampil langsung
+                            } else {
+                                clearPembacaanSection();
+                            }
+                            break;
+                        case "info":
+                            showToast("ℹ️ " + message);
+                            break;
+                        case "error":
+                        default:
+                            showToast("❌ " + message);
+                            if (!dataMap.containsKey("temp_id")) {
+                                String localTempId = "local_" + System.currentTimeMillis();
+                                dataMap.put("temp_id", localTempId);
+                                saveOffline("data", localTempId, dataMap);
+                            }
+                            break;
+                    }
+                });
+
+            } catch (Exception e) {
+                Log.e("SEND_TO_SERVER", "Error (" + dataType + "): " + e.getMessage(), e);
+                runOnUiThread(() -> {
+                    showToast("❌ Gagal kirim " + dataType + ": " + e.getMessage() + ". Data disimpan offline.");
+                    if (!dataMap.containsKey("temp_id")) {
+                        String localTempId = "local_" + System.currentTimeMillis();
+                        dataMap.put("temp_id", localTempId);
+                        saveOffline("data", localTempId, dataMap);
+                    }
+                });
+            } finally {
+                if (conn != null) conn.disconnect();
+            }
+        }).start();
     }
 
     // ==================== FITUR SINKRONISASI OTOMATIS ====================
@@ -446,7 +1091,8 @@ public class InputDataExstenso extends AppCompatActivity {
             return;
         }
 
-        hitungDeformasiSingle(exType, pengukuranId, (success) -> {
+        // Untuk sinkronisasi: hitung dan tambahkan ke antrian popup
+        hitungDeformasiSingle(exType, pengukuranId, true, (success, data) -> {
             if (success) {
                 Log.d("EXSTENSO_Sync", "Successfully calculated deformasi for " + exType + ", pengukuran " + pengukuranId);
             }
@@ -515,7 +1161,14 @@ public class InputDataExstenso extends AppCompatActivity {
                                            Map<Integer, List<String>> pendingByPengukuran,
                                            int index) {
         if (index >= pengukuranIds.size()) {
-            showToast("✅ Semua perhitungan tertunda selesai");
+            runOnUiThread(() -> {
+                // Tunggu sebentar sebelum menampilkan toast selesai
+                new Handler().postDelayed(() -> {
+                    if (pendingPopups.isEmpty()) {
+                        showToast("✅ Semua perhitungan tertunda selesai");
+                    }
+                }, 1000);
+            });
             return;
         }
 
@@ -549,61 +1202,6 @@ public class InputDataExstenso extends AppCompatActivity {
                 }
             }
         }
-    }
-
-    private void hitungDeformasiSingle(String exType, int pengukuranId, HitungCallback callback) {
-        new Thread(() -> {
-            boolean success = false;
-            HttpURLConnection conn = null;
-            try {
-                String hitungEndpoint = getHitungEndpoint(exType);
-                String url = BASE_URL + hitungEndpoint;
-
-                conn = (HttpURLConnection) new URL(url).openConnection();
-                conn.setRequestMethod("POST");
-                conn.setDoOutput(true);
-                conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-                conn.setRequestProperty("Accept", "application/json");
-                conn.setConnectTimeout(10000);
-                conn.setReadTimeout(10000);
-
-                JSONObject jsonData = new JSONObject();
-                jsonData.put("id_pengukuran", pengukuranId);
-
-                String jsonString = jsonData.toString();
-                Log.d("HITUNG_DEFORMASI", "Hitung " + exType + " untuk pengukuran " + pengukuranId + ": " + jsonString);
-
-                OutputStream os = conn.getOutputStream();
-                os.write(jsonString.getBytes("UTF-8"));
-                os.flush();
-                os.close();
-
-                int responseCode = conn.getResponseCode();
-                success = (responseCode == 200);
-
-                if (success) {
-                    Log.d("HITUNG_DEFORMASI", "Berhasil hitung " + exType + " untuk pengukuran " + pengukuranId);
-                } else {
-                    Log.e("HITUNG_DEFORMASI", "Gagal hitung " + exType + ", response code: " + responseCode);
-                }
-
-            } catch (Exception e) {
-                Log.e("HITUNG_DEFORMASI", "Error hitung " + exType + " untuk pengukuran " + pengukuranId + ": " + e.getMessage());
-            } finally {
-                if (conn != null) conn.disconnect();
-                callback.onComplete(success);
-            }
-        }).start();
-    }
-
-    private void hitungDeformasiUntukDataTertunda(int pengukuranId, String exType, String tempId) {
-        hitungDeformasiSingle(exType, pengukuranId, (success) -> {
-            if (success) {
-                SharedPreferences prefs = getSharedPreferences("exstenso_pending_calc", MODE_PRIVATE);
-                prefs.edit().remove("pending_" + tempId).apply();
-                Log.d("PENDING_CALC", "Berhasil hitung deformasi untuk tempId: " + tempId);
-            }
-        });
     }
 
     private String getHitungEndpoint(String exType) {
@@ -1188,94 +1786,6 @@ public class InputDataExstenso extends AppCompatActivity {
         }
     }
 
-    private void sendToServerWithHitung(Map<String, String> dataMap, String dataType) {
-        new Thread(() -> {
-            HttpURLConnection conn = null;
-            try {
-                URL url = new URL(INSERT_DATA_URL);
-                conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setDoOutput(true);
-                conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-                conn.setRequestProperty("Accept", "application/json");
-                conn.setConnectTimeout(10000);
-                conn.setReadTimeout(10000);
-
-                JSONObject jsonData = new JSONObject();
-                for (Map.Entry<String, String> entry : dataMap.entrySet()) {
-                    jsonData.put(entry.getKey(), entry.getValue());
-                }
-
-                String jsonString = jsonData.toString();
-                Log.d("EXSTENSO_API", "JSON yang dikirim (" + dataType + "): " + jsonString);
-
-                OutputStream os = conn.getOutputStream();
-                os.write(jsonString.getBytes("UTF-8"));
-                os.flush();
-                os.close();
-
-                int responseCode = conn.getResponseCode();
-                Log.d("EXSTENSO_API", "Response Code (" + dataType + "): " + responseCode);
-
-                InputStream is = (responseCode == 200) ? conn.getInputStream() : conn.getErrorStream();
-                BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-                StringBuilder sb = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) sb.append(line);
-                reader.close();
-
-                String responseBody = sb.toString();
-                Log.d("EXSTENSO_API", "Response Body (" + dataType + "): " + responseBody);
-
-                JSONObject response = new JSONObject(responseBody);
-                String status = response.optString("status", "");
-                String message = response.optString("message", "");
-
-                if (status.equals("success") && dataType.equals("Pembacaan")) {
-                    hitungDeformasiOtomatis();
-                }
-
-                runOnUiThread(() -> {
-                    switch (status.toLowerCase()) {
-                        case "success":
-                            showToast("✅ " + message);
-                            if (dataType.equals("DMA")) {
-                                clearDMASection();
-                            } else {
-                                clearPembacaanSection();
-                            }
-                            break;
-                        case "info":
-                            showToast("ℹ️ " + message);
-                            break;
-                        case "error":
-                        default:
-                            showToast("❌ " + message);
-                            if (!dataMap.containsKey("temp_id")) {
-                                String localTempId = "local_" + System.currentTimeMillis();
-                                dataMap.put("temp_id", localTempId);
-                                saveOffline("data", localTempId, dataMap);
-                            }
-                            break;
-                    }
-                });
-
-            } catch (Exception e) {
-                Log.e("SEND_TO_SERVER", "Error (" + dataType + "): " + e.getMessage(), e);
-                runOnUiThread(() -> {
-                    showToast("❌ Gagal kirim " + dataType + ": " + e.getMessage() + ". Data disimpan offline.");
-                    if (!dataMap.containsKey("temp_id")) {
-                        String localTempId = "local_" + System.currentTimeMillis();
-                        dataMap.put("temp_id", localTempId);
-                        saveOffline("data", localTempId, dataMap);
-                    }
-                });
-            } finally {
-                if (conn != null) conn.disconnect();
-            }
-        }).start();
-    }
-
     private void sendToServer(Map<String, String> dataMap, String dataType) {
         new Thread(() -> {
             HttpURLConnection conn = null;
@@ -1353,84 +1863,6 @@ public class InputDataExstenso extends AppCompatActivity {
                         dataMap.put("temp_id", localTempId);
                         saveOffline("data", localTempId, dataMap);
                     }
-                });
-            } finally {
-                if (conn != null) conn.disconnect();
-            }
-        }).start();
-    }
-
-    private void hitungDeformasiOtomatis() {
-        new Thread(() -> {
-            HttpURLConnection conn = null;
-            try {
-                String hitungEndpoint = "";
-                switch (selectedExType) {
-                    case "pembacaan_ex1":
-                        hitungEndpoint = "hitung-deformasi-ex1";
-                        break;
-                    case "pembacaan_ex2":
-                        hitungEndpoint = "hitung-deformasi-ex2";
-                        break;
-                    case "pembacaan_ex3":
-                        hitungEndpoint = "hitung-deformasi-ex3";
-                        break;
-                    case "pembacaan_ex4":
-                        hitungEndpoint = "hitung-deformasi-ex4";
-                        break;
-                    default:
-                        hitungEndpoint = "hitung-deformasi-ex1";
-                }
-
-                String url = BASE_URL + hitungEndpoint;
-                conn = (HttpURLConnection) new URL(url).openConnection();
-                conn.setRequestMethod("POST");
-                conn.setDoOutput(true);
-                conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-                conn.setRequestProperty("Accept", "application/json");
-                conn.setConnectTimeout(10000);
-                conn.setReadTimeout(10000);
-
-                JSONObject jsonData = new JSONObject();
-                jsonData.put("id_pengukuran", pengukuranId);
-
-                String jsonString = jsonData.toString();
-                Log.d("EXSTENSO_API", "Hitung deformasi " + selectedExType + ": " + jsonString);
-
-                OutputStream os = conn.getOutputStream();
-                os.write(jsonString.getBytes("UTF-8"));
-                os.flush();
-                os.close();
-
-                int responseCode = conn.getResponseCode();
-                Log.d("EXSTENSO_API", "Response Code (Hitung): " + responseCode);
-
-                InputStream is = (responseCode == 200) ? conn.getInputStream() : conn.getErrorStream();
-                BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-                StringBuilder sb = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) sb.append(line);
-                reader.close();
-
-                String responseBody = sb.toString();
-                Log.d("EXSTENSO_API", "Response Body (Hitung): " + responseBody);
-
-                JSONObject response = new JSONObject(responseBody);
-                String status = response.optString("status", "");
-                String message = response.optString("message", "");
-
-                runOnUiThread(() -> {
-                    if (status.equals("success")) {
-                        showToast("🧮 Deformasi berhasil dihitung!");
-                    } else {
-                        showToast("❌ Gagal hitung deformasi");
-                    }
-                });
-
-            } catch (Exception e) {
-                Log.e("HITUNG_DEFORMASI", "Error hitung deformasi: " + e.getMessage());
-                runOnUiThread(() -> {
-                    showToast("❌ Error hitung deformasi");
                 });
             } finally {
                 if (conn != null) conn.disconnect();

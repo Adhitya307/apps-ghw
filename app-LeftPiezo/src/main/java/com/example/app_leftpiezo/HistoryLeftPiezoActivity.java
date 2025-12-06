@@ -59,7 +59,7 @@ public class HistoryLeftPiezoActivity extends AppCompatActivity {
     private ArrayList<Integer> pengukuranIds = new ArrayList<>();
     private ArrayList<String> pengukuranLabels = new ArrayList<>();
 
-    private static final String BASE_URL = "http://192.168.1.12/GHW/api-apps/public/api/leftpiezo/";
+    private static final String BASE_URL = "http://10.73.69.30/GHW/api-apps/public/api/leftpiezo/";
 
     private LeftPiezoDatabaseHelper dbHelper;
 

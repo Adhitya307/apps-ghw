@@ -60,7 +60,7 @@ public class HistoryExstensoActivity extends AppCompatActivity {
     private ArrayList<Integer> pengukuranIds = new ArrayList<>();
     private ArrayList<String> pengukuranLabels = new ArrayList<>();
 
-    private static final String BASE_URL = "http://192.168.1.12/GHW/api-apps/public/";
+    private static final String BASE_URL = "http://192.168.1.11/GHW/api-apps/public/";
 
     private ExstensoDatabaseHelper dbHelper;
 

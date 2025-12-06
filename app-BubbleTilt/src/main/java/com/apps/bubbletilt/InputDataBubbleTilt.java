@@ -60,7 +60,7 @@ public class InputDataBubbleTilt extends AppCompatActivity {
     private String tempId = null;
 
     // API URL
-    private static final String BASE_URL = "http://10.45.163.30/GHW/api-apps/public/btm/";
+    private static final String BASE_URL = "http://10.73.69.30/GHW/api-apps/public/btm/";
     private static final String INSERT_DATA_URL = BASE_URL + "input";
     private static final String GET_PENGUKURAN_URL = BASE_URL + "get-pengukuran-bulan-ini";
 

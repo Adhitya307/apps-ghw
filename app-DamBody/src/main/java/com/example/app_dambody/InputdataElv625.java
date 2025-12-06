@@ -873,19 +873,20 @@ public class InputdataElv625 extends AppCompatActivity {
                 double amanH1 = -18.77, peringatanH1 = -21.66, bahayaH1 = -25.60;
                 tvAmbangBatasH1.setText("AMBANG BATAS HV1:\nAman: " + amanH1 + " mm\nPeringatan: " + peringatanH1 + " mm\nBahaya: " + bahayaH1 + " mm");
                 tvPergerakanH1.setText("Pergerakan: " + String.format("%.4f", pergerakanH1) + " mm");
-                tvStatusH1.setText("KONDISI: " + analyzeStatusELV625(pergerakanH1, amanH1, bahayaH1));
+                // ✅ PERBAIKI: Kirim PERINGATAN dan BAHANA, bukan AMAN dan BAHANA
+                tvStatusH1.setText("KONDISI: " + analyzeStatusELV625(pergerakanH1, peringatanH1, bahayaH1));
 
                 // Data untuk H2
                 double amanH2 = -9.02, peringatanH2 = -10.41, bahayaH2 = -12.30;
                 tvAmbangBatasH2.setText("AMBANG BATAS HV2:\nAman: " + amanH2 + " mm\nPeringatan: " + peringatanH2 + " mm\nBahaya: " + bahayaH2 + " mm");
                 tvPergerakanH2.setText("Pergerakan: " + String.format("%.4f", pergerakanH2) + " mm");
-                tvStatusH2.setText("KONDISI: " + analyzeStatusELV625(pergerakanH2, amanH2, bahayaH2));
+                tvStatusH2.setText("KONDISI: " + analyzeStatusELV625(pergerakanH2, peringatanH2, bahayaH2));
 
                 // Data untuk H3
                 double amanH3 = -5.94, peringatanH3 = -6.85, bahayaH3 = -8.10;
                 tvAmbangBatasH3.setText("AMBANG BATAS HV3:\nAman: " + amanH3 + " mm\nPeringatan: " + peringatanH3 + " mm\nBahaya: " + bahayaH3 + " mm");
                 tvPergerakanH3.setText("Pergerakan: " + String.format("%.4f", pergerakanH3) + " mm");
-                tvStatusH3.setText("KONDISI: " + analyzeStatusELV625(pergerakanH3, amanH3, bahayaH3));
+                tvStatusH3.setText("KONDISI: " + analyzeStatusELV625(pergerakanH3, peringatanH3, bahayaH3));
 
                 // Setup dialog
                 AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -905,12 +906,20 @@ public class InputdataElv625 extends AppCompatActivity {
     }
 
     // ✅ CORRECTED: Helper method untuk menganalisis status ELV625
-    private String analyzeStatusELV625(double pergerakan, double aman, double bahaya) {
-        // Logika yang sama seperti ELV600:
-        // Hijau: ≥ Aman | Kuning: Aman > x ≥ Bahaya | Merah: x < Bahaya
-        if (pergerakan >= aman) {
+    private String analyzeStatusELV625(double pergerakan, double peringatan, double bahaya) {
+        // Logika sama dengan ELV600:
+        // 1. AMAN: pergerakan ≥ (peringatan + 0.01)
+        //    Contoh untuk HV1: ≥ -21.65 (karena -21.65 = -21.66 + 0.01)
+        // 2. PERINGATAN: pergerakan antara peringatan dan bahaya
+        //    Contoh untuk HV1: -21.66 sampai -25.59
+        // 3. BAHAYA: pergerakan ≤ bahaya
+        //    Contoh untuk HV1: ≤ -25.60
+
+        double batasAman = peringatan + 0.01;
+
+        if (pergerakan >= batasAman) {
             return "🟢 AMAN";
-        } else if (pergerakan >= bahaya) {
+        } else if (pergerakan > bahaya) {
             return "🟡 PERINGATAN";
         } else {
             return "🔴 BAHAYA";
