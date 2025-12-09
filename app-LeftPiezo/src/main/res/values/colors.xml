@@ -62,4 +62,73 @@
     <!-- Gray Colors -->
     <color name="gray_light">#F5F5F5</color>
     <color name="gray_medium">#9E9E9E</color>
+
+
+
+    <!-- Color Theme untuk Aplikasi -->
+    <color name="colorPrimary">#0D47A1</color>
+    <color name="colorPrimaryDark">#002171</color>
+    <color name="colorAccent">#FF9800</color>
+
+    <color name="secondary_color">#FF9800</color>
+
+
+    <!-- Primary Colors -->
+    <color name="primary_blue">#2196F3</color>
+
+
+    <!-- Secondary Colors -->
+    <color name="secondary_green">#4CAF50</color>
+    <color name="secondary_orange">#FF9800</color>
+    <color name="secondary_red">#F44336</color>
+
+    <!-- Background Colors -->
+    <color name="background_grey">#F5F5F5</color>
+
+    <color name="card_background">#FAFAFA</color>
+
+    <!-- Text Colors -->
+
+    <color name="text_hint">#BDBDBD</color>
+    <color name="text_white">#FFFFFF</color>
+
+    <!-- Status Colors -->
+    <color name="status_safe">#4CAF50</color>
+    <color name="status_warning">#FF9800</color>
+    <color name="status_danger">#F44336</color>
+    <color name="status_safe_light">#E8F5E9</color>
+    <color name="status_warning_light">#FFF3E0</color>
+    <color name="status_danger_light">#FFEBEE</color>
+
+    <!-- Info Colors -->
+    <color name="info_blue">#2196F3</color>
+    <color name="info_light">#E3F2FD</color>
+    <color name="info_border">#90CAF9</color>
+    <color name="info_dark">#0D47A1</color>
+
+    <!-- Divider & Border -->
+    <color name="divider_grey">#E0E0E0</color>
+    <color name="border_light">#EEEEEE</color>
+    <color name="border_dark">#BDBDBD</color>
+
+    <!-- Button States -->
+    <color name="button_pressed">#1976D2</color>
+    <color name="button_disabled">#BDBDBD</color>
+
+    <!-- Shadow & Elevation -->
+    <color name="shadow_light">#1A000000</color>
+    <color name="shadow_medium">#33000000</color>
+    <color name="shadow_dark">#4D000000</color>
+
+    <!-- Transparent -->
+    <color name="transparent">#00000000</color>
+    <color name="semi_transparent">#80000000</color>
+
+    <!-- Chart Colors -->
+    <color name="chart_blue">#2196F3</color>
+    <color name="chart_green">#4CAF50</color>
+    <color name="chart_orange">#FF9800</color>
+    <color name="chart_red">#F44336</color>
+    <color name="chart_purple">#9C27B0</color>
+    <color name="chart_teal">#009688</color>
 </resources>

@@ -1,14 +1,20 @@
 package com.apps.bubbletilt;
 
+import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.*;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
@@ -17,10 +23,12 @@ import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
-import com.apps.bubbletilt.OfflineDataHelperBTM;
+import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
+
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
@@ -29,6 +37,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -49,7 +58,7 @@ public class InputDataBubbleTilt extends AppCompatActivity {
     // Form utama Bubble Tilt
     private TextInputEditText inputUSGP, inputTBGP;
     private Spinner spinnerUSArah, spinnerTBArah;
-    private Button btnSimpanHitung; // ✅ Hanya 1 tombol untuk simpan & hitung
+    private Button btnSimpanHitung;
     private Spinner spinnerPengukuran, spinnerBT;
     private Button btnPilihPengukuran;
     private TextView titleBubbleTilt;
@@ -60,9 +69,11 @@ public class InputDataBubbleTilt extends AppCompatActivity {
     private String tempId = null;
 
     // API URL
-    private static final String BASE_URL = "http://10.73.69.30/GHW/api-apps/public/btm/";
+    private static final String BASE_URL = "http://192.168.1.11/GHW/api-apps/public/btm/";
     private static final String INSERT_DATA_URL = BASE_URL + "input";
     private static final String GET_PENGUKURAN_URL = BASE_URL + "get-pengukuran-bulan-ini";
+    private static final String HITUNG_URL = BASE_URL + "hitung/bubbletilt";
+    private static final String GET_SCATTER_DATA_URL = BASE_URL + "get-scatter-data/";
 
     // Data pengukuran
     private final Map<String, Integer> pengukuranMap = new HashMap<>();
@@ -77,6 +88,41 @@ public class InputDataBubbleTilt extends AppCompatActivity {
     private Handler networkCheckHandler = new Handler();
     private Runnable networkCheckRunnable;
     private boolean lastOnlineStatus = false;
+
+    // Untuk sinkronisasi dengan popup berurutan
+    private List<BTMPopupData> pendingPopups = new ArrayList<>();
+    private boolean isShowingPopup = false;
+
+    // Format angka
+    private DecimalFormat df6 = new DecimalFormat("#0.000000");
+    private DecimalFormat df3 = new DecimalFormat("#0.000");
+
+    // Interface untuk callback
+    interface HitungCallback {
+        void onComplete(boolean success, JSONObject data);
+    }
+
+    interface ScatterDataCallback {
+        void onDataReceived(JSONObject scatterData);
+    }
+
+    // Data class untuk popup antrian
+    private static class BTMPopupData {
+        String tanggal;
+        int btNumber;
+        JSONObject dataBacaan;
+        JSONObject hasilPerhitungan;
+        JSONObject scatterData;
+
+        BTMPopupData(String tanggal, int btNumber, JSONObject dataBacaan,
+                     JSONObject hasilPerhitungan, JSONObject scatterData) {
+            this.tanggal = tanggal;
+            this.btNumber = btNumber;
+            this.dataBacaan = dataBacaan;
+            this.hasilPerhitungan = hasilPerhitungan;
+            this.scatterData = scatterData;
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -95,28 +141,14 @@ public class InputDataBubbleTilt extends AppCompatActivity {
         setupModalCalendar();
         setupArahSpinners();
 
-        // Load data pengukuran (online/offline)
-        loadPengukuranData();
+        // Set default values untuk modal
+        setDefaultModalValues();
 
-        // Tampilkan modal di awal
+        // Modal muncul otomatis di awal
         showModal();
-    }
 
-    // Setup spinner untuk US Arah dan TB Arah
-    private void setupArahSpinners() {
-        // Spinner untuk US Arah (U atau S)
-        String[] usArahOptions = {"Pilih Arah US", "U", "S"};
-        ArrayAdapter<String> usArahAdapter = new ArrayAdapter<>(this,
-                android.R.layout.simple_spinner_item, usArahOptions);
-        usArahAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinnerUSArah.setAdapter(usArahAdapter);
-
-        // Spinner untuk TB Arah (B atau T)
-        String[] tbArahOptions = {"Pilih Arah TB", "B", "T"};
-        ArrayAdapter<String> tbArahAdapter = new ArrayAdapter<>(this,
-                android.R.layout.simple_spinner_item, tbArahOptions);
-        tbArahAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinnerTBArah.setAdapter(tbArahAdapter);
+        // START MONITORING JARINGAN
+        startNetworkMonitoring();
     }
 
     @Override
@@ -126,13 +158,14 @@ public class InputDataBubbleTilt extends AppCompatActivity {
 
         if (isInternetAvailable()) {
             if (offlineDb.hasUnsyncedDataBTM()) {
-                syncAllOfflineData(() -> {
+                syncAllOfflineDataWithPopup(() -> {
                     if (!isAlreadySynced()) {
                         showToast("✅ Sinkronisasi data offline selesai");
                         markAsSynced();
                     }
                 });
             } else {
+                prosesPerhitunganTertunda();
                 loadPengukuranData();
             }
         }
@@ -153,7 +186,443 @@ public class InputDataBubbleTilt extends AppCompatActivity {
         }
     }
 
-    // AUTO SYNC METHODS
+    // ==================== POPUP HASIL PERHITUNGAN BUBBLE TILT (CUSTOM LAYOUT) ====================
+
+    private void showBubbleTiltResultPopup(String tanggal, int btNumber,
+                                           JSONObject dataBacaan, JSONObject hasilPerhitungan,
+                                           JSONObject scatterData, Runnable onPopupClosed) {
+        try {
+            // Inflate custom layout
+            View dialogView = getLayoutInflater().inflate(R.layout.dialog_bubbletilt_result, null);
+
+            // Setup dialog dengan custom theme
+            AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.CustomDialogTheme);
+            builder.setView(dialogView);
+
+            AlertDialog dialog = builder.create();
+            dialog.setCancelable(false);
+
+            // Setup window properties
+            Window window = dialog.getWindow();
+            if (window != null) {
+                window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+                window.setLayout(
+                        WindowManager.LayoutParams.MATCH_PARENT,
+                        WindowManager.LayoutParams.WRAP_CONTENT
+                );
+
+                // Set gravity to center
+                WindowManager.LayoutParams params = window.getAttributes();
+                params.gravity = Gravity.CENTER;
+                params.width = WindowManager.LayoutParams.MATCH_PARENT;
+                params.height = WindowManager.LayoutParams.WRAP_CONTENT;
+                window.setAttributes(params);
+            }
+
+            // Bind views yang masih digunakan
+            TextView tvBTInfo = dialogView.findViewById(R.id.tvBTInfo);
+            TextView tvUSData = dialogView.findViewById(R.id.tvUSData);
+            TextView tvUSArah = dialogView.findViewById(R.id.tvUSArah);
+            TextView tvTBData = dialogView.findViewById(R.id.tvTBData);
+            TextView tvTBArah = dialogView.findViewById(R.id.tvTBArah);
+
+            TextView tvYUS = dialogView.findViewById(R.id.tvYUS);
+            TextView tvXTB = dialogView.findViewById(R.id.tvXTB);
+            TextView tvYCUM = dialogView.findViewById(R.id.tvYCUM);
+            TextView tvXCUM = dialogView.findViewById(R.id.tvXCUM);
+
+            ImageView btnCloseDialog = dialogView.findViewById(R.id.btnCloseDialog);
+            MaterialButton btnOK = dialogView.findViewById(R.id.btnOK);
+
+            // Set data header
+            tvBTInfo.setText(String.format("BT%d - Tanggal: %s", btNumber, tanggal));
+
+            // Set data bacaan
+            if (dataBacaan != null) {
+                try {
+                    double us_gp = dataBacaan.optDouble("US_GP", 0);
+                    String us_arah = dataBacaan.optString("US_Arah", "");
+                    double tb_gp = dataBacaan.optDouble("TB_GP", 0);
+                    String tb_arah = dataBacaan.optString("TB_Arah", "");
+
+                    tvUSData.setText(df6.format(us_gp));
+                    tvUSArah.setText(us_arah);
+                    tvTBData.setText(df6.format(tb_gp));
+                    tvTBArah.setText(tb_arah);
+                } catch (Exception e) {
+                    Log.e("POPUP_DATA_BACAAN", "Error parsing data bacaan: " + e.getMessage());
+                }
+            }
+
+            // Set data scatter
+            if (scatterData != null) {
+                try {
+                    double y_us = scatterData.optDouble("y_u0", 0);
+                    double x_tb = scatterData.optDouble("x_tb", 0);
+                    double y_cum = scatterData.optDouble("y_cum", 0);
+                    double x_cum = scatterData.optDouble("x_cum", 0);
+
+                    tvYUS.setText(df6.format(y_us));
+                    tvXTB.setText(df6.format(x_tb));
+                    tvYCUM.setText(df6.format(y_cum));
+                    tvXCUM.setText(df6.format(x_cum));
+                } catch (Exception e) {
+                    Log.e("POPUP_SCATTER", "Error parsing scatter data: " + e.getMessage());
+                }
+            }
+
+            // HAPUS BAGIAN HASIL PERHITUNGAN (A_sec, B_sec, sin_C_deg, DMS)
+            // Karena sudah dihapus dari layout, tidak perlu di-set lagi
+
+            // Setup click listeners
+            btnCloseDialog.setOnClickListener(v -> {
+                dialog.dismiss();
+                handlePopupClose(onPopupClosed);
+            });
+
+            btnOK.setOnClickListener(v -> {
+                dialog.dismiss();
+                handlePopupClose(onPopupClosed);
+            });
+
+            dialog.setOnDismissListener(d -> {
+                handlePopupClose(onPopupClosed);
+            });
+
+            // Show dialog
+            dialog.show();
+            isShowingPopup = true;
+
+        } catch (Exception e) {
+            Log.e("BUBBLETILT_DIALOG", "Error showing dialog: " + e.getMessage());
+            showToast("❌ Gagal menampilkan hasil");
+            handlePopupClose(onPopupClosed);
+        }
+    }
+
+    private void handlePopupClose(Runnable onPopupClosed) {
+        isShowingPopup = false;
+        if (onPopupClosed != null) {
+            onPopupClosed.run();
+        }
+    }
+
+    // ==================== SISTEM ANTRIAN POPUP ====================
+
+    private void addToPopupQueue(BTMPopupData popupData) {
+        pendingPopups.add(popupData);
+
+        // Jika tidak sedang menampilkan popup, langsung tampilkan
+        if (!isShowingPopup) {
+            showNextPendingPopup();
+        }
+    }
+
+    private void showNextPendingPopup() {
+        if (pendingPopups.isEmpty() || isShowingPopup) {
+            return;
+        }
+
+        // Ambil popup pertama dari antrian
+        BTMPopupData popupData = pendingPopups.remove(0);
+
+        // Tampilkan popup dengan callback untuk lanjut ke berikutnya
+        showBubbleTiltResultPopup(
+                popupData.tanggal,
+                popupData.btNumber,
+                popupData.dataBacaan,
+                popupData.hasilPerhitungan,
+                popupData.scatterData,
+                this::showNextPendingPopup
+        );
+
+        // Jika masih ada popup lain, tampilkan toast info
+        if (!pendingPopups.isEmpty()) {
+            showToast("📊 Masih ada " + pendingPopups.size() + " hasil perhitungan yang akan ditampilkan");
+        }
+    }
+
+    // ==================== HITUNG BUBBLE TILT ONLINE LANGSUNG ====================
+
+    private void hitungBubbleTiltOtomatis() {
+        try {
+            if (pengukuranId == -1) {
+                showToast("❌ Pengukuran ID tidak valid");
+                return;
+            }
+
+            String url = HITUNG_URL;
+
+            JSONObject postData = new JSONObject();
+            postData.put("pengukuran_id", pengukuranId);
+            postData.put("bt_number", selectedBT);
+
+            Log.d("BTM_HITUNG", "Mengirim request hitung untuk BT" + selectedBT + ", pengukuran_id: " + pengukuranId);
+
+            JsonObjectRequest request = new JsonObjectRequest(
+                    Request.Method.POST,
+                    url,
+                    postData,
+                    response -> {
+                        try {
+                            Log.d("BTM_HITUNG", "Response Hitung: " + response.toString());
+
+                            boolean success = response.optBoolean("success", false);
+                            String message = response.optString("message", "");
+
+                            if (success) {
+                                // Ambil data dengan benar
+                                JSONObject data = response.optJSONObject("data");
+                                if (data == null) {
+                                    data = response;
+                                }
+
+                                // Ambil scatter data
+                                JSONObject scatterData = extractScatterData(data);
+
+                                // Ambil hasil perhitungan
+                                JSONObject hasilPerhitungan = extractHasilPerhitungan(data);
+
+                                // Ambil tanggal
+                                String tanggal = spinnerPengukuran.getSelectedItem() != null ?
+                                        spinnerPengukuran.getSelectedItem().toString() :
+                                        "Tanggal tidak tersedia";
+
+                                // Buat data bacaan dari input form
+                                JSONObject dataBacaan = new JSONObject();
+                                dataBacaan.put("US_GP", inputUSGP.getText().toString().trim());
+                                dataBacaan.put("US_Arah", spinnerUSArah.getSelectedItem().toString());
+                                dataBacaan.put("TB_GP", inputTBGP.getText().toString().trim());
+                                dataBacaan.put("TB_Arah", spinnerTBArah.getSelectedItem().toString());
+
+                                // Buat popup data
+                                BTMPopupData popupData = new BTMPopupData(
+                                        tanggal, selectedBT, dataBacaan, hasilPerhitungan, scatterData
+                                );
+                                addToPopupQueue(popupData);
+
+                                showToast("🧮 Perhitungan berhasil!");
+                                clearForm();
+
+                            } else {
+                                showToast("⚠️ " + message);
+                            }
+                        } catch (Exception e) {
+                            Log.e("BTM_HITUNG", "Error parsing response: " + e.getMessage());
+                            showToast("❌ Gagal memproses hasil");
+                        }
+                    },
+                    error -> {
+                        Log.e("BTM_HITUNG", "Volley error: " + error.getMessage());
+                        showToast("❌ Gagal terhubung ke server");
+                    }
+            );
+
+            request.setRetryPolicy(new com.android.volley.DefaultRetryPolicy(
+                    15000,
+                    com.android.volley.DefaultRetryPolicy.DEFAULT_MAX_RETRIES,
+                    com.android.volley.DefaultRetryPolicy.DEFAULT_BACKOFF_MULT
+            ));
+
+            Volley.newRequestQueue(getApplicationContext()).add(request);
+
+        } catch (Exception e) {
+            Log.e("BTM_HITUNG", "Error: " + e.getMessage());
+            showToast("❌ Error: " + e.getMessage());
+        }
+    }
+
+    // Method helper untuk ekstrak scatter data
+    private JSONObject extractScatterData(JSONObject data) {
+        JSONObject scatterData = new JSONObject();
+
+        try {
+            if (data != null && data.has("scatter")) {
+                JSONObject scatter = data.getJSONObject("scatter");
+
+                double y_us = scatter.getDouble("Y_US");
+                double x_tb = scatter.getDouble("X_TB");
+                double y_cum = scatter.getDouble("Y_cum");
+                double x_cum = scatter.getDouble("X_cum");
+
+                scatterData.put("y_u0", y_us);
+                scatterData.put("x_tb", x_tb);
+                scatterData.put("y_cum", y_cum);
+                scatterData.put("x_cum", x_cum);
+
+                Log.d("EXTRACT_SCATTER", "Nilai dari SERVER:");
+                Log.d("EXTRACT_SCATTER", "y_u0: " + y_us);
+                Log.d("EXTRACT_SCATTER", "x_tb: " + x_tb);
+                Log.d("EXTRACT_SCATTER", "y_cum: " + y_cum);
+                Log.d("EXTRACT_SCATTER", "x_cum: " + x_cum);
+
+            } else {
+                Log.e("EXTRACT_SCATTER", "Data scatter tidak ditemukan di response!");
+                scatterData.put("y_u0", 0.0);
+                scatterData.put("x_tb", 0.0);
+                scatterData.put("y_cum", 0.0);
+                scatterData.put("x_cum", 0.0);
+            }
+
+        } catch (JSONException e) {
+            Log.e("EXTRACT_SCATTER", "Error parsing JSON: " + e.getMessage());
+            try {
+                scatterData.put("y_u0", 0.0);
+                scatterData.put("x_tb", 0.0);
+                scatterData.put("y_cum", 0.0);
+                scatterData.put("x_cum", 0.0);
+            } catch (JSONException ex) {
+                // Ignore jika masih error
+            }
+        }
+
+        return scatterData;
+    }
+
+    // Method helper untuk ekstrak hasil perhitungan
+    private JSONObject extractHasilPerhitungan(JSONObject data) {
+        JSONObject hasil = new JSONObject();
+
+        try {
+            if (data != null && data.has("perhitungan")) {
+                JSONObject perhitungan = data.getJSONObject("perhitungan");
+                hasil = perhitungan;
+            } else {
+                // Ambil langsung dari data
+                hasil.put("A_sec", data.optDouble("A_sec", 0));
+                hasil.put("B_sec", data.optDouble("B_sec", 0));
+                hasil.put("sin_C_deg", data.optDouble("sin_C_deg", 0));
+                hasil.put("DMS", data.optString("DMS", "0° 0' 0\""));
+            }
+        } catch (Exception e) {
+            Log.e("EXTRACT_HASIL", "Error extracting hasil: " + e.getMessage());
+            try {
+                hasil.put("A_sec", 0.0);
+                hasil.put("B_sec", 0.0);
+                hasil.put("sin_C_deg", 0.0);
+                hasil.put("DMS", "0° 0' 0\"");
+            } catch (Exception ex) {
+                // Ignore
+            }
+        }
+
+        return hasil;
+    }
+
+    // ==================== HITUNG BUBBLE TILT UNTUK SINKRONISASI ====================
+
+    private void hitungBTSingle(int btNumber, int pengukuranId, boolean addToQueue, HitungCallback callback) {
+        new Thread(() -> {
+            boolean success = false;
+            JSONObject resultData = null;
+            JSONObject dataBacaanFromDB = null;
+
+            try {
+                // Ambil data bacaan dari database
+                Map<String, String> bubbleData = offlineDb.getBTMData(pengukuranId, btNumber);
+
+                if (bubbleData != null && !bubbleData.isEmpty()) {
+                    dataBacaanFromDB = new JSONObject();
+                    dataBacaanFromDB.put("US_GP", bubbleData.getOrDefault("us_gp", "0"));
+                    dataBacaanFromDB.put("US_Arah", bubbleData.getOrDefault("us_arah", ""));
+                    dataBacaanFromDB.put("TB_GP", bubbleData.getOrDefault("tb_gp", "0"));
+                    dataBacaanFromDB.put("TB_Arah", bubbleData.getOrDefault("tb_arah", ""));
+
+                    Log.d("HITUNG_BTM_DATA", "Data dari database - US: " +
+                            bubbleData.get("us_gp") + bubbleData.get("us_arah") +
+                            ", TB: " + bubbleData.get("tb_gp") + bubbleData.get("tb_arah"));
+                }
+
+                // Hitung dengan data yang ada
+                String url = HITUNG_URL;
+
+                URL urlObj = new URL(url);
+                HttpURLConnection conn = (HttpURLConnection) urlObj.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setDoOutput(true);
+                conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+                conn.setRequestProperty("Accept", "application/json");
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(10000);
+
+                JSONObject postData = new JSONObject();
+                postData.put("pengukuran_id", pengukuranId);
+                postData.put("bt_number", btNumber);
+
+                OutputStream os = conn.getOutputStream();
+                os.write(postData.toString().getBytes("UTF-8"));
+                os.flush();
+                os.close();
+
+                int responseCode = conn.getResponseCode();
+
+                if (responseCode == 200) {
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) sb.append(line);
+                    reader.close();
+
+                    String responseBody = sb.toString();
+                    JSONObject response = new JSONObject(responseBody);
+
+                    boolean successResponse = response.optBoolean("success", false);
+                    success = successResponse;
+
+                    if (success && response.has("data")) {
+                        resultData = response.getJSONObject("data");
+
+                        // Tambah ke antrian popup
+                        if (addToQueue && resultData != null) {
+                            JSONObject scatterData = extractScatterData(resultData);
+                            JSONObject hasilPerhitungan = extractHasilPerhitungan(resultData);
+
+                            // Buat final copy untuk lambda
+                            final JSONObject finalScatterData = scatterData;
+                            final JSONObject finalHasilPerhitungan = hasilPerhitungan;
+                            final JSONObject finalDataBacaan = dataBacaanFromDB;
+
+                            runOnUiThread(() -> {
+                                try {
+                                    String tanggal = spinnerPengukuran.getSelectedItem() != null ?
+                                            spinnerPengukuran.getSelectedItem().toString() :
+                                            "Tanggal tidak tersedia";
+
+                                    // Gunakan data bacaan dari database jika ada
+                                    JSONObject dataBacaan = finalDataBacaan != null ?
+                                            finalDataBacaan : new JSONObject();
+
+                                    // Tambah ke antrian popup
+                                    BTMPopupData popupData = new BTMPopupData(
+                                            tanggal, btNumber, dataBacaan,
+                                            finalHasilPerhitungan, finalScatterData
+                                    );
+                                    addToPopupQueue(popupData);
+
+                                    Log.d("HITUNG_BTM_POPUP", "✅ Popup ditambahkan untuk BT" + btNumber);
+
+                                } catch (Exception e) {
+                                    Log.e("HITUNG_BTM_POPUP", "Error creating popup data: " + e.getMessage());
+                                }
+                            });
+                        }
+                    }
+
+                    Log.d("HITUNG_BTM", "✅ Berhasil hitung BT" + btNumber + " untuk pengukuran " + pengukuranId);
+                } else {
+                    Log.e("HITUNG_BTM", "❌ Gagal hitung BT" + btNumber + ", response code: " + responseCode);
+                }
+
+            } catch (Exception e) {
+                Log.e("HITUNG_BTM", "❌ Error hitung BT" + btNumber + " untuk pengukuran " + pengukuranId + ": " + e.getMessage());
+            } finally {
+                callback.onComplete(success, resultData);
+            }
+        }).start();
+    }
+
+    // ==================== FITUR SINKRONISASI OTOMATIS ====================
+
     private void startNetworkMonitoring() {
         networkCheckRunnable = new Runnable() {
             @Override
@@ -188,10 +657,19 @@ public class InputDataBubbleTilt extends AppCompatActivity {
         if (isSyncInProgress || !isInternetAvailable()) return;
 
         int offlineCount = offlineDb.getOfflineDataCountBTM();
-        if (offlineCount > 0) {
-            Log.d("BTM_AutoSync", "Found " + offlineCount + " offline data, starting auto-sync");
+        boolean hasPendingCalc = hasPendingCalculations();
+
+        if (offlineCount > 0 || hasPendingCalc) {
+            Log.d("BTM_AutoSync", "Found " + offlineCount + " offline data and " +
+                    (hasPendingCalc ? "pending calculations" : "no pending calculations"));
             triggerAutoSync();
         }
+    }
+
+    private boolean hasPendingCalculations() {
+        SharedPreferences prefs = getSharedPreferences("btm_pending_calc", MODE_PRIVATE);
+        Map<String, ?> allEntries = prefs.getAll();
+        return !allEntries.isEmpty();
     }
 
     private void triggerAutoSync() {
@@ -211,6 +689,7 @@ public class InputDataBubbleTilt extends AppCompatActivity {
     private void syncAllOfflineDataAuto(Runnable onComplete) {
         int offlineCount = offlineDb.getOfflineDataCountBTM();
         if (offlineCount == 0) {
+            prosesPerhitunganTertunda();
             if (onComplete != null) onComplete.run();
             return;
         }
@@ -218,6 +697,7 @@ public class InputDataBubbleTilt extends AppCompatActivity {
         syncDataSerialAuto("pengukuran", () ->
                 syncDataSerialAuto("data", () -> {
                     showToast("✅ " + offlineCount + " data terkirim");
+                    prosesPerhitunganTertunda();
                     if (onComplete != null) onComplete.run();
                 })
         );
@@ -251,12 +731,6 @@ public class InputDataBubbleTilt extends AppCompatActivity {
         new Thread(() -> {
             try {
                 JSONObject json = new JSONObject(jsonStr);
-                Map<String,String> dataMap = new HashMap<>();
-                Iterator<String> it = json.keys();
-                while (it.hasNext()) {
-                    String k = it.next();
-                    dataMap.put(k, json.optString(k, ""));
-                }
 
                 HttpURLConnection conn = null;
                 try {
@@ -278,6 +752,18 @@ public class InputDataBubbleTilt extends AppCompatActivity {
                     if (code == 200) {
                         offlineDb.deleteByTempIdBTM(tableType, tempId);
                         Log.d("BTM_AutoSync", "Synced " + tableType + " tempId=" + tempId);
+
+                        // Tandai perlu perhitungan jika ini data bubbletilt
+                        if (tableType.equals("data") && json.has("mode")) {
+                            String mode = json.optString("mode", "");
+                            if (mode.equals("bubbletilt")) {
+                                int pengukuranId = json.optInt("pengukuran_id", -1);
+                                int btNumber = json.optInt("bt_number", 1);
+                                if (pengukuranId != -1) {
+                                    tandaiPerluHitungBTM(tempId, pengukuranId, btNumber);
+                                }
+                            }
+                        }
                     }
                 } catch (Exception e) {
                     Log.e("BTM_AutoSync", "Failed to sync tempId=" + tempId + ": " + e.getMessage());
@@ -293,20 +779,183 @@ public class InputDataBubbleTilt extends AppCompatActivity {
         }).start();
     }
 
-    private boolean isAlreadySynced() {
-        SharedPreferences prefs = getSharedPreferences("btm_app_prefs", MODE_PRIVATE);
-        String lastSyncDate = prefs.getString("last_sync_date", "");
-        String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
-        return today.equals(lastSyncDate);
+    // ==================== SYNC DENGAN POPUP (VERSI SIMPLIFIED) ====================
+
+    private void syncAllOfflineDataWithPopup(Runnable onComplete) {
+        boolean adaData = offlineDb.hasUnsyncedDataBTM();
+        if (!adaData) {
+            prosesPerhitunganTertunda();
+            if (onComplete != null) onComplete.run();
+            return;
+        }
+
+        syncDataSerialWithPopup("pengukuran", () -> {
+            syncDataSerialWithPopup("data", onComplete);
+        });
     }
 
-    private void markAsSynced() {
-        SharedPreferences prefs = getSharedPreferences("btm_app_prefs", MODE_PRIVATE);
-        String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
-        prefs.edit().putString("last_sync_date", today).apply();
+    private void syncDataSerialWithPopup(String tableType, Runnable next) {
+        List<Map<String, String>> dataList = offlineDb.getUnsyncedDataBTM(tableType);
+        if (dataList.isEmpty()) {
+            if (next != null) next.run();
+            return;
+        }
+        syncDataItemWithPopup(tableType, dataList, 0, next);
     }
 
-    // INIT COMPONENTS
+    private void syncDataItemWithPopup(String tableType, List<Map<String, String>> dataList, int index, Runnable onFinish) {
+        if (index >= dataList.size()) {
+            if (onFinish != null) onFinish.run();
+            return;
+        }
+
+        Map<String, String> item = dataList.get(index);
+        String tempId = item.get("temp_id");
+        String jsonStr = item.get("json");
+
+        try {
+            JSONObject jsonData = new JSONObject(jsonStr);
+
+            new Thread(() -> {
+                HttpURLConnection conn = null;
+                try {
+                    URL url = new URL(INSERT_DATA_URL);
+                    conn = (HttpURLConnection) url.openConnection();
+                    conn.setRequestMethod("POST");
+                    conn.setDoOutput(true);
+                    conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+                    conn.setRequestProperty("Accept", "application/json");
+                    conn.setConnectTimeout(9000);
+                    conn.setReadTimeout(9000);
+
+                    OutputStream os = conn.getOutputStream();
+                    os.write(jsonData.toString().getBytes("UTF-8"));
+                    os.flush();
+                    os.close();
+
+                    int responseCode = conn.getResponseCode();
+                    if (responseCode == 200) {
+                        offlineDb.deleteByTempIdBTM(tableType, tempId);
+                        Log.d("BTM_Sync", "Data " + tableType + " tempId=" + tempId + " berhasil disinkronisasi");
+
+                        // Jika ini data bubbletilt yang berhasil disinkron, proses perhitungan
+                        if (tableType.equals("data") && jsonData.has("mode")) {
+                            String mode = jsonData.optString("mode", "");
+                            if (mode.equals("bubbletilt")) {
+                                int pengukuranId = jsonData.optInt("pengukuran_id", -1);
+                                int btNumber = jsonData.optInt("bt_number", 1);
+
+                                if (pengukuranId != -1) {
+                                    // Langsung hitung dan tampilkan popup
+                                    hitungBTSingleForSync(btNumber, pengukuranId);
+                                }
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    Log.e("BTM_Sync", "Error sync " + tableType + " tempId=" + tempId, e);
+                } finally {
+                    if (conn != null) conn.disconnect();
+                }
+
+                runOnUiThread(() -> syncDataItemWithPopup(tableType, dataList, index + 1, onFinish));
+            }).start();
+
+        } catch (Exception e) {
+            Log.e("BTM_Sync", "JSON parse error untuk data " + tableType + " tempId=" + tempId, e);
+            runOnUiThread(() -> syncDataItemWithPopup(tableType, dataList, index + 1, onFinish));
+        }
+    }
+
+    private void hitungBTSingleForSync(int btNumber, int pengukuranId) {
+        hitungBTSingle(btNumber, pengukuranId, true, (success, data) -> {
+            if (success) {
+                Log.d("BTM_Sync", "Successfully calculated bubbletilt for BT" + btNumber + ", pengukuran " + pengukuranId);
+            }
+        });
+    }
+
+    // ==================== FITUR PERHITUNGAN BUBBLE TILT ====================
+
+    private void tandaiPerluHitungBTM(String tempId, int pengukuranId, int btNumber) {
+        SharedPreferences prefs = getSharedPreferences("btm_pending_calc", MODE_PRIVATE);
+        String key = "pending_" + tempId;
+
+        Map<String, String> pendingData = new HashMap<>();
+        pendingData.put("pengukuran_id", String.valueOf(pengukuranId));
+        pendingData.put("bt_number", String.valueOf(btNumber));
+        pendingData.put("temp_id", tempId);
+
+        try {
+            JSONObject json = new JSONObject(pendingData);
+            prefs.edit().putString(key, json.toString()).apply();
+            Log.d("PENDING_CALC_BTM", "Data ditandai perlu hitung: " + json.toString());
+        } catch (Exception e) {
+            Log.e("PENDING_CALC_BTM", "Gagal menyimpan pending calculation: " + e.getMessage());
+        }
+    }
+
+    private void prosesPerhitunganTertunda() {
+        if (!isInternetAvailable()) return;
+
+        SharedPreferences prefs = getSharedPreferences("btm_pending_calc", MODE_PRIVATE);
+        Map<String, ?> allEntries = prefs.getAll();
+
+        if (allEntries.isEmpty()) return;
+
+        Log.d("PENDING_CALC_BTM", "Processing " + allEntries.size() + " pending calculations");
+        showToast("🔄 Memproses " + allEntries.size() + " perhitungan tertunda...");
+
+        // Proses satu per satu
+        List<Map.Entry<String, ?>> entries = new ArrayList<>(allEntries.entrySet());
+        prosesPendingEntries(entries, 0);
+    }
+
+    private void prosesPendingEntries(List<Map.Entry<String, ?>> entries, int index) {
+        if (index >= entries.size()) {
+            runOnUiThread(() -> {
+                // Tunggu sebentar sebelum menampilkan toast selesai
+                new Handler().postDelayed(() -> {
+                    if (pendingPopups.isEmpty()) {
+                        showToast("✅ Semua perhitungan tertunda selesai");
+                    }
+                }, 1000);
+            });
+            return;
+        }
+
+        Map.Entry<String, ?> entry = entries.get(index);
+        if (entry.getKey().startsWith("pending_")) {
+            try {
+                String jsonStr = (String) entry.getValue();
+                JSONObject json = new JSONObject(jsonStr);
+
+                int pendingPengukuranId = json.getInt("pengukuran_id");
+                int pendingBtNumber = json.getInt("bt_number");
+                String pendingTempId = json.getString("temp_id");
+
+                Log.d("PENDING_CALC_BTM", "Processing pending calculation for BT" + pendingBtNumber + ", pengukuran " + pendingPengukuranId);
+
+                hitungBTSingle(pendingBtNumber, pendingPengukuranId, true, (success, data) -> {
+                    if (success) {
+                        // Hapus dari pending setelah sukses
+                        SharedPreferences prefs = getSharedPreferences("btm_pending_calc", MODE_PRIVATE);
+                        prefs.edit().remove(entry.getKey()).apply();
+                    }
+                    prosesPendingEntries(entries, index + 1);
+                });
+
+            } catch (Exception e) {
+                Log.e("PENDING_CALC_BTM", "Error processing pending calculation: " + e.getMessage());
+                prosesPendingEntries(entries, index + 1);
+            }
+        } else {
+            prosesPendingEntries(entries, index + 1);
+        }
+    }
+
+    // ==================== METHOD INIT COMPONENTS ====================
+
     private void initModalComponents() {
         modalPengukuran = findViewById(R.id.modalPengukuran);
         modalOverlay = findViewById(R.id.modalOverlay);
@@ -330,7 +979,6 @@ public class InputDataBubbleTilt extends AppCompatActivity {
         inputTBGP = findViewById(R.id.inputTBGP);
         spinnerTBArah = findViewById(R.id.spinnerTBArah);
 
-        // ✅ Hanya 1 tombol untuk Simpan & Hitung
         btnSimpanHitung = findViewById(R.id.btnSimpanHitung);
 
         spinnerPengukuran = findViewById(R.id.spinnerPengukuran);
@@ -338,7 +986,6 @@ public class InputDataBubbleTilt extends AppCompatActivity {
         btnPilihPengukuran = findViewById(R.id.btnPilihPengukuran);
         titleBubbleTilt = findViewById(R.id.titleBubbleTilt);
 
-        // Set click listener untuk tombol Simpan & Hitung
         btnSimpanHitung.setOnClickListener(v -> handleSimpanHitung());
     }
 
@@ -391,7 +1038,24 @@ public class InputDataBubbleTilt extends AppCompatActivity {
         });
     }
 
-    // Method untuk clear form
+    private void setupArahSpinners() {
+        // Spinner untuk US Arah (U atau S)
+        String[] usArahOptions = {"Pilih Arah US", "U", "S"};
+        ArrayAdapter<String> usArahAdapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, usArahOptions);
+        usArahAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerUSArah.setAdapter(usArahAdapter);
+
+        // Spinner untuk TB Arah (B atau T)
+        String[] tbArahOptions = {"Pilih Arah TB", "B", "T"};
+        ArrayAdapter<String> tbArahAdapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, tbArahOptions);
+        tbArahAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerTBArah.setAdapter(tbArahAdapter);
+    }
+
+    // ==================== METHOD UTILITAS ====================
+
     private void clearForm() {
         runOnUiThread(() -> {
             inputUSGP.setText("");
@@ -415,9 +1079,6 @@ public class InputDataBubbleTilt extends AppCompatActivity {
         } else {
             loadDataFromOffline();
         }
-
-        // ✅ TAMBAHAN: Cek data di database untuk debugging
-        cekDataDiDatabase();
     }
 
     private void loadDataFromServer() {
@@ -497,7 +1158,6 @@ public class InputDataBubbleTilt extends AppCompatActivity {
 
     // ==================== TOMBOL SIMPAN & HITUNG ====================
 
-    // Handle Simpan & Hitung dalam 1 tombol
     private void handleSimpanHitung() {
         if (pengukuranId == -1) {
             showToast("❌ Harap buat/pilih pengukuran terlebih dahulu");
@@ -514,7 +1174,6 @@ public class InputDataBubbleTilt extends AppCompatActivity {
         simpanDataBubbleTilt();
     }
 
-    // Simpan data Bubble Tilt
     private void simpanDataBubbleTilt() {
         String usArah = spinnerUSArah.getSelectedItem().toString();
         String tbArah = spinnerTBArah.getSelectedItem().toString();
@@ -544,13 +1203,12 @@ public class InputDataBubbleTilt extends AppCompatActivity {
             data.put("temp_id", localTempId);
             saveOffline("data", localTempId, data);
             showToast("📱 Data BT" + selectedBT + " disimpan offline");
-            // Untuk offline, tidak bisa hitung karena butuh koneksi server
-            showToast("⚠️ Hitung hanya bisa dilakukan saat online");
+            tandaiPerluHitungBTM(localTempId, pengukuranId, selectedBT);
+            // Clear form setelah simpan offline
+            clearForm();
         }
     }
 
-    // Simpan ke server dan langsung hitung
-// Simpan ke server dan langsung hitung
     private void simpanKeServerDanHitung(Map<String, String> data) {
         new Thread(() -> {
             HttpURLConnection conn = null;
@@ -595,13 +1253,12 @@ public class InputDataBubbleTilt extends AppCompatActivity {
                 String message = response.optString("message", "");
 
                 runOnUiThread(() -> {
-                    // ✅ PERBAIKAN: Tangani semua status response
+                    // Tangani semua status response
                     if (status.equalsIgnoreCase("success") || status.equalsIgnoreCase("info")) {
-                        // Baik data baru berhasil disimpan atau data sudah ada, lanjutkan hitung
                         showToast("✅ " + message);
                         // Tunggu sebentar sebelum hitung untuk memastikan data tersimpan
                         new Handler().postDelayed(() -> {
-                            hitungBubbleTilt();
+                            hitungBubbleTiltOtomatis();
                         }, 1000);
                     } else {
                         showToast("❌ Gagal simpan: " + message);
@@ -616,6 +1273,8 @@ public class InputDataBubbleTilt extends AppCompatActivity {
                     String localTempId = "local_" + System.currentTimeMillis();
                     data.put("temp_id", localTempId);
                     saveOffline("data", localTempId, data);
+                    tandaiPerluHitungBTM(localTempId, pengukuranId, selectedBT);
+                    clearForm();
                 });
             } finally {
                 if (conn != null) conn.disconnect();
@@ -623,192 +1282,6 @@ public class InputDataBubbleTilt extends AppCompatActivity {
         }).start();
     }
 
-    // Hitung Bubble Tilt
-    private void hitungBubbleTilt() {
-        try {
-            // ✅ PERBAIKAN: Validasi ulang pengukuran_id
-            if (pengukuranId == -1) {
-                showToast("❌ Pengukuran ID tidak valid");
-                return;
-            }
-
-            String url = BASE_URL + "hitung/bubbletilt";
-
-            JSONObject postData = new JSONObject();
-            postData.put("pengukuran_id", pengukuranId);
-            postData.put("bt_number", selectedBT);
-
-            Log.d("BTM_HITUNG", "Mengirim request hitung untuk BT" + selectedBT + ", pengukuran_id: " + pengukuranId);
-            Log.d("BTM_HITUNG", "JSON Hitung: " + postData.toString());
-
-            JsonObjectRequest request = new JsonObjectRequest(
-                    Request.Method.POST,
-                    url,
-                    postData,
-                    response -> {
-                        try {
-                            Log.d("BTM_HITUNG", "Response Hitung: " + response.toString());
-
-                            String status = response.optString("status", "error");
-                            String message = response.optString("message", "Tidak ada pesan dari server");
-
-                            if (status.equalsIgnoreCase("success")) {
-                                JSONObject data = response.optJSONObject("data");
-
-                                // Format hasil perhitungan
-                                StringBuilder hasilBuilder = new StringBuilder();
-                                hasilBuilder.append("📊 HASIL PERHITUNGAN BT").append(selectedBT).append("\n\n");
-
-                                if (data != null) {
-                                    // Data Bacaan
-                                    if (data.has("data_bacaan")) {
-                                        JSONObject dataBacaan = data.getJSONObject("data_bacaan");
-                                        hasilBuilder.append("📝 DATA BACAAN:\n");
-                                        hasilBuilder.append("US_GP: ").append(dataBacaan.optDouble("US_GP", 0)).append("\n");
-                                        hasilBuilder.append("US_Arah: ").append(dataBacaan.optString("US_Arah", "")).append("\n");
-                                        hasilBuilder.append("TB_GP: ").append(dataBacaan.optDouble("TB_GP", 0)).append("\n");
-                                        hasilBuilder.append("TB_Arah: ").append(dataBacaan.optString("TB_Arah", "")).append("\n\n");
-                                    }
-
-                                    // Hasil Akhir
-                                    if (data.has("hasil_akhir")) {
-                                        JSONObject hasilAkhir = data.getJSONObject("hasil_akhir");
-                                        hasilBuilder.append("📈 HASIL AKHIR:\n");
-                                        hasilBuilder.append("ΔH: ").append(String.format(Locale.getDefault(), "%.4f", hasilAkhir.optDouble("delta_h", 0))).append("\n");
-                                        hasilBuilder.append("Kemiringan: ").append(String.format(Locale.getDefault(), "%.4f", hasilAkhir.optDouble("kemiringan", 0))).append("°\n");
-                                        hasilBuilder.append("Arah: ").append(hasilAkhir.optString("arah_kemiringan", "")).append("\n");
-                                        hasilBuilder.append("Keterangan: ").append(hasilAkhir.optString("keterangan", "")).append("\n\n");
-                                    }
-
-                                    // Perhitungan Utama (jika ada)
-                                    if (data.has("perhitungan_utama")) {
-                                        JSONObject perhitunganUtama = data.getJSONObject("perhitungan_utama");
-                                        hasilBuilder.append("🧮 PERHITUNGAN UTAMA:\n");
-                                        if (perhitunganUtama.has("A_sec")) {
-                                            hasilBuilder.append("A_sec: ").append(String.format(Locale.getDefault(), "%.4f", perhitunganUtama.optDouble("A_sec", 0))).append("\n");
-                                        }
-                                        if (perhitunganUtama.has("B_sec")) {
-                                            hasilBuilder.append("B_sec: ").append(String.format(Locale.getDefault(), "%.4f", perhitunganUtama.optDouble("B_sec", 0))).append("\n");
-                                        }
-                                        if (perhitunganUtama.has("sin_C_deg")) {
-                                            hasilBuilder.append("sin_C_deg: ").append(String.format(Locale.getDefault(), "%.4f", perhitunganUtama.optDouble("sin_C_deg", 0))).append("\n");
-                                        }
-                                    }
-                                } else {
-                                    hasilBuilder.append("Tidak ada data hasil perhitungan");
-                                }
-
-                                // Tampilkan dialog hasil
-                                showResultDialog("✅ Simpan & Hitung Berhasil", hasilBuilder.toString());
-
-                                // Clear form setelah berhasil
-                                clearForm();
-
-                            } else {
-                                showToast("⚠️ " + message);
-                                // Tampilkan response lengkap untuk debugging
-                                Log.e("BTM_HITUNG", "Hitung gagal: " + response.toString());
-                            }
-
-                        } catch (Exception e) {
-                            Log.e("BTM_HITUNG", "Error parsing response: " + e.getMessage());
-                            showToast("❌ Gagal memproses hasil: " + e.getMessage());
-                        }
-                    },
-                    error -> {
-                        String msg = "❌ Gagal terhubung ke server untuk hitung";
-                        if (error != null) {
-                            if (error.networkResponse != null) {
-                                msg += " (HTTP " + error.networkResponse.statusCode + ")";
-                                try {
-                                    String errorBody = new String(error.networkResponse.data, "UTF-8");
-                                    Log.e("BTM_HITUNG", "Error response body: " + errorBody);
-                                } catch (Exception e) {
-                                    Log.e("BTM_HITUNG", "Error reading error response");
-                                }
-                            } else if (error.getMessage() != null) {
-                                msg += ": " + error.getMessage();
-                            }
-                        }
-                        Log.e("BTM_HITUNG", "Volley error: " + msg);
-                        showToast(msg);
-                    }
-            ) {
-                @Override
-                public Map<String, String> getHeaders() {
-                    Map<String, String> headers = new HashMap<>();
-                    headers.put("Content-Type", "application/json");
-                    headers.put("Accept", "application/json");
-                    return headers;
-                }
-
-                @Override
-                public byte[] getBody() {
-                    try {
-                        JSONObject postData = new JSONObject();
-                        postData.put("pengukuran_id", pengukuranId);
-                        postData.put("bt_number", selectedBT);
-                        return postData.toString().getBytes("UTF-8");
-                    } catch (Exception e) {
-                        Log.e("BTM_HITUNG", "Error creating request body: " + e.getMessage());
-                        return null;
-                    }
-                }
-            };
-
-            // Tambahkan timeout
-            request.setRetryPolicy(new com.android.volley.DefaultRetryPolicy(
-                    15000,
-                    com.android.volley.DefaultRetryPolicy.DEFAULT_MAX_RETRIES,
-                    com.android.volley.DefaultRetryPolicy.DEFAULT_BACKOFF_MULT
-            ));
-
-            RequestQueue queue = Volley.newRequestQueue(getApplicationContext());
-            queue.add(request);
-
-        } catch (Exception e) {
-            Log.e("BTM_HITUNG", "Error: " + e.getMessage());
-            showToast("❌ Error: " + e.getMessage());
-        }
-    }
-
-    // Method untuk debugging - cek data di database
-    private void cekDataDiDatabase() {
-        if (pengukuranId == -1) return;
-
-        new Thread(() -> {
-            try {
-                String url = BASE_URL + "get-data?pengukuran_id=" + pengukuranId + "&bt=" + selectedBT;
-                HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
-                conn.setRequestMethod("GET");
-                conn.setRequestProperty("Accept", "application/json");
-
-                if (conn.getResponseCode() == 200) {
-                    BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                    StringBuilder sb = new StringBuilder();
-                    String line;
-                    while ((line = reader.readLine()) != null) sb.append(line);
-                    reader.close();
-
-                    JSONObject response = new JSONObject(sb.toString());
-                    Log.d("BTM_DEBUG", "Data di database: " + response.toString());
-
-                    if (response.getString("status").equals("success")) {
-                        JSONObject data = response.getJSONObject("data");
-                        runOnUiThread(() -> {
-                            showToast("ℹ️ Data BT" + selectedBT + " sudah ada di database");
-                            // Isi form dengan data yang ada
-                            populateForm(data);
-                        });
-                    }
-                }
-            } catch (Exception e) {
-                Log.e("BTM_DEBUG", "Error cek data: " + e.getMessage());
-            }
-        }).start();
-    }
-
-    // Validasi field Bubble Tilt
     private boolean validateBubbleTiltFields() {
         String usArah = spinnerUSArah.getSelectedItem().toString();
         String tbArah = spinnerTBArah.getSelectedItem().toString();
@@ -819,19 +1292,38 @@ public class InputDataBubbleTilt extends AppCompatActivity {
                 !tbArah.equals("Pilih Arah TB");
     }
 
-    // Method untuk menampilkan dialog hasil perhitungan
-    private void showResultDialog(String title, String message) {
-        runOnUiThread(() -> {
-            androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
-            builder.setTitle(title)
-                    .setMessage(message)
-                    .setPositiveButton("OK", (dialog, which) -> dialog.dismiss())
-                    .setCancelable(false)
-                    .show();
-        });
-    }
+    // ==================== METHOD MODAL ====================
 
-    // ==================== METHOD LAIN YANG TETAP SAMA ====================
+    private void setDefaultModalValues() {
+        // Set current date as default
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+        String currentDate = sdf.format(Calendar.getInstance().getTime());
+        modalInputTanggal.setText(currentDate);
+
+        // Set current year as default
+        int currentYear = Calendar.getInstance().get(Calendar.YEAR);
+        modalInputTahun.setText(String.valueOf(currentYear));
+
+        // Set current month as default
+        int currentMonth = Calendar.getInstance().get(Calendar.MONTH);
+        String[] bulanArray = getResources().getStringArray(R.array.bulan_options);
+        if (currentMonth >= 0 && currentMonth < bulanArray.length) {
+            modalInputBulan.setText(bulanArray[currentMonth], false);
+        }
+
+        // Set current periode as default
+        String currentPeriode;
+        if (currentMonth <= 2) {
+            currentPeriode = "TW-1";
+        } else if (currentMonth <= 5) {
+            currentPeriode = "TW-2";
+        } else if (currentMonth <= 8) {
+            currentPeriode = "TW-3";
+        } else {
+            currentPeriode = "TW-4";
+        }
+        modalInputPeriode.setText(currentPeriode, false);
+    }
 
     private void setupModalDropdowns() {
         try {
@@ -930,9 +1422,43 @@ public class InputDataBubbleTilt extends AppCompatActivity {
         mainContent.setAlpha(1.0f);
         mainContent.setEnabled(true);
         mainContent.setVisibility(View.VISIBLE);
+
+        // Load data pengukuran setelah modal ditutup
+        loadPengukuranData();
     }
 
-    // Load data pengukuran dengan offline support
+    // ==================== METHOD DATABASE & SYNC ====================
+
+    private boolean isAlreadySynced() {
+        SharedPreferences prefs = getSharedPreferences("btm_app_prefs", MODE_PRIVATE);
+        String lastSyncDate = prefs.getString("last_sync_date", "");
+        String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+        return today.equals(lastSyncDate);
+    }
+
+    private void markAsSynced() {
+        SharedPreferences prefs = getSharedPreferences("btm_app_prefs", MODE_PRIVATE);
+        String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+        prefs.edit().putString("last_sync_date", today).apply();
+    }
+
+    private void saveOffline(String tableType, String tempId, Map<String, String> data) {
+        try {
+            JSONObject json = new JSONObject(data);
+            boolean success = offlineDb.insertDataBTM(tableType, tempId, json.toString());
+            if (success) {
+                Log.d("BTM_Offline", "Data disimpan offline (" + tableType + ")");
+            } else {
+                showToast("❌ Gagal simpan offline");
+            }
+        } catch (Exception e) {
+            Log.e("BTM_Offline", "Gagal simpan offline: " + e.getMessage());
+            showToast("❌ Gagal simpan offline: " + e.getMessage());
+        }
+    }
+
+    // ==================== METHOD PENGUKURAN ====================
+
     private void loadPengukuranData() {
         if (!isInternetAvailable()) {
             showToast("📱 Tidak ada internet, load data dari lokal");
@@ -1014,7 +1540,6 @@ public class InputDataBubbleTilt extends AppCompatActivity {
         }).start();
     }
 
-    // Load data dari lokal ketika offline
     private void loadTanggalOffline() {
         try {
             List<Map<String,String>> rows = offlineDb.getPengukuranMasterBTM();
@@ -1051,7 +1576,6 @@ public class InputDataBubbleTilt extends AppCompatActivity {
         }
     }
 
-    // Handle modal dengan offline support
     private void handleModalPengukuran() {
         if (modalInputTahun == null || modalInputBulan == null || modalInputPeriode == null || modalInputTanggal == null) {
             showToast("Form modal belum siap");
@@ -1107,23 +1631,6 @@ public class InputDataBubbleTilt extends AppCompatActivity {
         return bulanMap.getOrDefault(upperBulan, "01");
     }
 
-    // Save offline method
-    private void saveOffline(String tableType, String tempId, Map<String, String> data) {
-        try {
-            JSONObject json = new JSONObject(data);
-            boolean success = offlineDb.insertDataBTM(tableType, tempId, json.toString());
-            if (success) {
-                showToast("📱 Data disimpan offline (" + tableType + ")");
-            } else {
-                showToast("❌ Gagal simpan offline");
-            }
-        } catch (Exception e) {
-            Log.e("BTM_Offline", "Gagal simpan offline: " + e.getMessage());
-            showToast("❌ Gagal simpan offline: " + e.getMessage());
-        }
-    }
-
-    // Send to server dengan offline fallback
     private void sendToServer(Map<String, String> dataMap, String tableType, boolean isPengukuran) {
         new Thread(() -> {
             HttpURLConnection conn = null;
@@ -1221,77 +1728,7 @@ public class InputDataBubbleTilt extends AppCompatActivity {
         }).start();
     }
 
-    // Sync all offline data method
-    private void syncAllOfflineData(Runnable onComplete) {
-        boolean adaData = offlineDb.hasUnsyncedDataBTM();
-        if (!adaData) {
-            if (onComplete != null) onComplete.run();
-            return;
-        }
-
-        syncDataSerial("pengukuran", () ->
-                syncDataSerial("data", onComplete)
-        );
-    }
-
-    private void syncDataSerial(String tableType, Runnable next) {
-        List<Map<String, String>> dataList = offlineDb.getUnsyncedDataBTM(tableType);
-        if (dataList.isEmpty()) {
-            if (next != null) next.run();
-            return;
-        }
-        syncDataItem(tableType, dataList, 0, next);
-    }
-
-    private void syncDataItem(String tableType, List<Map<String, String>> dataList, int index, Runnable onFinish) {
-        if (index >= dataList.size()) {
-            if (onFinish != null) onFinish.run();
-            return;
-        }
-
-        Map<String, String> item = dataList.get(index);
-        String tempId = item.get("temp_id");
-        String jsonStr = item.get("json");
-
-        try {
-            JSONObject jsonData = new JSONObject(jsonStr);
-
-            new Thread(() -> {
-                HttpURLConnection conn = null;
-                try {
-                    URL url = new URL(INSERT_DATA_URL);
-                    conn = (HttpURLConnection) url.openConnection();
-                    conn.setRequestMethod("POST");
-                    conn.setDoOutput(true);
-                    conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-                    conn.setRequestProperty("Accept", "application/json");
-                    conn.setConnectTimeout(9000);
-                    conn.setReadTimeout(9000);
-
-                    OutputStream os = conn.getOutputStream();
-                    os.write(jsonData.toString().getBytes("UTF-8"));
-                    os.flush();
-                    os.close();
-
-                    int responseCode = conn.getResponseCode();
-                    if (responseCode == 200) {
-                        offlineDb.deleteByTempIdBTM(tableType, tempId);
-                        Log.d("BTM_Sync", "Data " + tableType + " tempId=" + tempId + " berhasil disinkronisasi");
-                    }
-                } catch (Exception e) {
-                    Log.e("BTM_Sync", "Error sync " + tableType + " tempId=" + tempId, e);
-                } finally {
-                    if (conn != null) conn.disconnect();
-                }
-
-                runOnUiThread(() -> syncDataItem(tableType, dataList, index + 1, onFinish));
-            }).start();
-
-        } catch (Exception e) {
-            Log.e("BTM_Sync", "JSON parse error untuk data " + tableType + " tempId=" + tempId, e);
-            runOnUiThread(() -> syncDataItem(tableType, dataList, index + 1, onFinish));
-        }
-    }
+    // ==================== METHOD UTILITY ====================
 
     private void showToast(String message) {
         try {
